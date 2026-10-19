@@ -97,6 +97,4 @@ object Ui {
     const val hugeLinesThreshold = 20 // TAIL_LINES 5 * 4
 
     // ---- Throttle / caps --------------------------------------------------
-    const val throttleMs = 100L
-    const val historyCap = 500
 }

@@ -1,0 +1,599 @@
+package com.athea.app.session
+
+import com.athea.app.core.journal.JournalEvent
+import com.athea.app.core.journal.SessionJournal
+import com.athea.app.core.model.Attachment
+import com.athea.app.core.model.FavoriteCommand
+import com.athea.app.core.terminal.EngineEvent
+import com.athea.app.core.terminal.TerminalEngine
+import com.athea.app.data.AtheaSettings
+import com.athea.app.data.AtheaStorage
+import com.athea.app.data.CustomKey
+import com.athea.app.data.FavoritesIndex
+import com.athea.app.data.KeysIndex
+import com.athea.app.data.SessionMeta
+import com.athea.app.data.SessionsIndex
+import com.athea.app.parse.StreamParser
+import com.athea.app.parse.applyTo
+import com.athea.app.transcript.TranscriptBuilder
+import com.athea.app.transcript.TranscriptSearch
+import com.athea.app.util.AtheaLog
+import com.athea.app.util.dropOldestSharedFlow
+import com.athea.app.util.normalizeCommand
+import com.athea.app.util.shellEval
+import com.athea.app.util.trimCommand
+import java.io.ByteArrayOutputStream
+import java.util.concurrent.ConcurrentHashMap
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
+
+/**
+ * Owns live sessions end-to-end: transcripts, journals, terminal backends,
+ * favourites, custom keys, settings and drafts. Platform-free: the Android
+ * view model forwards user intents here and renders [state].
+ *
+ * History survives restarts: journals are replayed into fresh transcripts at
+ * startup, then live shells are attached behind the restored sessions.
+ */
+class Workspace(
+    private val storage: AtheaStorage,
+    private val scope: CoroutineScope,
+    private val engines: EngineFactory,
+    private val defaultSessionName: (Int) -> String,
+    private val dispatcher: CoroutineDispatcher = Dispatchers.Default,
+) {
+
+    private val _state = MutableStateFlow(WorkspaceState())
+    val state: StateFlow<WorkspaceState> = _state.asStateFlow()
+
+    private val _events = dropOldestSharedFlow<WorkspaceEvent>(replay = 1, extraBufferCapacity = 8)
+    val events: SharedFlow<WorkspaceEvent> = _events.asSharedFlow()
+
+    /** Guards every multi-step session mutation against concurrent engine events. */
+    private val lock = Any()
+
+    private val metas = LinkedHashMap<Long, SessionMeta>()
+    private val pipes = LinkedHashMap<Long, SessionPipe>()
+    private val backends = HashMap<Long, TerminalEngine>()
+    private val backendJobs = HashMap<Long, Job>()
+    private val rawQueues = HashMap<Long, Channel<EngineEvent>>()
+    private val nextCommandSeqs = HashMap<Long, Long>()
+
+    /** Submitted command texts per session, newest last (autocomplete source). */
+    private val histories = HashMap<Long, MutableList<String>>()
+
+    /** Sessions with pending transcript refreshes, drained at a fixed rate. */
+    private val dirtySessions = ConcurrentHashMap.newKeySet<Long>()
+
+    private var nextSessionIdValue = 1L
+    private var favoriteCounter = 0L
+
+    init {
+        restore()
+        // Throttled refresh: heavy output produces many batches per second;
+        // without throttling each one would trigger a full recomposition.
+        scope.launch(dispatcher) {
+            while (isActive) {
+                delay(REFRESH_INTERVAL_MS)
+                if (dirtySessions.isEmpty()) continue
+                val toRefresh = dirtySessions.toList()
+                dirtySessions.removeAll(toRefresh)
+                synchronized(lock) {
+                    for (id in toRefresh) refreshSession(id)
+                }
+            }
+        }
+    }
+
+    // ----------------------------------------------------------- restoration
+
+    private fun restore() {
+        val index = storage.loadIndex()
+        val settings = storage.loadSettings()
+        val favorites = storage.loadFavorites()
+        val keys = storage.loadKeys()
+        _state.update {
+            it.copy(settings = settings, favorites = favorites.items, customKeys = keys.items)
+        }
+        favoriteCounter = favorites.nextFavoriteId - 1
+
+        val restored = index.items.map { meta ->
+            val journal = storage.journalFor(meta.id)
+            val events = journal.readAll()
+            val commands = events.filterIsInstance<JournalEvent.CommandSubmitted>()
+            RestoredSession(
+                meta = meta,
+                pipe = SessionPipe(
+                    journal = journal,
+                    parser = StreamParser(),
+                    builder = TranscriptBuilder.replay(events, previewLines = settings.previewLines),
+                ),
+                history = commands.map { it.text }.toMutableList(),
+                nextSeq = (commands.maxOfOrNull { it.seq } ?: 0L) + 1,
+            )
+        }
+        synchronized(lock) {
+            for (session in restored) {
+                val id = session.meta.id
+                metas[id] = session.meta
+                pipes[id] = session.pipe
+                histories[id] = session.history
+                nextCommandSeqs[id] = session.nextSeq
+                attachEngine(id, settings.shellPath)
+                refreshSession(id)
+            }
+            nextSessionIdValue = maxOf(index.nextSessionId, (metas.keys.maxOrNull() ?: 0L) + 1)
+            if (pipes.isEmpty()) {
+                createSessionLocked()
+            } else {
+                _state.update { it.copy(currentSessionId = pipes.keys.first()) }
+            }
+        }
+    }
+
+    // ---------------------------------------------------------- engine events
+
+    private fun attachEngine(id: Long, shellPath: String) {
+        val engine = engines.create(shellPath)
+        if (!engine.start(INITIAL_ROWS, INITIAL_COLS)) {
+            // The session still appears; submissions to it will be dropped.
+            _events.tryEmit(WorkspaceEvent.ShellStartFailed)
+            return
+        }
+        backends[id] = engine
+        // The collector only forwards into an unbounded queue, which can never
+        // drop. A batch worker drains everything queued per iteration: one lock
+        // acquisition, one journal append and one refresh per burst.
+        val queue = Channel<EngineEvent>(Channel.UNLIMITED)
+        rawQueues[id] = queue
+        scope.launch(dispatcher) {
+            engine.events.collect { queue.send(it) }
+        }
+        backendJobs[id] = scope.launch(dispatcher) {
+            while (isActive) {
+                val batch = ArrayList<EngineEvent>(8)
+                batch.add(queue.receive())
+                while (true) batch.add(queue.tryReceive().getOrNull() ?: break)
+                // One dead event must never kill the pipeline forever.
+                try {
+                    processBatch(id, batch)
+                } catch (e: Exception) {
+                    AtheaLog.error("pipeline", "processBatch failed", e)
+                }
+            }
+        }
+    }
+
+    private fun processBatch(id: Long, batch: List<EngineEvent>) {
+        // Pure CPU and disk work, outside the lock. The pipe is removed only in
+        // deleteSession, which cancels this worker first.
+        val pipe = pipes[id] ?: return
+        var shellExited = false
+        var exitCode = -1
+        val output = ByteArrayOutputStream()
+        for (event in batch) {
+            when (event) {
+                is EngineEvent.Output -> output.write(event.data)
+                is EngineEvent.Exited -> {
+                    shellExited = true
+                    exitCode = event.exitCode
+                }
+            }
+        }
+        val bytes = output.toByteArray().takeIf { it.isNotEmpty() }
+        // The journal and the parser are per-session with a single writer each.
+        val parsed = if (bytes == null) {
+            emptyList()
+        } else {
+            pipe.journal.append(JournalEvent.OutputArrived(bytes))
+            pipe.parser.feed(bytes)
+        }
+
+        synchronized(lock) {
+            if (pipes[id] == null) return // deleted while parsing
+            for (event in parsed) event.applyTo(pipe.builder)
+            if (shellExited) {
+                pipe.builder.applyCommandEnd(null)
+                _events.tryEmit(WorkspaceEvent.ShellExited(exitCode))
+            }
+            dirtySessions.add(id)
+        }
+    }
+
+    // ---------------------------------------------------------------- sessions
+
+    fun newSession() {
+        synchronized(lock) { createSessionLocked() }
+    }
+
+    fun selectSession(id: Long) {
+        _state.update { it.copy(currentSessionId = id, search = null) }
+    }
+
+    fun renameSession(id: Long, name: String) {
+        val trimmed = name.trim()
+        if (trimmed.isEmpty()) return
+        mutateMeta(id) { it.copy(name = trimmed) }
+    }
+
+    fun togglePin(id: Long) = mutateMeta(id) { it.copy(pinned = !it.pinned) }
+
+    fun deleteSession(id: Long) {
+        synchronized(lock) {
+            if (id !in pipes) return
+            // Pick the successor from the order before removal.
+            val order = pipes.keys.toList()
+            val current = _state.value.currentSessionId
+            val successor = if (current == id) neighbourOf(order, id) else current
+            backends.remove(id)?.terminate()
+            rawQueues.remove(id)?.cancel()
+            backendJobs.remove(id)?.cancel()
+            metas.remove(id)
+            pipes.remove(id)?.journal?.close()
+            nextCommandSeqs.remove(id)
+            histories.remove(id)
+            storage.deleteSession(id)
+            if (pipes.isEmpty()) {
+                createSessionLocked()
+            } else {
+                persistIndexLocked()
+                _state.update { it.copy(currentSessionId = successor, search = null) }
+            }
+            rebuildAllSessions()
+        }
+    }
+
+    private fun neighbourOf(order: List<Long>, id: Long): Long? {
+        val index = order.indexOf(id)
+        return order.getOrNull(index + 1) ?: order.getOrNull(index - 1)
+    }
+
+    // ------------------------------------------------------------------ input
+
+    fun updateDraft(text: String) {
+        val id = _state.value.currentSessionId ?: return
+        // In memory only: a disk write per keystroke is visible as paste jank.
+        // Drafts persist on pause, on send and on session switch instead.
+        mutateMeta(id, persist = false) { it.copy(draft = text) }
+        updateSuggestion(id, text)
+    }
+
+    /** Submits staged attachments, then the draft. Returns false when there was nothing to send. */
+    fun sendDraft(): Boolean {
+        val id = _state.value.currentSessionId ?: return false
+        val attachments = _state.value.attachments
+        synchronized(lock) {
+            val draft = metas[id]?.draft.orEmpty().trimCommand()
+            if (draft.isBlank() && attachments.isEmpty()) return false
+            // Staged files go first, each as its own command.
+            for (attachment in attachments) submit(id, attachment.command)
+            if (draft.isNotBlank()) submit(id, draft)
+            mutateMeta(id) { it.copy(draft = "") }
+        }
+        if (attachments.isNotEmpty()) _state.update { it.copy(attachments = emptyList()) }
+        persistTransientState()
+        return true
+    }
+
+    /** Runs a favourite or key payload straight to the shell. Returns false when there was nothing to run. */
+    fun executeDirectly(command: String): Boolean {
+        val id = _state.value.currentSessionId ?: return false
+        val text = command.trimCommand()
+        if (text.isBlank()) return false
+        submit(id, text)
+        return true
+    }
+
+    /** Appends text to the draft, e.g. a favourite that should be edited before running. */
+    fun insertIntoDraft(text: String) {
+        val id = _state.value.currentSessionId ?: return
+        mutateMeta(id) { it.copy(draft = it.draft + text) }
+    }
+
+    /** Tab with a visible suggestion: take the whole command. */
+    fun acceptSuggestion() {
+        val id = _state.value.currentSessionId ?: return
+        val suggestion = _state.value.suggestion ?: return
+        mutateMeta(id) { it.copy(draft = suggestion) }
+        _state.update { it.copy(suggestion = null) }
+    }
+
+    /** Raw bytes to the current shell, bypassing the draft (key row). */
+    fun sendRaw(payload: String) {
+        val id = _state.value.currentSessionId ?: return
+        val backend = synchronized(lock) { backends[id] } ?: return
+        backend.write(payload.toByteArray(Charsets.UTF_8))
+    }
+
+    fun onAreaResized(rows: Int, cols: Int) {
+        val id = _state.value.currentSessionId ?: return
+        val backend = synchronized(lock) { backends[id] } ?: return
+        backend.resize(rows.coerceAtLeast(1), cols.coerceAtLeast(1))
+    }
+
+    /**
+     * Ghost-text suggestion: the newest history command that extends the
+     * current draft, zsh-autosuggestions style.
+     */
+    private fun updateSuggestion(id: Long, draft: String) {
+        val suggestion = if (!_state.value.settings.autocompleteEnabled || draft.isEmpty()) {
+            null
+        } else {
+            synchronized(lock) {
+                histories[id]?.lastOrNull { it != draft && it.startsWith(draft) }
+            }
+        }
+        _state.update { it.copy(suggestion = suggestion) }
+    }
+
+    private fun submit(id: Long, text: String) {
+        val backend = synchronized(lock) { backends[id] }
+        if (backend == null) {
+            AtheaLog.error("submit", "no engine for session $id")
+            return
+        }
+        val seq = synchronized(lock) {
+            val pipe = pipes[id] ?: return
+            val seq = nextCommandSeqs[id] ?: return
+            nextCommandSeqs[id] = seq + 1
+            pipe.journal.append(
+                JournalEvent.CommandSubmitted(seq = seq, text = text, timestampMs = System.currentTimeMillis()),
+            )
+            pipe.builder.applyCommandSubmitted(seq, text)
+            val history = histories.getOrPut(id) { mutableListOf() }
+            history.add(text)
+            if (history.size > HISTORY_CAP) history.removeAt(0)
+            refreshSession(id)
+            seq
+        }
+        val payload = text.shellEval()
+        AtheaLog.log("submit", "seq=$seq payloadSize=${payload.length}")
+        backend.write(payload.toByteArray(Charsets.UTF_8))
+    }
+
+    // ------------------------------------------------------------- favourites
+
+    fun addFavorite(text: String) {
+        val trimmed = text.trimCommand()
+        if (trimmed.isEmpty()) return
+        synchronized(lock) {
+            val current = _state.value.favorites
+            if (current.any { it.text == trimmed }) return
+            saveFavorites(current + FavoriteCommand(id = ++favoriteCounter, text = trimmed))
+        }
+    }
+
+    fun updateFavorite(id: Long, text: String) {
+        val trimmed = text.normalizeCommand()
+        if (trimmed.isEmpty()) return
+        synchronized(lock) {
+            val current = _state.value.favorites
+            if (current.any { it.id == id && it.text == trimmed }) return
+            saveFavorites(current.map { if (it.id == id) it.copy(text = trimmed) else it })
+        }
+    }
+
+    fun deleteFavorite(id: Long) {
+        synchronized(lock) {
+            saveFavorites(_state.value.favorites.filterNot { it.id == id })
+        }
+    }
+
+    private fun saveFavorites(items: List<FavoriteCommand>) {
+        storage.saveFavorites(FavoritesIndex(items = items, nextFavoriteId = favoriteCounter + 1))
+        _state.update { it.copy(favorites = items) }
+    }
+
+    // -------------------------------------------------------------- key row
+
+    fun setCustomKeys(keys: List<CustomKey>) {
+        storage.saveKeys(KeysIndex(items = keys))
+        _state.update { it.copy(customKeys = keys) }
+    }
+
+    // ----------------------------------------------------------- attachments
+
+    fun stageAttachment(attachment: Attachment) {
+        _state.update { it.copy(attachments = it.attachments + attachment) }
+    }
+
+    fun removeAttachment(attachment: Attachment) {
+        _state.update { it.copy(attachments = it.attachments - attachment) }
+    }
+
+    // ----------------------------------------------------------------- search
+
+    fun enterSearch() {
+        _state.update { it.copy(search = SearchState()) }
+    }
+
+    fun exitSearch() {
+        _state.update { it.copy(search = null) }
+    }
+
+    /** Re-runs the search over the current session. Returns the first match to reveal, if any. */
+    fun setSearchQuery(query: String): String? {
+        val id = _state.value.currentSessionId ?: return null
+        val blocks = _state.value.sessions.firstOrNull { it.id == id }?.blocks.orEmpty()
+        val matches = TranscriptSearch.matchingBlockIds(blocks, query)
+        _state.update { st ->
+            st.copy(
+                search = (st.search ?: SearchState()).copy(query = query, matchBlockIds = matches, index = 0),
+            )
+        }
+        return matches.firstOrNull()
+    }
+
+    /** Advances to the next match, wrapping around. Returns the block to reveal. */
+    fun nextSearchMatch(): String? {
+        val search = _state.value.search ?: return null
+        if (search.matchBlockIds.isEmpty()) return null
+        val nextIndex = (search.index + 1) % search.matchBlockIds.size
+        _state.update { st -> st.copy(search = st.search?.copy(index = nextIndex)) }
+        return search.matchBlockIds[nextIndex]
+    }
+
+    // ------------------------------------------------------- block interaction
+
+    fun toggleBlock(blockId: String) {
+        val id = _state.value.currentSessionId ?: return
+        synchronized(lock) {
+            pipes[id]?.builder?.toggleExpanded(blockId)
+            refreshSession(id)
+        }
+    }
+
+    /** Expands a block without collapsing anything (search navigation). */
+    fun revealBlock(blockId: String) {
+        val id = _state.value.currentSessionId ?: return
+        synchronized(lock) {
+            pipes[id]?.builder?.reveal(blockId)
+            refreshSession(id)
+        }
+    }
+
+    // --------------------------------------------------------------- settings
+
+    /**
+     * Applies a settings change, keeps every live view consistent with it and
+     * persists the result. Bounds are enforced here, once, for every caller.
+     */
+    fun updateSettings(transform: (AtheaSettings) -> AtheaSettings) {
+        synchronized(lock) {
+            val before = _state.value.settings
+            val after = transform(before).withinBounds()
+            if (after == before) return
+            _state.update {
+                it.copy(
+                    settings = after,
+                    suggestion = if (after.autocompleteEnabled) it.suggestion else null,
+                )
+            }
+            if (after.previewLines != before.previewLines) {
+                pipes.values.forEach { it.builder.applyPreviewLines(after.previewLines) }
+            }
+            if (after.previewLines != before.previewLines || after.rawStream != before.rawStream) {
+                for (id in pipes.keys.toList()) refreshSession(id)
+            }
+            storage.saveSettings(after)
+        }
+    }
+
+    private fun AtheaSettings.withinBounds(): AtheaSettings = copy(
+        outputFontSizeSp = outputFontSizeSp.coerceIn(10, 22),
+        previewLines = previewLines.coerceIn(1, 10),
+        bubbleFontSizeSp = bubbleFontSizeSp.coerceIn(12, 24),
+    )
+
+    // ------------------------------------------------------------ persistence
+
+    /** Persists metadata (names, drafts, pins). Call on pause and before shutdown. */
+    fun persistTransientState() {
+        synchronized(lock) { persistIndexLocked() }
+    }
+
+    /** Stops every shell and closes every journal. */
+    fun close() {
+        synchronized(lock) {
+            backends.values.forEach { it.terminate() }
+            rawQueues.values.forEach { it.cancel() }
+            pipes.values.forEach { it.journal.close() }
+        }
+    }
+
+    // ------------------------------------------------------------- internals
+
+    private fun createSessionLocked() {
+        val settings = _state.value.settings
+        val id = nextSessionIdValue++
+        metas[id] = SessionMeta(id = id, name = defaultSessionName(pipes.size + 1))
+        histories[id] = mutableListOf()
+        val journal = storage.journalFor(id)
+        pipes[id] = SessionPipe(
+            journal = journal,
+            parser = StreamParser(),
+            builder = TranscriptBuilder(previewLines = settings.previewLines),
+        )
+        nextCommandSeqs[id] = journal.nextCommandSeq() + 1
+        attachEngine(id, settings.shellPath)
+        persistIndexLocked()
+        refreshSession(id)
+        _state.update { it.copy(currentSessionId = id, search = null) }
+    }
+
+    private fun mutateMeta(id: Long, persist: Boolean = true, transform: (SessionMeta) -> SessionMeta) {
+        synchronized(lock) {
+            val current = metas[id] ?: return
+            metas[id] = transform(current)
+            if (persist) persistIndexLocked()
+            refreshSession(id)
+        }
+    }
+
+    private fun persistIndexLocked() {
+        val items = metas.values.sortedBy { it.id }
+        val nextId = maxOf(nextSessionIdValue, (items.maxOfOrNull { it.id } ?: 0L) + 1)
+        nextSessionIdValue = nextId
+        storage.saveIndex(SessionsIndex(items = items, nextSessionId = nextId))
+    }
+
+    private fun refreshSession(id: Long) {
+        val pipe = pipes[id] ?: return
+        val meta = metas[id] ?: return
+        val rawStream = _state.value.settings.rawStream
+        val snapshot = pipe.builder.snapshot(displayRaw = rawStream)
+        val view = SessionView(
+            id = meta.id,
+            name = meta.name,
+            pinned = meta.pinned,
+            rawStream = rawStream,
+            draft = meta.draft,
+            blocks = snapshot.blocks,
+            running = snapshot.running,
+            rawText = snapshot.rawText,
+        )
+        _state.update { st ->
+            val sessions = st.sessions.toMutableList()
+            val index = sessions.indexOfFirst { it.id == id }
+            if (index >= 0) sessions[index] = view else sessions.add(view)
+            st.copy(sessions = sessions)
+        }
+    }
+
+    private fun rebuildAllSessions() {
+        for (id in pipes.keys.toList()) refreshSession(id)
+        _state.update { st -> st.copy(sessions = st.sessions.filter { it.id in pipes }) }
+    }
+
+    private class SessionPipe(
+        val journal: SessionJournal,
+        val parser: StreamParser,
+        val builder: TranscriptBuilder,
+    )
+
+    private class RestoredSession(
+        val meta: SessionMeta,
+        val pipe: SessionPipe,
+        val history: MutableList<String>,
+        val nextSeq: Long,
+    )
+
+    private companion object {
+        const val INITIAL_ROWS = 24
+        const val INITIAL_COLS = 80
+        const val HISTORY_CAP = 500
+        const val REFRESH_INTERVAL_MS = 100L
+    }
+}

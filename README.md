@@ -36,24 +36,26 @@ sessions.
 
 ## Layers
 
+Athea is two Gradle modules. `:core` is plain Kotlin with no Android or Compose
+dependency and carries the unit tests. `:app` is the Android shell around it.
+
 ```
-engine/          NativeShellEngine, SshShellEngine, PtyBridge (JNI → pty.c)
-      │  EngineEvent.Output / EngineEvent.Exited
-core/terminal/   TerminalEngine — the only interface the UI knows
-      ▼
-parse/           StreamParser — pure Kotlin. UTF-8 across chunk boundaries,
-                 ANSI SGR → spans, CR semantics, OSC 133 recognition
-      │  StreamEvent.Text / OutputBegin / CommandEnd
-transcript/      TranscriptBuilder — pure Kotlin. Events → blocks, collapse
-                 rules, raw projection. Deterministic: same events, same
-                 transcript
-      ▼
-ui/              Compose. Reads an immutable UiState, sends intents.
+core/            pure JVM, tested without a device
+  terminal/      TerminalEngine — the only interface a shell backend implements
+  parse/         StreamParser — UTF-8 across chunks, SGR → styled spans, OSC 133
+  transcript/    TranscriptBuilder — events → blocks, collapse rules, raw projection
+  session/       Workspace — sessions, drafts, history, favourites, settings
+  core/journal/  SessionJournal — append-only binary log, replayed on start
+app/             Android
+  engine/        NativeShellEngine (PTY via JNI), SshShellEngine (stub)
+  ui/            MainViewModel adapts Workspace to Compose; ui/main renders it
 ```
 
-`parse/` and `transcript/` have no Android dependencies and carry the unit
-tests. That is deliberate: they are where correctness lives, and they are
-testable without a device.
+The core is deterministic: the same journal events always produce the same
+transcript, which is how sessions survive application restarts. Everything
+platform-specific (PTY, Compose, Android logging) sits behind an interface or in
+`app/`, so a different terminal backend replaces `engine/` without touching the
+core or the screens.
 
 ## Known limits
 
@@ -80,7 +82,7 @@ Requires JDK 21, Android SDK 35, NDK 26.1.10909125. There is no Gradle wrapper
 checked in; CI installs Gradle 8.9.
 
 ```bash
-gradle :app:testDebugUnitTest :app:assembleDebug :app:assembleRelease
+gradle :core:test :app:testDebugUnitTest :app:assembleDebug :app:assembleRelease
 ```
 
 `ci/emulator_run.sh` drives the debug APK on an emulator: installs, launches,

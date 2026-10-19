@@ -50,7 +50,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.athea.app.R
-import com.athea.app.ui.SessionUi
+import com.athea.app.session.SessionView
 import com.athea.app.ui.common.AtheaMenuHost
 import com.athea.app.ui.common.AtheaPill
 import com.athea.app.ui.common.AtheaPillIcon
@@ -63,7 +63,7 @@ import com.athea.app.ui.theme.Ui
  */
 @Composable
 fun SessionsDrawerContent(
-    sessions: List<SessionUi>,
+    sessions: List<SessionView>,
     currentSessionId: Long?,
     onSelectSession: (Long) -> Unit,
     onRenameSession: (Long) -> Unit,
@@ -168,7 +168,7 @@ fun SessionsDrawerContent(
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun SessionRow(
-    session: SessionUi,
+    session: SessionView,
     selected: Boolean,
     onSelect: () -> Unit,
     onRename: () -> Unit,

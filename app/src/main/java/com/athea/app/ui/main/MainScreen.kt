@@ -51,7 +51,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.athea.app.R
 import com.athea.app.data.KeyKind
 import com.athea.app.ui.MainViewModel
-import com.athea.app.ui.UiEvent
+import com.athea.app.session.WorkspaceEvent
 import com.athea.app.ui.UiState
 import com.athea.app.ui.common.AtheaDialogContainer
 import com.athea.app.ui.theme.LocalMessageFontSize
@@ -196,10 +196,10 @@ private fun MainScreenContent(viewModel: MainViewModel, state: UiState) {
     LaunchedEffect(viewModel) {
         viewModel.events.collect { event ->
             val message = when (event) {
-                UiEvent.ShellStartFailed ->
+                WorkspaceEvent.ShellStartFailed ->
                     context.getString(R.string.shell_start_failed)
 
-                is UiEvent.ShellExited ->
+                is WorkspaceEvent.ShellExited ->
                     context.getString(R.string.shell_exited, event.exitCode)
             }
             android.widget.Toast.makeText(context, message, android.widget.Toast.LENGTH_SHORT)

@@ -12,8 +12,10 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.athea.app.ui.theme.Ui
+import com.athea.app.ui.theme.glass
 
 /**
  * The one floating round button (TopBar drawer toggle, scaffold back, ...):
@@ -28,8 +30,8 @@ fun AtheaRoundButton(
     Surface(
         onClick = onClick,
         shape = CircleShape,
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        modifier = modifier,
+        color = Color.Transparent,
+        modifier = modifier.glass(CircleShape),
     ) {
         Box(Modifier.size(Ui.topButtonSize), contentAlignment = Alignment.Center) {
             content()
@@ -48,8 +50,8 @@ fun AtheaPill(
 ) {
     Surface(
         shape = Ui.pillShape,
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        modifier = modifier,
+        color = Color.Transparent,
+        modifier = modifier.glass(Ui.pillShape),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, content = content)
     }

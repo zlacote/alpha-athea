@@ -6,6 +6,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.unit.dp
 import com.athea.app.core.model.CommandBlock
 import com.athea.app.core.model.OutputBlock
+import com.athea.app.session.SessionView
 import com.athea.app.text.StyledText
 import com.athea.app.transcript.BlockView
 import com.athea.app.ui.main.TranscriptView
@@ -25,7 +26,7 @@ class TranscriptViewTest {
 
     @Test
     fun commandBubbleIsDisplayed() {
-        val session = SessionUi(
+        val session = SessionView(
             id = 1, name = "test", pinned = false,
             rawStream = false,
             draft = "", rawText = "", running = false,

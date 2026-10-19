@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RectangleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -19,6 +20,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.sp
 import com.athea.app.ui.common.EqualCellStrip
 import com.athea.app.ui.theme.Ui
+import com.athea.app.ui.theme.glass
 import com.athea.app.util.isCtrlCombinable
 import com.athea.app.util.toControlChar
 
@@ -71,8 +73,8 @@ fun KeyRow(
     // width is owned by EqualCellStrip, so KeyRow carries no viewport logic
     // itself. One strip, one scroll state, one place to reason about.
     Surface(
-        color = MaterialTheme.colorScheme.surfaceContainer,
-        modifier = modifier.fillMaxWidth(),
+        color = Color.Transparent,
+        modifier = modifier.fillMaxWidth().glass(RectangleShape, lit = false),
     ) {
         EqualCellStrip(
             items = keys,

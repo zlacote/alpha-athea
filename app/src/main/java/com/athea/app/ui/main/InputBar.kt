@@ -52,8 +52,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.athea.app.R
 import com.athea.app.core.model.Attachment
-import com.athea.app.ui.SearchState
+import com.athea.app.session.SearchState
 import com.athea.app.ui.theme.Ui
+import com.athea.app.ui.theme.glass
 import com.athea.app.ui.theme.messageStyle
 
 
@@ -143,10 +144,11 @@ private fun DraftPanel(
 
     Surface(
         shape = Ui.panelShape,
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        color = Color.Transparent,
         modifier = modifier
             .fillMaxWidth()
-            .barPadding(),
+            .barPadding()
+            .glass(Ui.panelShape),
     ) {
         Column(Modifier.padding(horizontal = 4.dp, vertical = 4.dp)) {
             if (attachments.isNotEmpty()) {
@@ -349,10 +351,11 @@ private fun SearchPanel(
 ) {
     Surface(
         shape = Ui.panelShape,
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        color = Color.Transparent,
         modifier = modifier
             .fillMaxWidth()
-            .barPadding(),
+            .barPadding()
+            .glass(Ui.panelShape),
     ) {
         Row(
             Modifier.padding(horizontal = 6.dp, vertical = 6.dp),

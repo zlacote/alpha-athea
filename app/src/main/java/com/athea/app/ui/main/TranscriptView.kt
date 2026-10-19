@@ -70,8 +70,8 @@ import com.athea.app.R
 import com.athea.app.core.model.CommandBlock
 import com.athea.app.core.model.OutputBlock
 import com.athea.app.transcript.BlockView
-import com.athea.app.ui.SearchState
-import com.athea.app.ui.SessionUi
+import com.athea.app.session.SearchState
+import com.athea.app.session.SessionView
 import com.athea.app.ui.common.AtheaMenuHost
 import com.athea.app.ui.common.rememberAtheaMenu
 import com.athea.app.ui.theme.CodeStyle
@@ -103,7 +103,7 @@ private sealed interface DisplayItem {
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun TranscriptView(
-    session: SessionUi,
+    session: SessionView,
     search: SearchState?,
     scrollRequests: Flow<String>,
     jumpToBottom: Flow<Unit>,
