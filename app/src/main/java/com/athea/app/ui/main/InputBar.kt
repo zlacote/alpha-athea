@@ -54,7 +54,9 @@ import com.athea.app.R
 import com.athea.app.core.model.Attachment
 import com.athea.app.session.SearchState
 import com.athea.app.ui.theme.Ui
+import com.athea.app.ui.theme.LensRegion
 import com.athea.app.ui.theme.glass
+import com.athea.app.ui.theme.lensAnchor
 import com.athea.app.ui.theme.messageStyle
 
 
@@ -79,6 +81,7 @@ fun InputBar(
     onSearchNext: () -> Unit,
     onExitSearch: () -> Unit,
     enterSends: Boolean,
+    composerLens: LensRegion? = null,
     modifier: Modifier = Modifier,
 ) {
     if (search == null) {
@@ -92,6 +95,7 @@ fun InputBar(
             onAddClick = onAddClick,
             onRemoveAttachment = onRemoveAttachment,
             enterSends = enterSends,
+            lens = composerLens,
             modifier = modifier,
         )
     } else {
@@ -132,6 +136,7 @@ private fun DraftPanel(
     onAddClick: () -> Unit,
     onRemoveAttachment: (Attachment) -> Unit,
     enterSends: Boolean,
+    lens: LensRegion?,
     modifier: Modifier = Modifier,
 ) {
     var lineCount by remember { mutableStateOf(1) }
@@ -148,6 +153,7 @@ private fun DraftPanel(
         modifier = modifier
             .fillMaxWidth()
             .barPadding()
+            .then(if (lens != null) Modifier.lensAnchor(lens) else Modifier)
             .glass(Ui.panelShape, animated = false),
     ) {
         Column(Modifier.padding(horizontal = 4.dp, vertical = 4.dp)) {

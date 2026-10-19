@@ -54,7 +54,10 @@ import com.athea.app.ui.MainViewModel
 import com.athea.app.session.WorkspaceEvent
 import com.athea.app.ui.UiState
 import com.athea.app.ui.common.AtheaDialogContainer
+import com.athea.app.ui.theme.LensRegion
+import com.athea.app.ui.theme.LiquidLayer
 import com.athea.app.ui.theme.LocalMessageFontSize
+import com.athea.app.ui.theme.rememberLensRegion
 import com.athea.app.ui.theme.LocalOutputFontSize
 import com.athea.app.ui.theme.Ui
 import com.athea.app.util.copyToClipboard
@@ -191,6 +194,7 @@ private fun MainScreenContent(viewModel: MainViewModel, state: UiState) {
     val context = LocalContext.current
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
+    val composerLens = rememberLensRegion(Ui.panelRadius)
 
     // Native toasts: the system renders them, no custom surfaces needed.
     LaunchedEffect(viewModel) {
@@ -251,6 +255,7 @@ private fun MainScreenContent(viewModel: MainViewModel, state: UiState) {
                 // (InputBar + key row) floats above it for both the
                 // session and the empty state, wired in exactly one place.
             if (current != null) {
+                LiquidLayer(composerLens, Modifier.fillMaxSize()) {
                     // Peek-through: let transcript peek behind InputBar margins with dimming; keep last line above KeyRow only
                     val overlayBottom = 72.dp + Ui.contentPaddingV
                     TranscriptView(
@@ -292,12 +297,14 @@ private fun MainScreenContent(viewModel: MainViewModel, state: UiState) {
                             ),
                     )
                 }
+                }
 
                 BottomBar(
                     viewModel = viewModel,
                     state = state,
                     draft = if (current != null) current.draft.orEmpty() else "",
                     suggestion = if (state.workspace.search == null) state.workspace.suggestion else null,
+                    composerLens = composerLens,
                     modifier = Modifier
                         .align(Alignment.BottomStart)
                         .fillMaxWidth(),
@@ -388,6 +395,7 @@ private fun BottomBar(
     state: UiState,
     draft: String,
     suggestion: String?,
+    composerLens: LensRegion,
     modifier: Modifier = Modifier,
 ) {
     // One column aligned to the bottom edge: the composer sits directly above
@@ -408,6 +416,7 @@ private fun BottomBar(
             onSearchNext = viewModel::nextSearchMatch,
             onExitSearch = viewModel::exitSearch,
             enterSends = state.workspace.settings.enterSends,
+            composerLens = composerLens,
         )
         if (state.workspace.settings.keyRowVisible && state.workspace.search == null) {
             val keys = remember(state.workspace.customKeys) { keyRowKeys(state) }

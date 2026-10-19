@@ -12,7 +12,8 @@ object Ui {
     // ---- Shapes -----------------------------------------------------------
     val menuShape = RoundedCornerShape(24.dp)
     val bubbleShape = RoundedCornerShape(22.dp)
-    val panelShape = RoundedCornerShape(28.dp)
+    val panelRadius = 28.dp
+    val panelShape = RoundedCornerShape(panelRadius)
     val attachmentShape = RoundedCornerShape(14.dp)
     val dialogShape = RoundedCornerShape(20.dp)
     val pillShape = RoundedCornerShape(50.dp)
