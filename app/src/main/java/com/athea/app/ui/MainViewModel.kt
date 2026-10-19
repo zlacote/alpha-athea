@@ -9,8 +9,6 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.athea.app.R
 import com.athea.app.core.model.Attachment
-import com.athea.app.core.model.FavoriteCommand
-import com.athea.app.core.model.PREVIEW_LINES
 import com.athea.app.core.terminal.TerminalEngine
 import com.athea.app.data.AtheaStorage
 import com.athea.app.data.CustomKey
@@ -18,8 +16,6 @@ import com.athea.app.engine.NativeShellEngine
 import com.athea.app.engine.SshShellEngine
 import com.athea.app.session.Attachments
 import com.athea.app.session.EngineFactory
-import com.athea.app.session.SearchState
-import com.athea.app.session.SessionView
 import com.athea.app.session.Workspace
 import com.athea.app.session.WorkspaceEvent
 import com.athea.app.session.WorkspaceState
@@ -27,6 +23,7 @@ import com.athea.app.util.AtheaLog
 import com.athea.app.util.dropOldestSharedFlow
 import java.io.File
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -34,24 +31,14 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-/** Everything the main screen renders: the workspace projection plus presentation-only flags. */
+/**
+ * Everything the main screen renders: the workspace projection plus the
+ * presentation-only flags that never leave the view model.
+ */
 data class UiState(
-    val sessions: List<SessionView> = emptyList(),
-    val currentSessionId: Long? = null,
-    val favorites: List<FavoriteCommand> = emptyList(),
-    val search: SearchState? = null,
+    val workspace: WorkspaceState = WorkspaceState(),
     val editorExpanded: Boolean = false,
     val stickyCtrl: Boolean = false,
-    val keyRowVisible: Boolean = true,
-    val enterSends: Boolean = true,
-    val outputFontSizeSp: Int = 13,
-    val autoScrollOnSend: Boolean = true,
-    val rawStream: Boolean = false,
-    val autocompleteEnabled: Boolean = true,
-    val pinchZoomEnabled: Boolean = true,
-    val previewLines: Int = PREVIEW_LINES,
-    val bubbleFontSizeSp: Int = 16,
-    val virtualizeLargeOutput: Boolean = false,
     val showSettings: Boolean = false,
     val showFavorites: Boolean = false,
     val showAttachChooser: Boolean = false,
@@ -59,9 +46,6 @@ data class UiState(
     val renameTargetId: Long? = null,
     val deleteTargetId: Long? = null,
     val selectTextPayload: String? = null,
-    val suggestion: String? = null,
-    val customKeys: List<CustomKey> = emptyList(),
-    val attachments: List<Attachment> = emptyList(),
 )
 
 /**
@@ -83,7 +67,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _state = MutableStateFlow(UiState())
     val state: StateFlow<UiState> = _state
 
-    val events: SharedFlow<WorkspaceEvent> = workspace.events
+    val events: Flow<WorkspaceEvent> = workspace.events
 
     /** One-shot requests to scroll the transcript to a block (search jumps). */
     private val _scrollRequests = dropOldestSharedFlow<String>(extraBufferCapacity = 8)
@@ -95,7 +79,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     init {
         viewModelScope.launch {
-            workspace.state.collect { projection -> _state.update { it.mirror(projection) } }
+            workspace.state.collect { projection -> _state.update { it.copy(workspace = projection) } }
         }
     }
 
@@ -134,7 +118,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     /** Deleting a session with a running command asks first. */
     fun requestDelete(id: Long) {
-        val running = _state.value.sessions.any { it.id == id && it.running }
+        val running = _state.value.workspace.sessions.any { it.id == id && it.running }
         if (running) {
             _state.update { it.copy(deleteTargetId = id) }
         } else {
@@ -171,7 +155,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun jumpIfEnabled() {
-        if (_state.value.autoScrollOnSend) _jumpToBottom.tryEmit(Unit)
+        if (workspace.state.value.settings.autoScrollOnSend) _jumpToBottom.tryEmit(Unit)
     }
 
     fun insertIntoDraft(text: String) = workspace.insertIntoDraft(text)
@@ -245,7 +229,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun setShowKeyBuilder(visible: Boolean) = _state.update { it.copy(showKeyBuilder = visible) }
 
-    fun addCustomKey(key: CustomKey) = workspace.setCustomKeys(_state.value.customKeys + key)
+    fun addCustomKey(key: CustomKey) = workspace.setCustomKeys(workspace.state.value.customKeys + key)
 
     /** Replaces the whole key row (used by the settings editor). */
     fun setCustomKeys(keys: List<CustomKey>) = workspace.setCustomKeys(keys)
@@ -328,24 +312,3 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         override fun <T : ViewModel> create(modelClass: Class<T>): T = MainViewModel(app) as T
     }
 }
-
-/** Copies the workspace projection into the screen state; presentation flags are kept. */
-private fun UiState.mirror(projection: WorkspaceState): UiState = copy(
-    sessions = projection.sessions,
-    currentSessionId = projection.currentSessionId,
-    favorites = projection.favorites,
-    customKeys = projection.customKeys,
-    attachments = projection.attachments,
-    search = projection.search,
-    suggestion = projection.suggestion,
-    keyRowVisible = projection.settings.keyRowVisible,
-    enterSends = projection.settings.enterSends,
-    outputFontSizeSp = projection.settings.outputFontSizeSp,
-    autoScrollOnSend = projection.settings.autoScrollOnSend,
-    rawStream = projection.settings.rawStream,
-    autocompleteEnabled = projection.settings.autocompleteEnabled,
-    pinchZoomEnabled = projection.settings.pinchZoomEnabled,
-    previewLines = projection.settings.previewLines,
-    bubbleFontSizeSp = projection.settings.bubbleFontSizeSp,
-    virtualizeLargeOutput = projection.settings.virtualizeLargeOutput,
-)

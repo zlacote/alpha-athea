@@ -16,7 +16,9 @@ import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.flow.first
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -153,6 +155,28 @@ class WorkspaceTest {
         assertEquals(10, reloaded.previewLines)
     }
 
+    @Test
+    fun `typing a draft keeps the transcript block list`() = runTest {
+        val ws = workspace()
+        ws.updateDraft("ls -la")
+        ws.sendDraft()
+        val before = ws.state.value.sessions.single().blocks
+
+        ws.updateDraft("ls -la /tmp")
+
+        assertSame(before, ws.state.value.sessions.single().blocks)
+        assertEquals("ls -la /tmp", ws.state.value.sessions.single().draft)
+    }
+
+    @Test
+    fun `shell exit waits in the queue until someone collects it`() = runTest {
+        val ws = workspace()
+        started.single().exit(3)
+        runCurrent()
+
+        assertEquals(WorkspaceEvent.ShellExited(3), ws.events.first())
+    }
+
     /** Terminal backend that only records what was written and lets the test push output. */
     private class FakeEngine : TerminalEngine {
         private val output = MutableSharedFlow<EngineEvent>(extraBufferCapacity = 64)
@@ -180,6 +204,10 @@ class WorkspaceTest {
 
         suspend fun printOutput(text: String) {
             output.emit(EngineEvent.Output(text.toByteArray()))
+        }
+
+        suspend fun exit(code: Int) {
+            output.emit(EngineEvent.Exited(code))
         }
     }
 }

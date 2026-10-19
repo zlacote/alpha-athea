@@ -18,7 +18,6 @@ import com.athea.app.parse.applyTo
 import com.athea.app.transcript.TranscriptBuilder
 import com.athea.app.transcript.TranscriptSearch
 import com.athea.app.util.AtheaLog
-import com.athea.app.util.dropOldestSharedFlow
 import com.athea.app.util.normalizeCommand
 import com.athea.app.util.shellEval
 import com.athea.app.util.trimCommand
@@ -28,13 +27,14 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -58,8 +58,16 @@ class Workspace(
     private val _state = MutableStateFlow(WorkspaceState())
     val state: StateFlow<WorkspaceState> = _state.asStateFlow()
 
-    private val _events = dropOldestSharedFlow<WorkspaceEvent>(replay = 1, extraBufferCapacity = 8)
-    val events: SharedFlow<WorkspaceEvent> = _events.asSharedFlow()
+    /**
+     * One-shot notifications. Each event is delivered to exactly one collector
+     * and waits in the queue until someone collects it, so a rotation does not
+     * replay an old toast.
+     */
+    private val eventQueue = Channel<WorkspaceEvent>(
+        capacity = EVENT_QUEUE_CAPACITY,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST,
+    )
+    val events: Flow<WorkspaceEvent> = eventQueue.receiveAsFlow()
 
     /** Guards every multi-step session mutation against concurrent engine events. */
     private val lock = Any()
@@ -149,7 +157,7 @@ class Workspace(
         val engine = engines.create(shellPath)
         if (!engine.start(INITIAL_ROWS, INITIAL_COLS)) {
             // The session still appears; submissions to it will be dropped.
-            _events.tryEmit(WorkspaceEvent.ShellStartFailed)
+            eventQueue.trySend(WorkspaceEvent.ShellStartFailed)
             return
         }
         backends[id] = engine
@@ -206,7 +214,7 @@ class Workspace(
             for (event in parsed) event.applyTo(pipe.builder)
             if (shellExited) {
                 pipe.builder.applyCommandEnd(null)
-                _events.tryEmit(WorkspaceEvent.ShellExited(exitCode))
+                eventQueue.trySend(WorkspaceEvent.ShellExited(exitCode))
             }
             dirtySessions.add(id)
         }
@@ -264,9 +272,17 @@ class Workspace(
 
     fun updateDraft(text: String) {
         val id = _state.value.currentSessionId ?: return
-        // In memory only: a disk write per keystroke is visible as paste jank.
-        // Drafts persist on pause, on send and on session switch instead.
-        mutateMeta(id, persist = false) { it.copy(draft = text) }
+        synchronized(lock) {
+            val current = metas[id] ?: return
+            // In memory only: a disk write per keystroke is visible as paste jank.
+            // Drafts persist on pause, on send and on session switch instead.
+            // Only the draft changes: the transcript keeps its block list, so the
+            // transcript view does not redo its layout work on every key press.
+            metas[id] = current.copy(draft = text)
+            _state.update { st ->
+                st.copy(sessions = st.sessions.map { if (it.id == id) it.copy(draft = text) else it })
+            }
+        }
         updateSuggestion(id, text)
     }
 
@@ -595,5 +611,6 @@ class Workspace(
         const val INITIAL_COLS = 80
         const val HISTORY_CAP = 500
         const val REFRESH_INTERVAL_MS = 100L
+        const val EVENT_QUEUE_CAPACITY = 16
     }
 }

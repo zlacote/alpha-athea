@@ -78,17 +78,17 @@ fun MainScreen(viewModel: MainViewModel) {
     if (state.showSettings) {
         BackHandler { viewModel.setShowSettings(false) }
         SettingsScreen(
-            keyRowVisible = state.keyRowVisible,
-            enterSends = state.enterSends,
-            autoScrollOnSend = state.autoScrollOnSend,
-            rawStream = state.rawStream,
-            autocompleteEnabled = state.autocompleteEnabled,
-            pinchZoomEnabled = state.pinchZoomEnabled,
-            virtualizeLargeOutput = state.virtualizeLargeOutput,
-            outputFontSizeSp = state.outputFontSizeSp,
-            previewLines = state.previewLines,
-            bubbleFontSizeSp = state.bubbleFontSizeSp,
-            customKeys = state.customKeys,
+            keyRowVisible = state.workspace.settings.keyRowVisible,
+            enterSends = state.workspace.settings.enterSends,
+            autoScrollOnSend = state.workspace.settings.autoScrollOnSend,
+            rawStream = state.workspace.settings.rawStream,
+            autocompleteEnabled = state.workspace.settings.autocompleteEnabled,
+            pinchZoomEnabled = state.workspace.settings.pinchZoomEnabled,
+            virtualizeLargeOutput = state.workspace.settings.virtualizeLargeOutput,
+            outputFontSizeSp = state.workspace.settings.outputFontSizeSp,
+            previewLines = state.workspace.settings.previewLines,
+            bubbleFontSizeSp = state.workspace.settings.bubbleFontSizeSp,
+            customKeys = state.workspace.customKeys,
             onKeyRowVisibleChange = viewModel::setKeyRowVisible,
             onEnterSendsChange = viewModel::setEnterSends,
             onAutoScrollOnSendChange = viewModel::setAutoScrollOnSend,
@@ -110,7 +110,7 @@ fun MainScreen(viewModel: MainViewModel) {
     if (state.showFavorites) {
         BackHandler { viewModel.setShowFavorites(false) }
         FavoritesScreen(
-            favorites = state.favorites,
+            favorites = state.workspace.favorites,
             onBack = { viewModel.setShowFavorites(false) },
             onInsert = viewModel::insertIntoDraft,
             onRun = viewModel::executeDirectly,
@@ -179,8 +179,8 @@ fun MainScreen(viewModel: MainViewModel) {
     }
 
     CompositionLocalProvider(
-        LocalOutputFontSize provides state.outputFontSizeSp,
-        LocalMessageFontSize provides state.bubbleFontSizeSp,
+        LocalOutputFontSize provides state.workspace.settings.outputFontSizeSp,
+        LocalMessageFontSize provides state.workspace.settings.bubbleFontSizeSp,
     ) {
         MainScreenContent(viewModel, state)
     }
@@ -207,7 +207,7 @@ private fun MainScreenContent(viewModel: MainViewModel, state: UiState) {
         }
     }
 
-    val current = state.sessions.firstOrNull { it.id == state.currentSessionId }
+    val current = state.workspace.sessions.firstOrNull { it.id == state.workspace.currentSessionId }
 
     ModalNavigationDrawer(
         drawerState = drawerState,
@@ -215,8 +215,8 @@ private fun MainScreenContent(viewModel: MainViewModel, state: UiState) {
         gesturesEnabled = !state.editorExpanded && state.selectTextPayload == null,
         drawerContent = {
             SessionsDrawerContent(
-                sessions = state.sessions,
-                currentSessionId = state.currentSessionId,
+                sessions = state.workspace.sessions,
+                currentSessionId = state.workspace.currentSessionId,
                 onSelectSession = { id ->
                     viewModel.selectSession(id)
                     scope.launch { drawerState.close() }
@@ -255,14 +255,14 @@ private fun MainScreenContent(viewModel: MainViewModel, state: UiState) {
                     val overlayBottom = 72.dp + Ui.contentPaddingV
                     TranscriptView(
                         session = current,
-                        search = state.search,
+                        search = state.workspace.search,
                         scrollRequests = viewModel.scrollRequests,
                         jumpToBottom = viewModel.jumpToBottom,
-                        previewLines = state.previewLines,
+                        previewLines = state.workspace.settings.previewLines,
                         contentTopPadding = statusBarTop + Ui.topBarContentTop,
                         contentBottomPadding = overlayBottom,
-                        pinchZoomEnabled = state.pinchZoomEnabled,
-                        virtualizeLargeOutput = state.virtualizeLargeOutput,
+                        pinchZoomEnabled = state.workspace.settings.pinchZoomEnabled,
+                        virtualizeLargeOutput = state.workspace.settings.virtualizeLargeOutput,
                         onOutputFontZoom = viewModel::onOutputFontZoom,
                         onToggleBlock = viewModel::toggleBlockCollapsed,
                         onRevealBlock = viewModel::revealBlock,
@@ -297,7 +297,7 @@ private fun MainScreenContent(viewModel: MainViewModel, state: UiState) {
                     viewModel = viewModel,
                     state = state,
                     draft = if (current != null) current.draft.orEmpty() else "",
-                    suggestion = if (state.search == null) state.suggestion else null,
+                    suggestion = if (state.workspace.search == null) state.workspace.suggestion else null,
                     modifier = Modifier
                         .align(Alignment.BottomStart)
                         .fillMaxWidth(),
@@ -354,7 +354,7 @@ private fun MainScreenContent(viewModel: MainViewModel, state: UiState) {
     // ---- Dialogs ---------------------------------------------------------
 
     state.renameTargetId?.let { id ->
-        val target = state.sessions.firstOrNull { it.id == id }
+        val target = state.workspace.sessions.firstOrNull { it.id == id }
         if (target != null) {
             RenameDialog(
                 initialName = target.name,
@@ -365,7 +365,7 @@ private fun MainScreenContent(viewModel: MainViewModel, state: UiState) {
     }
 
     state.deleteTargetId?.let { id ->
-        val target = state.sessions.firstOrNull { it.id == id }
+        val target = state.workspace.sessions.firstOrNull { it.id == id }
         if (target != null) {
             DeleteConfirmDialog(
                 sessionName = target.name,
@@ -397,20 +397,20 @@ private fun BottomBar(
         InputBar(
             draft = draft,
             suggestion = suggestion,
-            attachments = state.attachments,
+            attachments = state.workspace.attachments,
             onDraftChange = viewModel::updateDraft,
             onSend = viewModel::sendDraft,
             onExpandEditor = { viewModel.setEditorExpanded(true) },
             onAddClick = { viewModel.setShowAttachChooser(true) },
             onRemoveAttachment = viewModel::removeAttachment,
-            search = state.search,
+            search = state.workspace.search,
             onSearchQueryChange = viewModel::updateSearchQuery,
             onSearchNext = viewModel::nextSearchMatch,
             onExitSearch = viewModel::exitSearch,
-            enterSends = state.enterSends,
+            enterSends = state.workspace.settings.enterSends,
         )
-        if (state.keyRowVisible && state.search == null) {
-            val keys = remember(state.customKeys) { keyRowKeys(state) }
+        if (state.workspace.settings.keyRowVisible && state.workspace.search == null) {
+            val keys = remember(state.workspace.customKeys) { keyRowKeys(state) }
             KeyRow(
                 keys = keys,
                 stickyCtrl = state.stickyCtrl,
@@ -428,7 +428,7 @@ private fun BottomBar(
 
 /** User-configured keys, or the built-in row when nothing is customized. */
 private fun keyRowKeys(state: UiState): List<TerminalKey> {
-    val custom = state.customKeys
+    val custom = state.workspace.customKeys
     if (custom.isEmpty()) return DefaultKeys.row
     return custom.map { key ->
         TerminalKey(

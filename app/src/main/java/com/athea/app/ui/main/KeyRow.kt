@@ -74,7 +74,7 @@ fun KeyRow(
     // itself. One strip, one scroll state, one place to reason about.
     Surface(
         color = Color.Transparent,
-        modifier = modifier.fillMaxWidth().glass(RectangleShape, lit = false),
+        modifier = modifier.fillMaxWidth().glass(RectangleShape, lit = false, animated = false),
     ) {
         EqualCellStrip(
             items = keys,

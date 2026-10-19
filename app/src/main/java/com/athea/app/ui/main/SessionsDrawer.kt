@@ -186,7 +186,7 @@ private fun SessionRow(
             .fillMaxWidth()
             // Full-bleed selection, like before — edge to edge, no pill.
             .background(
-                if (selected) Color.White.copy(alpha = Glass.FILL_TOP)
+                if (selected) Glass.SELECTED
                 else Color.Transparent
             )
             .combinedClickable(onClick = onSelect, onLongClick = menu::open),
