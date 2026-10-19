@@ -14,9 +14,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.DpOffset
 import com.athea.app.ui.theme.Ui
+import com.athea.app.ui.theme.glass
 
 /**
  * The one menu connector for the whole app: owns the open/close state and
@@ -120,9 +122,9 @@ fun AtheaDropdownMenu(
         if (expanded) {
             androidx.compose.material3.Surface(
                 shape = Ui.menuShape,
-                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                color = Color.Transparent,
                 shadowElevation = Ui.menuElevation,
-                modifier = Modifier.widthIn(min = Ui.menuMinWidth),
+                modifier = Modifier.widthIn(min = Ui.menuMinWidth).glass(Ui.menuShape, strong = true),
             ) {
                 androidx.compose.foundation.layout.Column(content = content)
             }

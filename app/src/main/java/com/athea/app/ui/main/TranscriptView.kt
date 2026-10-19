@@ -54,6 +54,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Brush
@@ -77,8 +78,10 @@ import com.athea.app.ui.common.rememberAtheaMenu
 import com.athea.app.ui.theme.CodeStyle
 import com.athea.app.ui.theme.HighlightColor
 import com.athea.app.ui.theme.OnHighlightColor
+import com.athea.app.ui.theme.Glass
 import com.athea.app.ui.theme.Ui
 import com.athea.app.ui.theme.codeStyle
+import com.athea.app.ui.theme.glass
 import com.athea.app.ui.text.toAnnotated
 import com.athea.app.ui.theme.messageStyle
 import com.athea.app.util.trimCommand
@@ -464,7 +467,7 @@ private fun CommandBubble(
     ) {
         Surface(
             shape = Ui.bubbleShape,
-            color = MaterialTheme.colorScheme.secondaryContainer,
+            color = Color.Transparent,
             border = if (currentMatch) {
                 BorderStroke(1.dp, MaterialTheme.colorScheme.primary)
             } else {
@@ -477,7 +480,8 @@ private fun CommandBubble(
                     // selection; expand/collapse lives on the chevrons.
                     onClick = {},
                     onLongClick = menu::open,
-                ),
+                )
+                .glass(Ui.bubbleShape),
         ) {
             Column(Modifier.padding(start = Ui.bubblePaddingH, end = Ui.bubblePaddingH, top = Ui.bubblePaddingTop, bottom = Ui.bubblePaddingBottom)) {
                 if (collapsed && collapsible) {
@@ -497,7 +501,7 @@ private fun CommandBubble(
                                     Brush.verticalGradient(
                                         listOf(
                                             androidx.compose.ui.graphics.Color.Transparent,
-                                            MaterialTheme.colorScheme.secondaryContainer,
+                                            Glass.CANVAS_TINT,
                                         ),
                                     ),
                                 ),

@@ -46,6 +46,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -55,7 +56,9 @@ import com.athea.app.ui.common.AtheaMenuHost
 import com.athea.app.ui.common.AtheaPill
 import com.athea.app.ui.common.AtheaPillIcon
 import com.athea.app.ui.common.rememberAtheaMenu
+import com.athea.app.ui.theme.Glass
 import com.athea.app.ui.theme.Ui
+import com.athea.app.ui.theme.glass
 
 /**
  * Persistent navigation drawer: sessions on top (pinned first),
@@ -81,10 +84,11 @@ fun SessionsDrawerContent(
     // Surface (not a bare background) so inner text picks up the proper
     // content color instead of the default dark one.
     Surface(
-        color = androidx.compose.ui.graphics.Color.Black,
+        color = Color.Transparent,
         modifier = modifier
             .fillMaxHeight()
-            .fillMaxWidth(Ui.drawerWidthFraction),
+            .fillMaxWidth(Ui.drawerWidthFraction)
+            .glass(RectangleShape, lit = false, strong = true),
     ) {
         Column(
             Modifier
@@ -182,8 +186,8 @@ private fun SessionRow(
             .fillMaxWidth()
             // Full-bleed selection, like before — edge to edge, no pill.
             .background(
-                if (selected) MaterialTheme.colorScheme.surfaceContainerHigh
-                else androidx.compose.ui.graphics.Color.Transparent
+                if (selected) Color.White.copy(alpha = Glass.FILL_TOP)
+                else Color.Transparent
             )
             .combinedClickable(onClick = onSelect, onLongClick = menu::open),
     ) {

@@ -304,8 +304,7 @@ private fun AttachmentChip(
     Box(
         Modifier
             .width(104.dp)
-            .clip(Ui.attachmentShape)
-            .background(MaterialTheme.colorScheme.surfaceContainer),
+            .glass(Ui.attachmentShape, strong = true),
     ) {
         Column(Modifier.padding(start = 10.dp, end = 10.dp, top = 8.dp, bottom = 8.dp)) {
             Icon(

@@ -390,34 +390,39 @@ private fun BottomBar(
     suggestion: String?,
     modifier: Modifier = Modifier,
 ) {
-    InputBar(
-        draft = draft,
-        suggestion = suggestion,
-        attachments = state.attachments,
-        onDraftChange = viewModel::updateDraft,
-        onSend = viewModel::sendDraft,
-        onExpandEditor = { viewModel.setEditorExpanded(true) },
-        onAddClick = { viewModel.setShowAttachChooser(true) },
-        onRemoveAttachment = viewModel::removeAttachment,
-        search = state.search,
-        onSearchQueryChange = viewModel::updateSearchQuery,
-        onSearchNext = viewModel::nextSearchMatch,
-        onExitSearch = viewModel::exitSearch,
-        enterSends = state.enterSends,
-    )
-    if (state.keyRowVisible && state.search == null) {
-        val keys = remember(state.customKeys) { keyRowKeys(state) }
-        KeyRow(
-            keys = keys,
-            stickyCtrl = state.stickyCtrl,
-            suggestionActive = suggestion != null,
-            onInsert = viewModel::insertIntoDraft,
-            onSendBytes = viewModel::sendDirectText,
-            onAcceptSuggestion = viewModel::acceptSuggestion,
-            onToggleStickyCtrl = viewModel::toggleStickyCtrl,
-            onConsumeStickyCtrl = viewModel::consumeStickyCtrl,
-            modifier = Modifier.navigationBarsPadding(),
+    // One column aligned to the bottom edge: the composer sits directly above
+    // the key row. Without this modifier both children fell to the top-start
+    // corner of the screen.
+    Column(modifier = modifier) {
+        InputBar(
+            draft = draft,
+            suggestion = suggestion,
+            attachments = state.attachments,
+            onDraftChange = viewModel::updateDraft,
+            onSend = viewModel::sendDraft,
+            onExpandEditor = { viewModel.setEditorExpanded(true) },
+            onAddClick = { viewModel.setShowAttachChooser(true) },
+            onRemoveAttachment = viewModel::removeAttachment,
+            search = state.search,
+            onSearchQueryChange = viewModel::updateSearchQuery,
+            onSearchNext = viewModel::nextSearchMatch,
+            onExitSearch = viewModel::exitSearch,
+            enterSends = state.enterSends,
         )
+        if (state.keyRowVisible && state.search == null) {
+            val keys = remember(state.customKeys) { keyRowKeys(state) }
+            KeyRow(
+                keys = keys,
+                stickyCtrl = state.stickyCtrl,
+                suggestionActive = suggestion != null,
+                onInsert = viewModel::insertIntoDraft,
+                onSendBytes = viewModel::sendDirectText,
+                onAcceptSuggestion = viewModel::acceptSuggestion,
+                onToggleStickyCtrl = viewModel::toggleStickyCtrl,
+                onConsumeStickyCtrl = viewModel::consumeStickyCtrl,
+                modifier = Modifier.navigationBarsPadding(),
+            )
+        }
     }
 }
 
