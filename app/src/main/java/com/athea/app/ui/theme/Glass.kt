@@ -14,9 +14,10 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Outline
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.drawscope.drawOutline
 import androidx.compose.ui.unit.dp
 
 /** Glass palette: a dark translucent base, a slow iridescent sheen and a lit rim. */
@@ -74,14 +75,20 @@ fun Modifier.glass(
     }
     val rim = Brush.verticalGradient(listOf(Glass.RIM_TOP, Glass.RIM_BOTTOM))
     return drawWithCache {
-        val outline = shape.createOutline(size, layoutDirection, this)
+        val path = shape.createOutline(size, layoutDirection, this).toPath()
         val rimWidth = 1.dp.toPx()
         onDrawBehind {
-            drawOutline(outline, brush = base)
-            if (sheen != null) drawOutline(outline, brush = sheenBrush(size, sheen.value))
-            if (lit) drawOutline(outline, brush = rim, style = Stroke(width = rimWidth))
+            drawPath(path, brush = base)
+            if (sheen != null) drawPath(path, brush = sheenBrush(size, sheen.value))
+            if (lit) drawPath(path, brush = rim, style = Stroke(width = rimWidth))
         }
     }
+}
+
+private fun Outline.toPath(): Path = when (this) {
+    is Outline.Rectangle -> Path().apply { addRect(rect) }
+    is Outline.Rounded -> Path().apply { addRoundRect(roundRect) }
+    is Outline.Generic -> path
 }
 
 @Composable
