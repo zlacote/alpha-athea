@@ -9,6 +9,6 @@ class MainViewModelTest {
     @Test
     fun `previewLines defaults to PREVIEW_LINES`() {
         // UiState is pure data, can be tested without Android runtime
-        assertEquals(PREVIEW_LINES, UiState().previewLines)
+        assertEquals(PREVIEW_LINES, UiState().workspace.settings.previewLines)
     }
 }
