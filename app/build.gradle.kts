@@ -5,6 +5,12 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
 }
 
+// Core value types are immutable but live in a non-Compose module. Declaring
+// them stable lets transcript rows skip recomposition as they did before.
+composeCompiler {
+    stabilityConfigurationFile = rootProject.layout.projectDirectory.file("compose_stability.conf")
+}
+
 android {
     namespace = "com.athea.app"
     compileSdk = 35
@@ -57,13 +63,6 @@ android {
     }
     kotlinOptions {
         jvmTarget = "17"
-        // Core value types are immutable but live in a non-Compose module:
-        // declare them stable so transcript rows skip recomposition as before.
-        freeCompilerArgs += listOf(
-            "-P",
-            "plugin:androidx.compose.compiler.plugins.kotlin:stabilityConfigurationPath=" +
-                rootProject.file("compose_stability.conf").absolutePath,
-        )
     }
 
     buildFeatures {
