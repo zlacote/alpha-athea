@@ -79,6 +79,7 @@ import com.athea.app.ui.theme.HighlightColor
 import com.athea.app.ui.theme.OnHighlightColor
 import com.athea.app.ui.theme.Ui
 import com.athea.app.ui.theme.codeStyle
+import com.athea.app.ui.text.toAnnotated
 import com.athea.app.ui.theme.messageStyle
 import com.athea.app.util.trimCommand
 import kotlinx.coroutines.flow.Flow
@@ -86,7 +87,6 @@ import kotlinx.coroutines.launch
 
 private const val TAIL_LINES = 5
 private const val VIRTUALIZE_LINES_FACTOR = Ui.virtualizeLinesFactor
-private const val CHUNK_LINES = 200 // kept for compat, not used (chunking via chunkSize)
 
 private sealed interface DisplayItem {
     data class Block(val view: BlockView) : DisplayItem
@@ -167,7 +167,7 @@ fun TranscriptView(
         // Offload chunking from main thread to avoid jank when scrolling tools.
         var displayItems by remember { mutableStateOf<List<DisplayItem>>(emptyList()) }
         LaunchedEffect(views, viewportChunkSize, virtualizeLargeOutput) {
-            val out = with(kotlinx.coroutines.Dispatchers.Default) {
+            val out = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
                 val list = mutableListOf<DisplayItem>()
                 for (view in views) {
                     val block = view.block
@@ -176,11 +176,7 @@ fun TranscriptView(
                         val lineCount = plain.count { it == '\n' } + 1
                         val isHuge = lineCount > Ui.hugeLinesThreshold || plain.length > Ui.hugeCharsThreshold
                         if (isHuge) {
-                            val annotated = run {
-                                val t = block.annotated.text.trimEnd('\n')
-                                if (t.length == block.annotated.text.length) block.annotated
-                                else AnnotatedString(t, block.annotated.spanStyles, block.annotated.paragraphStyles)
-                            }
+                            val annotated = block.styled.trimTrailingNewlines().toAnnotated()
                             val chunks = chunkAnnotated(annotated, viewportChunkSize)
                             chunks.forEachIndexed { idx, chunk ->
                                 list.add(DisplayItem.Chunk(block.id, chunk, idx, idx == 0, idx == chunks.lastIndex, block.exitCode))
@@ -594,11 +590,9 @@ private fun OutputPanel(
         }
 
         val plainText = if (block.running) block.text else block.text.trimCommand()
-        val displayAnnotated = if (block.running) block.annotated else {
-            // Trim trailing newline for display, keep spans aligned
-            val t = block.annotated.text.trimEnd('\n')
-            if (t.length == block.annotated.text.length) block.annotated
-            else AnnotatedString(t, block.annotated.spanStyles, block.annotated.paragraphStyles)
+        // Trailing newlines are trimmed for display; running output keeps its tail as-is.
+        val displayAnnotated = remember(block.styled, block.running) {
+            (if (block.running) block.styled else block.styled.trimTrailingNewlines()).toAnnotated()
         }
         // Fast line count without allocating list (huge text 1.2M would allocate 20k strings)
         val lineCount = plainText.count { it == '\n' } + 1

@@ -99,9 +99,4 @@ object Ui {
     // ---- Throttle / caps --------------------------------------------------
     const val throttleMs = 100L
     const val historyCap = 500
-    const val ptyBufferSize = 8192
-    const val ptyEventBuffer = 256
-    const val sshEventBuffer = 16
-    const val journalBufferSize = 32 * 1024
-    const val logCapacity = 600
 }

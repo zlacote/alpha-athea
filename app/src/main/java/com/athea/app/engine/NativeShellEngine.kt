@@ -4,7 +4,7 @@ import android.system.Os
 import android.system.OsConstants
 import com.athea.app.core.terminal.EngineEvent
 import com.athea.app.core.terminal.TerminalEngine
-import com.athea.app.ui.theme.Ui
+import com.athea.app.data.DEFAULT_SHELL_PATH
 import com.athea.app.util.AtheaLog
 import com.athea.app.util.dropOldestSharedFlow
 import java.util.concurrent.atomic.AtomicBoolean
@@ -22,10 +22,10 @@ import kotlinx.coroutines.flow.StateFlow
 internal class NativeShellEngine(
     private val homeDir: String,
     private val rcPath: String,
-    private val shellPath: String = "/system/bin/sh",
+    private val shellPath: String = DEFAULT_SHELL_PATH,
 ) : TerminalEngine {
 
-    private val _events = dropOldestSharedFlow<EngineEvent>(extraBufferCapacity = Ui.ptyEventBuffer)
+    private val _events = dropOldestSharedFlow<EngineEvent>(extraBufferCapacity = EVENT_BUFFER)
     override val events: SharedFlow<EngineEvent> = _events
 
     private val _isAlive = MutableStateFlow(false)
@@ -151,6 +151,7 @@ internal class NativeShellEngine(
     }
 
     private companion object {
-        const val READ_BUFFER_SIZE = Ui.ptyBufferSize
+        const val READ_BUFFER_SIZE = 8192
+        const val EVENT_BUFFER = 256
     }
 }

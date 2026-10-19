@@ -57,6 +57,13 @@ android {
     }
     kotlinOptions {
         jvmTarget = "17"
+        // Core value types are immutable but live in a non-Compose module:
+        // declare them stable so transcript rows skip recomposition as before.
+        freeCompilerArgs += listOf(
+            "-P",
+            "plugin:androidx.compose.compiler.plugins.kotlin:stabilityConfigurationPath=" +
+                rootProject.file("compose_stability.conf").absolutePath,
+        )
     }
 
     buildFeatures {
@@ -72,6 +79,7 @@ android {
 }
 
 dependencies {
+    implementation(project(":core"))
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.runtime.compose)

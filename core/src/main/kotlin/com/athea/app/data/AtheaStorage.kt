@@ -16,6 +16,9 @@ import kotlinx.serialization.json.Json
  * preference in [AtheaSettings], and storing a per-session copy of it here
  * only created a second source of truth to keep in sync.
  */
+/** Shell used when the user has not picked one. */
+const val DEFAULT_SHELL_PATH = "/system/bin/sh"
+
 @Serializable
 data class SessionMeta(
     val id: Long,
@@ -48,7 +51,7 @@ data class AtheaSettings(
     val bubbleFontSizeSp: Int = 16,
     val autocompleteEnabled: Boolean = true,
     val pinchZoomEnabled: Boolean = true,
-    val shellPath: String = ShellBackend.SYSTEM_SH.shellPath,
+    val shellPath: String = DEFAULT_SHELL_PATH,
     val virtualizeLargeOutput: Boolean = false,
 )
 

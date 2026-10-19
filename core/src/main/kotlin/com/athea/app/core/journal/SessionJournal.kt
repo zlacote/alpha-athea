@@ -1,6 +1,5 @@
 package com.athea.app.core.journal
 
-import com.athea.app.ui.theme.Ui
 import java.io.BufferedInputStream
 import java.io.BufferedOutputStream
 import java.io.ByteArrayInputStream
@@ -41,7 +40,7 @@ class SessionJournal(private val file: File) {
         synchronized(lock) {
             ensureFormat()
             file.parentFile?.mkdirs()
-            val out = writer ?: DataOutputStream(BufferedOutputStream(FileOutputStream(file, true), Ui.journalBufferSize)).also {
+            val out = writer ?: DataOutputStream(BufferedOutputStream(FileOutputStream(file, true), JOURNAL_BUFFER_BYTES)).also {
                 writer = it
             }
             writeRecord(out, event)
@@ -242,6 +241,7 @@ class SessionJournal(private val file: File) {
     }
 
     private companion object {
+        const val JOURNAL_BUFFER_BYTES = 32 * 1024
         const val TAG_CMD = 1
         const val TAG_OUT = 2
         const val TAG_FIN = 3

@@ -8,15 +8,14 @@ import com.athea.app.R
 import com.athea.app.core.journal.JournalEvent
 import com.athea.app.core.journal.SessionJournal
 import com.athea.app.core.model.Attachment
-import com.athea.app.core.model.CommandBlock
 import com.athea.app.core.model.FavoriteCommand
-import com.athea.app.core.model.OutputBlock
 import com.athea.app.core.model.PREVIEW_LINES
 import com.athea.app.core.terminal.EngineEvent
 import com.athea.app.core.terminal.TerminalEngine
 import com.athea.app.data.AtheaSettings
 import com.athea.app.data.AtheaStorage
 import com.athea.app.data.CustomKey
+import com.athea.app.data.DEFAULT_SHELL_PATH
 import com.athea.app.data.FavoritesIndex
 import com.athea.app.data.KeysIndex
 import com.athea.app.data.SessionMeta
@@ -29,6 +28,7 @@ import com.athea.app.parse.StreamParser
 import com.athea.app.parse.applyTo
 import com.athea.app.transcript.BlockView
 import com.athea.app.transcript.TranscriptBuilder
+import com.athea.app.transcript.TranscriptSearch
 import com.athea.app.ui.theme.Ui
 import com.athea.app.util.AtheaLog
 import com.athea.app.util.dropOldestSharedFlow
@@ -152,9 +152,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private var nextSessionIdValue: Long = 1
     private var favoriteCounter: Long = 0
-
-    // Extracted managers — thin the god object (audit 2)
-    private val searchManager = SearchManager()
 
     init {
         restoreSettings()
@@ -313,7 +310,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun attachEngine(meta: SessionMeta) {
         val app = getApplication<Application>()
-        val shellPath = try { storage.loadSettings().shellPath } catch (_: Exception) { "/system/bin/sh" }
+        val shellPath = try { storage.loadSettings().shellPath } catch (_: Exception) { DEFAULT_SHELL_PATH }
         val engine: TerminalEngine = when {
             shellPath.startsWith("ssh://") -> SshShellEngine(shellPath)
             else -> NativeShellEngine(
@@ -666,22 +663,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun updateSearchQuery(query: String) {
         val id = _state.value.currentSessionId ?: return
-        val needle = query.lowercase()
-        val matches = _state.value.sessions.firstOrNull { it.id == id }
-            ?.blocks
-            ?.mapNotNull { view ->
-                val haystack = when (val block = view.block) {
-                    is CommandBlock -> block.text
-                    is OutputBlock -> block.text
-                }
-                if (haystack.lowercase().contains(needle)) view.block.id else null
-            }
-            .orEmpty()
+        val blocks = _state.value.sessions.firstOrNull { it.id == id }?.blocks.orEmpty()
+        val matches = TranscriptSearch.matchingBlockIds(blocks, query)
         _state.update { st ->
             st.copy(
                 search = (st.search ?: SearchState()).copy(
                     query = query,
-                    matchBlockIds = if (query.isBlank()) emptyList() else matches,
+                    matchBlockIds = matches,
                     index = 0,
                 ),
             )

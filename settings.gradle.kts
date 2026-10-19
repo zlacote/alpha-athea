@@ -21,4 +21,5 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "Athea"
+include(":core")
 include(":app")

@@ -11,12 +11,3 @@ fun File.writeTextAtomic(text: String) {
         writeText(text)
     }
 }
-
-fun File.writeBytesAtomic(bytes: ByteArray) {
-    val tmp = File(parentFile, "$name.tmp")
-    tmp.writeBytes(bytes)
-    if (!tmp.renameTo(this)) {
-        tmp.delete()
-        writeBytes(bytes)
-    }
-}

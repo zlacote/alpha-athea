@@ -6,6 +6,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.unit.dp
 import com.athea.app.core.model.CommandBlock
 import com.athea.app.core.model.OutputBlock
+import com.athea.app.text.StyledText
 import com.athea.app.transcript.BlockView
 import com.athea.app.ui.main.TranscriptView
 import com.athea.app.ui.theme.AtheaTheme
@@ -30,7 +31,7 @@ class TranscriptViewTest {
             draft = "", rawText = "", running = false,
             blocks = listOf(
                 BlockView(CommandBlock("cmd-1", "echo hello"), false),
-                BlockView(OutputBlock("out-1", "hello\n"), false)
+                BlockView(OutputBlock("out-1", StyledText("hello\n")), false)
             )
         )
         compose.setContent {

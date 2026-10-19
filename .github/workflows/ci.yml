@@ -78,7 +78,7 @@ jobs:
           gradle-version: ${{ env.GRADLE_VERSION }}
 
       - name: Unit tests and APKs (debug + release)
-        run: gradle :app:testDebugUnitTest :app:assembleDebug :app:assembleRelease --stacktrace --warning-mode summary
+        run: gradle :core:test :app:testDebugUnitTest :app:assembleDebug :app:assembleRelease --stacktrace --warning-mode summary
 
       - name: Sign APKs with apksigner
         run: |

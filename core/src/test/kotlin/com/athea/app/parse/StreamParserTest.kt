@@ -1,6 +1,9 @@
 package com.athea.app.parse
 
-import androidx.compose.ui.text.AnnotatedString
+import com.athea.app.text.Rgb
+import com.athea.app.text.Span
+import com.athea.app.text.Style
+import com.athea.app.text.StyledText
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -15,7 +18,7 @@ class StreamParserTest {
     private fun texts(events: List<StreamEvent>): String =
         events.filterIsInstance<StreamEvent.Text>().joinToString("") { it.value }
 
-    private fun textEvent(text: String) = StreamEvent.Text(AnnotatedString(text))
+    private fun textEvent(text: String) = StreamEvent.Text(StyledText(text))
 
     @Test
     fun `plain text passes through`() {
@@ -117,6 +120,28 @@ class StreamParserTest {
         assertEquals(
             listOf<StreamEvent>(textEvent("$ ls\n")),
             second,
+        )
+    }
+
+    @Test
+    fun `sgr colour becomes a span over its own text`() {
+        val events = feedAll("plain \u001B[31mred\u001B[0m end\n")
+        val text = events.single() as StreamEvent.Text
+        assertEquals("plain red end\n", text.value)
+        assertEquals(
+            listOf(Span(6, 9, Style(foreground = Rgb(0xFFCC0000)))),
+            text.styled.spans,
+        )
+    }
+
+    @Test
+    fun `backspace keeps the colour of the characters that remain`() {
+        val events = feedAll("\u001B[32mabc\b\bd")
+        val text = events.single() as StreamEvent.Text
+        assertEquals("ad", text.value)
+        assertEquals(
+            listOf(Span(0, 2, Style(foreground = Rgb(0xFF00CC00)))),
+            text.styled.spans,
         )
     }
 

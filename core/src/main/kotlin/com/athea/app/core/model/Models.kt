@@ -1,6 +1,6 @@
 package com.athea.app.core.model
 
-import androidx.compose.runtime.Immutable
+import com.athea.app.text.StyledText
 import kotlinx.serialization.Serializable
 
 /** Number of command lines shown in a collapsed command bubble. */
@@ -11,28 +11,25 @@ sealed interface Block {
     val id: String
 }
 
-/** A command submitted by the user; rendered as a right-aligned bubble. */
-@Immutable
+/** A command submitted by the user. */
 data class CommandBlock(
     override val id: String,
     val text: String,
 ) : Block
 
 /**
- * Terminal output produced after a submission; rendered left-aligned,
- * full width. [running] is true while its command is still executing.
- * [annotated] carries ANSI colors when present; falls back to plain [text].
+ * Terminal output produced after a submission. [running] is true while its
+ * command is still executing. [styled] carries colour spans next to the text.
  */
-@Immutable
 data class OutputBlock(
     override val id: String,
-    val text: String,
+    val styled: StyledText,
     val running: Boolean = false,
     val exitCode: Int? = null,
-    val annotated: androidx.compose.ui.text.AnnotatedString = androidx.compose.ui.text.AnnotatedString(text),
-) : Block
+) : Block {
+    val text: String get() = styled.text
+}
 
-@Immutable
 @Serializable
 data class FavoriteCommand(
     val id: Long,
@@ -40,7 +37,6 @@ data class FavoriteCommand(
 )
 
 /** A file staged for the next submission, already prepared as a command. */
-@Immutable
 data class Attachment(
     val name: String,
     val command: String,

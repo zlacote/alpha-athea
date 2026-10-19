@@ -1,8 +1,9 @@
 package com.athea.app.transcript
 
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.SpanStyle
+import com.athea.app.text.Rgb
+import com.athea.app.text.Span
+import com.athea.app.text.Style
+import com.athea.app.text.StyledText
 import com.athea.app.core.journal.JournalEvent
 import com.athea.app.core.model.CommandBlock
 import com.athea.app.core.model.OutputBlock
@@ -16,6 +17,8 @@ class TranscriptBuilderTest {
 
     private fun outputEvent(text: String) =
         JournalEvent.OutputArrived(bytes = text.toByteArray(Charsets.UTF_8))
+
+    private fun TranscriptBuilder.out(text: String) = applyOutput(StyledText(text))
 
     @Test
     fun `command and marked output produce closed block with exit code`() {
@@ -68,7 +71,7 @@ class TranscriptBuilderTest {
     fun `older outputs collapse when a new command arrives`() {
         val builder = TranscriptBuilder()
         builder.applyCommandSubmitted(1, "a")
-        builder.applyOutput("first\n")
+        builder.out("first\n")
         builder.applyCommandEnd(0)
 
         var snapshot = builder.snapshot(false)
@@ -101,7 +104,7 @@ class TranscriptBuilderTest {
     fun `reveal forces a block open`() {
         val builder = TranscriptBuilder()
         builder.applyCommandSubmitted(1, "a")
-        builder.applyOutput("x")
+        builder.out("x")
         builder.applyCommandEnd(0)
         builder.applyCommandSubmitted(2, "b")
 
@@ -116,14 +119,14 @@ class TranscriptBuilderTest {
     fun `command submitted while another runs keeps output on the running block`() {
         val builder = TranscriptBuilder()
         builder.applyCommandSubmitted(1, "sleep 100")
-        builder.applyOutput("started\n")
+        builder.out("started\n")
         // Typed while the first command is still executing: the shell buffers
         // these bytes, the bubble shows immediately, the first command is not
         // cancelled.
         builder.applyCommandSubmitted(2, "ls")
-        builder.applyOutput("still sleeping\n")
+        builder.out("still sleeping\n")
         builder.applyCommandEnd(0)
-        builder.applyOutput("file-a\n")
+        builder.out("file-a\n")
 
         val blocks = builder.snapshot(false).blocks.map { it.block }
         assertEquals(4, blocks.size)
@@ -145,12 +148,10 @@ class TranscriptBuilderTest {
     fun `long running output keeps its colors after trimming`() {
         val builder = TranscriptBuilder()
         builder.applyCommandSubmitted(1, "flood")
-        val red = Color(0xFFFF0000)
-        val chunk = AnnotatedString(
+        val red = Rgb(0xFFFF0000)
+        val chunk = StyledText(
             text = "x".repeat(700_000),
-            spanStyles = listOf(
-                AnnotatedString.Range(SpanStyle(color = red), 0, 700_000),
-            ),
+            spans = listOf(Span(0, 700_000, Style(foreground = red))),
         )
         builder.applyOutput(chunk)
         builder.applyOutput(chunk) // 1.4M chars, over MAX_RUNNING_CHARS
@@ -159,16 +160,16 @@ class TranscriptBuilderTest {
         assertTrue(block.running)
         assertTrue(
             "trimming the running buffer must not drop colour spans",
-            block.annotated.spanStyles.isNotEmpty(),
+            block.styled.spans.isNotEmpty(),
         )
-        assertEquals(red, block.annotated.spanStyles.first().item.color)
+        assertEquals(red, block.styled.spans.first().style.foreground)
     }
 
     @Test
     fun `raw projection respects the render cap`() {
         val builder = TranscriptBuilder()
         builder.applyCommandSubmitted(1, "big")
-        repeat(15) { builder.applyOutput("A".repeat(100_000)) }
+        repeat(15) { builder.out("A".repeat(100_000)) }
 
         val rawText = builder.snapshot(displayRaw = true).rawText
         assertTrue(rawText.length <= TranscriptBuilder.RAW_RENDER_CAP)
@@ -179,8 +180,8 @@ class TranscriptBuilderTest {
     @Test
     fun `blank stray output never creates a ghost block`() {
         val builder = TranscriptBuilder()
-        builder.applyOutput("\n")
-        builder.applyOutput("   \n")
+        builder.out("\n")
+        builder.out("   \n")
 
         val snapshot = builder.snapshot(false)
         assertTrue(snapshot.blocks.isEmpty())
@@ -191,7 +192,7 @@ class TranscriptBuilderTest {
     fun `replay from journal equals live building`() {
         val live = TranscriptBuilder()
         live.applyCommandSubmitted(7, "echo hi")
-        live.applyOutput("hi\n")
+        live.out("hi\n")
         live.applyCommandEnd(0)
 
         val events = listOf(

@@ -2,7 +2,6 @@ package com.athea.app.engine
 
 import com.athea.app.core.terminal.EngineEvent
 import com.athea.app.core.terminal.TerminalEngine
-import com.athea.app.ui.theme.Ui
 import com.athea.app.util.AtheaLog
 import com.athea.app.util.dropOldestSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -17,7 +16,7 @@ import kotlinx.coroutines.flow.StateFlow
  */
 class SshShellEngine(private val sshUrl: String) : TerminalEngine {
 
-    private val _events = dropOldestSharedFlow<EngineEvent>(extraBufferCapacity = Ui.sshEventBuffer)
+    private val _events = dropOldestSharedFlow<EngineEvent>(extraBufferCapacity = EVENT_BUFFER)
     override val events: SharedFlow<EngineEvent> = _events
 
     private val _isAlive = MutableStateFlow(false)
@@ -39,5 +38,9 @@ class SshShellEngine(private val sshUrl: String) : TerminalEngine {
 
     override fun terminate() {
         _isAlive.value = false
+    }
+
+    private companion object {
+        const val EVENT_BUFFER = 16
     }
 }

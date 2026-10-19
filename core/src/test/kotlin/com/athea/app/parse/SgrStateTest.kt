@@ -1,6 +1,6 @@
 package com.athea.app.parse
 
-import androidx.compose.ui.graphics.Color
+import com.athea.app.text.Rgb
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -13,7 +13,7 @@ class SgrStateTest {
     fun `empty body is a full reset`() {
         val sgr = SgrState()
         sgr.applySgr("1;31")
-        assertEquals(Color(0xFFCC0000), sgr.foreground)
+        assertEquals(Rgb(0xFFCC0000), sgr.foreground)
         assertTrue(sgr.bold)
 
         sgr.applySgr("")
@@ -34,15 +34,15 @@ class SgrStateTest {
     fun `chat attributes round trip`() {
         val sgr = SgrState()
         sgr.applySgr("1;31;44")
-        assertEquals(Color(0xFFCC0000), sgr.foreground)
-        assertEquals(Color(0xFF0000CC), sgr.background)
+        assertEquals(Rgb(0xFFCC0000), sgr.foreground)
+        assertEquals(Rgb(0xFF0000CC), sgr.background)
         assertTrue(sgr.bold)
 
         // 22 clears weight without touching colour, which is the pair that
         // terminates a bold run in real output.
         sgr.applySgr("22")
         assertFalse(sgr.bold)
-        assertEquals(Color(0xFFCC0000), sgr.foreground)
+        assertEquals(Rgb(0xFFCC0000), sgr.foreground)
     }
 
     @Test
@@ -66,21 +66,21 @@ class SgrStateTest {
         val sgr = SgrState()
         sgr.applySgr("38;5;196")
         // Index 196 is the top of the cube: r=5 -> 255, g=b=0.
-        assertEquals(Color(0xFFFF0000), sgr.foreground)
+        assertEquals(Rgb(0xFFFF0000), sgr.foreground)
 
         sgr.applySgr("48;5;232")
         // First greyscale step.
-        assertEquals(Color(0xFF080808), sgr.background)
+        assertEquals(Rgb(0xFF080808), sgr.background)
 
         sgr.applySgr("38;5;15")
-        assertEquals(Color(0xFFFFFFFF), sgr.foreground)
+        assertEquals(Rgb(0xFFFFFFFF), sgr.foreground)
     }
 
     @Test
     fun `truecolour is resolved`() {
         val sgr = SgrState()
         sgr.applySgr("38;2;18;52;86")
-        assertEquals(Color(0xFF123456), sgr.foreground)
+        assertEquals(Rgb(0xFF123456), sgr.foreground)
     }
 
     @Test
@@ -89,7 +89,7 @@ class SgrStateTest {
         sgr.applySgr("31;42")
         sgr.applySgr("39")
         assertNull(sgr.foreground)
-        assertEquals(Color(0xFF00CC00), sgr.background)
+        assertEquals(Rgb(0xFF00CC00), sgr.background)
     }
 
     @Test
@@ -97,6 +97,6 @@ class SgrStateTest {
         val sgr = SgrState()
         sgr.applySgr("38;5")
         sgr.applySgr("nonsense;31")
-        assertEquals(Color(0xFFCC0000), sgr.foreground)
+        assertEquals(Rgb(0xFFCC0000), sgr.foreground)
     }
 }
