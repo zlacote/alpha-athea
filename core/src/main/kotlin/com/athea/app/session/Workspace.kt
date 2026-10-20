@@ -205,7 +205,10 @@ class Workspace(
         }
         val bytes = output.toByteArray().takeIf { it.isNotEmpty() }
         val screen = pipe.screen
+        val wasFullScreen = screen?.altActive == true
         bytes?.let { screen?.feed(it) }
+        val isFullScreen = screen?.altActive == true
+        if (wasFullScreen != isFullScreen) AtheaLog.log("screen", "full screen ${if (isFullScreen) "on" else "off"}")
         // A full-screen program's output is shown as its screen, so it is not journaled as transcript text.
         val parsed = if (bytes == null || screen?.altActive == true) {
             emptyList()

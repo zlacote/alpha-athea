@@ -59,8 +59,12 @@ internal class SshShellEngine(
     override val reportsCommandEnds: Boolean get() = false
 
     override fun write(data: ByteArray) {
-        val shell = channel ?: return
-        if (data.isEmpty() || !_isAlive.value) return
+        val shell = channel
+        if (shell == null || data.isEmpty() || !_isAlive.value) {
+            AtheaLog.log("ssh", "write skipped: channel=${shell != null} alive=${_isAlive.value} bytes=${data.size}")
+            return
+        }
+        AtheaLog.log("ssh", "write bytes=${data.size} head=${preview(data, data.size)}")
         onIo {
             try {
                 shell.outputStream.write(data)
@@ -126,7 +130,10 @@ internal class SshShellEngine(
                 -1
             }
             if (n < 0) break
-            if (n > 0) _events.tryEmit(EngineEvent.Output(buffer.copyOf(n)))
+            if (n > 0) {
+                AtheaLog.log("ssh", "read n=$n head=${preview(buffer, n)}")
+                _events.tryEmit(EngineEvent.Output(buffer.copyOf(n)))
+            }
         }
         finish(shell.exitStatus)
     }
@@ -157,6 +164,14 @@ internal class SshShellEngine(
         const val PTY_TYPE = "xterm-256color"
         const val READ_BUFFER_SIZE = 8192
         const val EVENT_BUFFER = 256
+        const val PREVIEW_CHARS = 48
+
+        /** The start of a chunk with control characters made visible, for the log. */
+        fun preview(bytes: ByteArray, length: Int): String =
+            String(bytes, 0, length.coerceAtMost(PREVIEW_CHARS), Charsets.UTF_8)
+                .replace("\u001B", "\\e")
+                .replace("\r", "\\r")
+                .replace("\n", "\\n")
     }
 }
 
