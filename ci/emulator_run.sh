@@ -79,6 +79,12 @@ timeout 10 adb shell run-as "$PKG" sh -c 'cat files/sessions/*/journal.log 2>/de
 timeout 10 adb shell screencap -p /sdcard/screen_after.png || true
 timeout 10 adb pull /sdcard/screen_after.png "$LOG_DIR/screen_after.png" || true
 
+# Print the app's and the renderer's view of the glass lens into the job log,
+# so it can be read without downloading the artifact.
+timeout 10 adb logcat -d > "$LOG_DIR/logcat.txt" 2>&1 || true
+echo "--- athea and renderer log lines ---"
+grep -E "Athea|AndroidRuntime|hwui|RuntimeShader|SKSL|Skia" "$LOG_DIR/logcat.txt" | tail -n 200 || true
+
 for i in $(seq 1 10); do
   if ! timeout 5 adb shell pidof "$PKG" > /dev/null 2>&1; then
     echo "CRASH_DETECTED_AT_SECOND_${i}" >> "$LOG_DIR/crash_status.txt"

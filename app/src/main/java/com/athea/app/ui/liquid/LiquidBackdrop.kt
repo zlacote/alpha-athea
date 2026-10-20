@@ -23,6 +23,7 @@ import com.athea.app.ui.theme.glass
 import com.athea.app.ui.theme.glassBase
 import com.athea.app.ui.theme.glassRim
 import com.athea.app.ui.theme.toPath
+import com.athea.app.util.AtheaLog
 import kotlin.math.roundToInt
 
 /**
@@ -91,9 +92,14 @@ fun Modifier.liquidGlass(
             val rimWidth = 1.dp.toPx()
             val radiusPx = cornerRadius.toPx()
             val pixels = IntSize(size.width.roundToInt(), size.height.roundToInt())
+            var logged = false
             onDrawWithContent {
                 // Record the backdrop, moved so that it lines up with this surface.
                 val offset = placement.rootOrigin - backdrop.rootOrigin
+                if (!logged) {
+                    logged = true
+                    AtheaLog.log("lens", "surface size=$pixels offset=$offset shaded=${lensEffect != null}")
+                }
                 lensLayer.record(this@onDrawWithContent, layoutDirection, pixels) {
                     translate(-offset.x, -offset.y) {
                         drawLayer(backdrop.layer)
