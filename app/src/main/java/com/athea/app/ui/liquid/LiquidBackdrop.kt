@@ -61,7 +61,7 @@ fun Modifier.liquidBackdrop(backdrop: LiquidBackdrop, background: Color = Color.
         .drawWithContent {
             val pixels = IntSize(size.width.roundToInt(), size.height.roundToInt())
             backdrop.layer.record(this@drawWithContent, layoutDirection, pixels) {
-                if (background.isSpecified) drawRect(background)
+                if (background != Color.Unspecified) drawRect(background)
                 this@drawWithContent.drawContent()
             }
             drawLayer(backdrop.layer)
