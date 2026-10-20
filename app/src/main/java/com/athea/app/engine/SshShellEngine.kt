@@ -55,6 +55,9 @@ internal class SshShellEngine(
         return true
     }
 
+    // The remote shell sends no command marks, so Athea cannot see where a command ends.
+    override val reportsCommandEnds: Boolean get() = false
+
     override fun write(data: ByteArray) {
         val shell = channel ?: return
         if (data.isEmpty() || !_isAlive.value) return

@@ -24,6 +24,13 @@ interface TerminalEngine {
     val events: SharedFlow<EngineEvent>
     val isAlive: StateFlow<Boolean>
 
+    /**
+     * True when the backend marks where each command ends (the built-in shell does). A backend
+     * that cannot, such as a remote shell over SSH, ends the output of a command when the next
+     * one is submitted.
+     */
+    val reportsCommandEnds: Boolean get() = true
+
     /** Spawns the backend process. Returns false if it could not be started. */
     fun start(initialRows: Int, initialCols: Int): Boolean
 

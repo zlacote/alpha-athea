@@ -31,11 +31,14 @@ class WorkspaceTest {
 
     private val started = mutableListOf<FakeEngine>()
 
-    private fun TestScope.workspace(storage: AtheaStorage = AtheaStorage(tmp.root)): Workspace =
+    private fun TestScope.workspace(
+        storage: AtheaStorage = AtheaStorage(tmp.root),
+        markless: Boolean = false,
+    ): Workspace =
         Workspace(
             storage = storage,
             scope = backgroundScope,
-            engines = { FakeEngine().also { started += it } },
+            engines = { FakeEngine(reportsCommandEnds = !markless).also { started += it } },
             defaultSessionName = { "Session $it" },
             dispatcher = StandardTestDispatcher(testScheduler),
         ).also { runCurrent() }
@@ -108,6 +111,31 @@ class WorkspaceTest {
 
         val output = ws.state.value.sessions.single().blocks.last().block as OutputBlock
         assertEquals("hi\n", output.text)
+    }
+
+    @Test
+    fun `without command marks each submission opens its own output below it`() = runTest {
+        val ws = workspace(markless = true)
+        ws.updateDraft("pkg")
+        ws.sendDraft()
+        started.single().printOutput("first\n")
+        runCurrent()
+        advanceTimeBy(200)
+
+        ws.updateDraft("ls")
+        ws.sendDraft()
+        started.single().printOutput("second\n")
+        runCurrent()
+        advanceTimeBy(200)
+
+        val texts = ws.state.value.sessions.single().blocks.map { view ->
+            when (val block = view.block) {
+                is CommandBlock -> block.text
+                is OutputBlock -> block.text
+                else -> error("unexpected block $block")
+            }
+        }
+        assertEquals(listOf("pkg", "first\n", "ls", "second\n"), texts)
     }
 
     @Test
@@ -196,7 +224,7 @@ class WorkspaceTest {
     }
 
     /** Terminal backend that only records what was written and lets the test push output. */
-    private class FakeEngine : TerminalEngine {
+    private class FakeEngine(override val reportsCommandEnds: Boolean = true) : TerminalEngine {
         private val output = MutableSharedFlow<EngineEvent>(extraBufferCapacity = 64)
         override val events: SharedFlow<EngineEvent> = output
 

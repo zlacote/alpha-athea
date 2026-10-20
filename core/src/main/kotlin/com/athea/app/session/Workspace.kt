@@ -379,6 +379,11 @@ class Workspace(
             val pipe = pipes[id] ?: return
             val seq = nextCommandSeqs[id] ?: return
             nextCommandSeqs[id] = seq + 1
+            if (!backend.reportsCommandEnds) {
+                // The output of the previous command ends here, so the new output lands below this command.
+                pipe.journal.append(JournalEvent.CommandFinished(exitCode = null))
+                pipe.builder.applyCommandEnd(null)
+            }
             pipe.journal.append(
                 JournalEvent.CommandSubmitted(seq = seq, text = text, timestampMs = System.currentTimeMillis()),
             )
