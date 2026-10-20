@@ -15,7 +15,6 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.rememberTextMeasurer
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Dp
 import com.athea.app.screen.ScreenSnapshot
 import com.athea.app.ui.theme.codeStyle
@@ -69,7 +68,9 @@ private fun withCursor(text: String, col: Int, style: SpanStyle): AnnotatedStrin
     val padded = text.padEnd(col + 1)
     return buildAnnotatedString {
         append(padded.substring(0, col))
-        withStyle(style) { append(padded[col]) }
+        pushStyle(style)
+        append(padded[col])
+        pop()
         append(padded.substring(col + 1))
     }
 }

@@ -44,7 +44,7 @@ class TerminalScreenTest {
 
     @Test
     fun `erase display clears everything and erase line clears to the end`() {
-        val screen = TerminalScreen(rows = 2, cols = 10)
+        val screen = TerminalScreen(rows = 2, cols = 20)
         screen.write("hello\r\nworld\u001B[2J")
         assertEquals(listOf("", ""), screen.snapshot().rows)
 
