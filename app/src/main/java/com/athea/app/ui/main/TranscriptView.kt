@@ -481,7 +481,7 @@ private fun CommandBubble(
                     onClick = {},
                     onLongClick = menu::open,
                 )
-                .glass(Ui.bubbleShape, animated = false),
+                .glass(Ui.bubbleShape),
         ) {
             Column(Modifier.padding(start = Ui.bubblePaddingH, end = Ui.bubblePaddingH, top = Ui.bubblePaddingTop, bottom = Ui.bubblePaddingBottom)) {
                 if (collapsed && collapsible) {

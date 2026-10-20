@@ -154,7 +154,7 @@ private fun DraftPanel(
             .fillMaxWidth()
             .barPadding()
             .then(if (lens != null) Modifier.lensAnchor(lens) else Modifier)
-            .glass(Ui.panelShape, animated = false, clear = lens?.supported == true),
+            .glass(Ui.panelShape, clear = lens?.supported == true),
     ) {
         Column(Modifier.padding(horizontal = 4.dp, vertical = 4.dp)) {
             if (attachments.isNotEmpty()) {
@@ -310,7 +310,7 @@ private fun AttachmentChip(
     Box(
         Modifier
             .width(104.dp)
-            .glass(Ui.attachmentShape, strong = true, animated = false),
+            .glass(Ui.attachmentShape, strong = true),
     ) {
         Column(Modifier.padding(start = 10.dp, end = 10.dp, top = 8.dp, bottom = 8.dp)) {
             Icon(
@@ -360,7 +360,7 @@ private fun SearchPanel(
         modifier = modifier
             .fillMaxWidth()
             .barPadding()
-            .glass(Ui.panelShape, animated = false),
+            .glass(Ui.panelShape),
     ) {
         Row(
             Modifier.padding(horizontal = 6.dp, vertical = 6.dp),
