@@ -45,6 +45,7 @@ internal fun rememberLensEffect(): LensEffect? = remember {
 @RequiresApi(Build.VERSION_CODES.TIRAMISU)
 private fun createLensEffect(): LensEffect? = try {
     val shader = RuntimeShader(LENS_AGSL)
+    AtheaLog.log("lens", "shader ready")
     LensEffect(
         shader,
         RenderEffect.createRuntimeShaderEffect(shader, "content").asComposeRenderEffect(),

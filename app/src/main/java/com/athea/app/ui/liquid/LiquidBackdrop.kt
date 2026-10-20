@@ -10,6 +10,7 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.graphics.layer.CompositingStrategy
 import androidx.compose.ui.graphics.layer.GraphicsLayer
 import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.graphics.rememberGraphicsLayer
@@ -74,7 +75,10 @@ fun Modifier.liquidGlass(
     strong: Boolean = false,
     clear: Boolean = false,
 ): Modifier {
-    val lensLayer = rememberGraphicsLayer()
+    // A render effect is only drawn through an offscreen buffer; without it the lens is dropped.
+    val lensLayer = rememberGraphicsLayer().apply {
+        compositingStrategy = CompositingStrategy.Offscreen
+    }
     val lensEffect = rememberLensEffect()
     val placement = remember { GlassPlacement() }
     if (backdrop == null) return glass(shape, lit, strong, clear)
