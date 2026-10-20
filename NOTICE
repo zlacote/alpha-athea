@@ -1,0 +1,12 @@
+Athea
+
+The liquid glass implementation is based on the architecture of the following
+Apache License 2.0 projects. The code is rebuilt on public Compose APIs; no
+source files are copied verbatim.
+
+- KMPLiquidGlass, https://github.com/Kashif-E/KMPLiquidGlass
+  Layer backdrop and glass surface architecture (backdrop module).
+  Shader sources in that project carry the notice "Copyright 2025 Kyant".
+
+- Cloudy, https://github.com/skydoves/Cloudy
+  Copyright 2022 skydoves (Jaewoong Eum). Lens shader approach.

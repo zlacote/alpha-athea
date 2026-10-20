@@ -36,9 +36,16 @@ object Glass {
     val CANVAS_TINT = Color(0xFF101014)
 }
 
+internal fun glassBase(strong: Boolean, clear: Boolean): Brush = when {
+    clear -> Brush.verticalGradient(listOf(Glass.CLEAR_TOP, Glass.CLEAR_BOTTOM))
+    strong -> Brush.verticalGradient(listOf(Glass.BASE_STRONG_TOP, Glass.BASE_STRONG_BOTTOM))
+    else -> Brush.verticalGradient(listOf(Glass.BASE_TOP, Glass.BASE_BOTTOM))
+}
+
+internal fun glassRim(): Brush = Brush.verticalGradient(listOf(Glass.RIM_TOP, Glass.RIM_BOTTOM))
+
 /**
- * Glass surface: a dark translucent base and a bright rim. Under a working liquid
- * lens the base is clear, so the bent backdrop shows through the panel.
+ * Glass surface without refraction: a dark translucent base and a bright rim.
  *
  * @param lit false drops the rim, for full-width bars.
  * @param strong a denser base, for panels over busy content.
@@ -50,12 +57,8 @@ fun Modifier.glass(
     strong: Boolean = false,
     clear: Boolean = false,
 ): Modifier {
-    val base = when {
-        clear -> Brush.verticalGradient(listOf(Glass.CLEAR_TOP, Glass.CLEAR_BOTTOM))
-        strong -> Brush.verticalGradient(listOf(Glass.BASE_STRONG_TOP, Glass.BASE_STRONG_BOTTOM))
-        else -> Brush.verticalGradient(listOf(Glass.BASE_TOP, Glass.BASE_BOTTOM))
-    }
-    val rim = Brush.verticalGradient(listOf(Glass.RIM_TOP, Glass.RIM_BOTTOM))
+    val base = glassBase(strong, clear)
+    val rim = glassRim()
     return drawWithCache {
         val path = shape.createOutline(size, layoutDirection, this).toPath()
         val rimWidth = 1.dp.toPx()
@@ -66,7 +69,7 @@ fun Modifier.glass(
     }
 }
 
-private fun Outline.toPath(): Path = when (this) {
+internal fun Outline.toPath(): Path = when (this) {
     is Outline.Rectangle -> Path().apply { addRect(rect) }
     is Outline.Rounded -> Path().apply { addRoundRect(roundRect) }
     is Outline.Generic -> path
