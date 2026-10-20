@@ -4,11 +4,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.ContentDrawScope
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.drawscope.translate
@@ -62,10 +64,25 @@ fun Modifier.liquidBackdrop(backdrop: LiquidBackdrop, background: Color = Color.
             val pixels = IntSize(size.width.roundToInt(), size.height.roundToInt())
             backdrop.layer.record(this@drawWithContent, layoutDirection, pixels) {
                 if (background != Color.Unspecified) drawRect(background)
-                this@drawWithContent.drawContent()
+                drawContentInto(this@drawWithContent)
             }
             drawLayer(backdrop.layer)
         }
+
+/**
+ * Draws the children of [content] into the canvas this recording draws to. A plain
+ * `drawContent()` called inside a record goes to the screen canvas instead, so the
+ * recording stayed empty and glass sampled nothing.
+ */
+private fun DrawScope.drawContentInto(content: ContentDrawScope) {
+    val screen = content.drawContext.canvas
+    content.drawContext.canvas = drawContext.canvas
+    try {
+        content.drawContent()
+    } finally {
+        content.drawContext.canvas = screen
+    }
+}
 
 /** Where a glass surface sits in window coordinates, updated during layout. */
 private class GlassPlacement {
