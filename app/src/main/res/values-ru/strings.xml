@@ -108,4 +108,23 @@
         <item quantity="many">%d строк</item>
         <item quantity="other">%d строки</item>
     </plurals>
+    <!-- Glass tuning -->
+    <string name="glass_section">Стекло</string>
+    <string name="glass_open">Тонкая настройка стекла</string>
+    <string name="glass_tuning_title">Стекло</string>
+    <string name="glass_hint">Все стеклянные элементы на экране следуют этим значениям</string>
+    <string name="glass_mode_off">Выкл</string>
+    <string name="glass_mode_blur">Блюр</string>
+    <string name="glass_mode_lens">Линза</string>
+    <string name="glass_blur">Радиус блюра</string>
+    <string name="glass_bezel">Ширина ободка</string>
+    <string name="glass_bend">Изгиб</string>
+    <string name="glass_chroma">Хроматическая кайма</string>
+    <string name="glass_highlight_width">Ширина подсветки</string>
+    <string name="glass_highlight">Сила подсветки</string>
+    <string name="glass_light_angle">Угол света</string>
+    <string name="glass_fill">Заливка под линзой</string>
+    <string name="glass_rim">Сила обода</string>
+    <string name="glass_reset">Сбросить к стандартным</string>
+    <string name="glass_sample_line">Строка %1$d: фон за стеклом</string>
 </resources>

@@ -23,7 +23,6 @@ import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
-import com.athea.app.ui.theme.Glass
 import com.athea.app.ui.theme.glass
 import com.athea.app.ui.theme.glassFill
 import com.athea.app.ui.theme.toPath
@@ -109,8 +108,9 @@ fun Modifier.liquidGlass(
     }
     val lensEffect = rememberLensEffect()
     val placement = remember { GlassPlacement() }
-    if (backdrop == null) return glass(shape, lit, strong, clear)
-    val fill = glassFill(strong, clear)
+    if (backdrop == null || GlassTuning.mode == GlassMode.OFF) return glass(shape, lit, strong, clear)
+    val fill = if (clear) Color.White.copy(alpha = GlassTuning.fillAlpha) else glassFill(strong, clear)
+    val rim = Color.White.copy(alpha = GlassTuning.rimAlpha)
     return this
         .onGloballyPositioned { placement.rootOrigin = it.positionInRoot() }
         .drawWithCache {
@@ -139,7 +139,7 @@ fun Modifier.liquidGlass(
                 }
                 clipPath(path) { drawLayer(lensLayer) }
                 drawPath(path, color = fill)
-                if (lit) drawPath(path, color = Glass.RIM, style = Stroke(width = rimWidth))
+                if (lit) drawPath(path, color = rim, style = Stroke(width = rimWidth))
                 drawContent()
             }
         }

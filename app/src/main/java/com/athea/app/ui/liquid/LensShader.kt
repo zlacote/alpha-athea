@@ -11,8 +11,9 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.asComposeRenderEffect
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.unit.dp
 import com.athea.app.util.AtheaLog
+import kotlin.math.cos
+import kotlin.math.sin
 
 /**
  * One lens: a RuntimeShader that bends the recorded backdrop inside a rounded
@@ -21,55 +22,44 @@ import com.athea.app.util.AtheaLog
 internal class LensEffect(
     private val shader: RuntimeShader,
     val composeEffect: androidx.compose.ui.graphics.RenderEffect,
-    private val bezelPx: Float,
-    private val bendPx: Float,
-    private val highlightPx: Float,
+    private val density: Float,
 ) {
 
-    /** Sets every uniform the shader declares; they are all written on every draw. */
+    /** Sets every uniform the shader declares from [GlassTuning]; written on every draw. */
     fun update(size: Size, cornerRadiusPx: Float, originPx: Offset) {
+        val lens = GlassTuning.mode == GlassMode.LENS
+        val angle = GlassTuning.lightAngleDeg * DEGREES_TO_RADIANS
         shader.setFloatUniform("lensSize", size.width, size.height)
         shader.setFloatUniform("origin", originPx.x, originPx.y)
         shader.setFloatUniform("cornerRadius", cornerRadiusPx)
-        shader.setFloatUniform("bezel", bezelPx)
-        shader.setFloatUniform("bend", bendPx)
-        shader.setFloatUniform("chroma", CHROMA)
-        shader.setFloatUniform("highlightWidth", highlightPx)
-        shader.setFloatUniform("highlightStrength", HIGHLIGHT_STRENGTH)
-        shader.setFloatUniform("lightDir", LIGHT_DIR[0], LIGHT_DIR[1])
+        shader.setFloatUniform("bezel", GlassTuning.bezelDp * density)
+        shader.setFloatUniform("bend", if (lens) GlassTuning.bendDp * density else 0f)
+        shader.setFloatUniform("chroma", GlassTuning.chroma)
+        shader.setFloatUniform("highlightWidth", GlassTuning.highlightWidthDp * density)
+        shader.setFloatUniform("highlightStrength", if (lens) GlassTuning.highlightStrength else 0f)
+        shader.setFloatUniform("lightDir", cos(angle), sin(angle))
     }
 }
 
 /**
  * The lens for this surface, or null below Android 13 where RuntimeShader does not exist.
- * The sizes are in pixels, so the effect is rebuilt when the density changes.
+ * The blur radius is baked into the render effect, so the effect is rebuilt when it changes.
  */
 @Composable
 internal fun rememberLensEffect(): LensEffect? {
-    val density = LocalDensity.current
-    return remember(density.density) {
+    val density = LocalDensity.current.density
+    val blurDp = GlassTuning.blurDp
+    return remember(density, blurDp) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
             null
         } else {
-            with(density) {
-                createLensEffect(
-                    blurPx = LENS_BLUR.toPx(),
-                    bezelPx = LENS_BEZEL.toPx(),
-                    bendPx = LENS_BEND.toPx(),
-                    highlightPx = HIGHLIGHT_WIDTH.toPx(),
-                )
-            }
+            createLensEffect(blurPx = (blurDp * density).coerceAtLeast(0.01f), density = density)
         }
     }
 }
 
 @RequiresApi(Build.VERSION_CODES.TIRAMISU)
-private fun createLensEffect(
-    blurPx: Float,
-    bezelPx: Float,
-    bendPx: Float,
-    highlightPx: Float,
-): LensEffect? = try {
+private fun createLensEffect(blurPx: Float, density: Float): LensEffect? = try {
     val shader = RuntimeShader(LENS_AGSL)
     // The backdrop is blurred first, then the lens bends the blurred image.
     val blur = RenderEffect.createBlurEffect(blurPx, blurPx, Shader.TileMode.CLAMP)
@@ -78,25 +68,14 @@ private fun createLensEffect(
     LensEffect(
         shader = shader,
         composeEffect = RenderEffect.createChainEffect(lens, blur).asComposeRenderEffect(),
-        bezelPx = bezelPx,
-        bendPx = bendPx,
-        highlightPx = highlightPx,
+        density = density,
     )
 } catch (e: Exception) {
     AtheaLog.error("lens", "lens shader failed to compile; glass is shown without refraction", e)
     null
 }
 
-// Tuned to the KMP Liquid Glass demos: a light blur, a 16-24 dp refraction bezel with a
-// bend of 8-16 dp, and a chromatic fringe. Bezels are clamped to the surface's half size.
-private val LENS_BLUR = 3.dp
-// TEMPORARY, to check on device whether the bend and rim highlight draw at all: exaggerated values.
-private val LENS_BEZEL = 60.dp
-private val LENS_BEND = 40.dp
-private val HIGHLIGHT_WIDTH = 6f.dp
-private const val CHROMA = 0.6f
-private const val HIGHLIGHT_STRENGTH = 1.0f
-private val LIGHT_DIR = floatArrayOf(-0.5f, -0.87f)
+private const val DEGREES_TO_RADIANS = 0.017453292f
 
 /**
  * Lens in AGSL. Inside a rounded rectangle the backdrop is sampled from nearer the

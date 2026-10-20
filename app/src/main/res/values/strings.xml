@@ -116,4 +116,23 @@
         <item quantity="other">%d lines</item>
     </plurals>
     <string name="scroll_inside">scroll inside</string>
+    <!-- Glass tuning -->
+    <string name="glass_section">Glass</string>
+    <string name="glass_open">Glass tuning</string>
+    <string name="glass_tuning_title">Glass</string>
+    <string name="glass_hint">Every glass element on the screen follows these values</string>
+    <string name="glass_mode_off">Off</string>
+    <string name="glass_mode_blur">Blur</string>
+    <string name="glass_mode_lens">Lens</string>
+    <string name="glass_blur">Blur radius</string>
+    <string name="glass_bezel">Bezel width</string>
+    <string name="glass_bend">Bend</string>
+    <string name="glass_chroma">Chromatic fringe</string>
+    <string name="glass_highlight_width">Highlight width</string>
+    <string name="glass_highlight">Highlight strength</string>
+    <string name="glass_light_angle">Light angle</string>
+    <string name="glass_fill">Fill under the lens</string>
+    <string name="glass_rim">Rim strength</string>
+    <string name="glass_reset">Reset to defaults</string>
+    <string name="glass_sample_line">Sample line %1$d: the backdrop behind the glass</string>
 </resources>

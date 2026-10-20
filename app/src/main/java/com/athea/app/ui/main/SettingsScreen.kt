@@ -72,6 +72,7 @@ fun SettingsScreen(
     onCustomKeysChange: (List<CustomKey>) -> Unit,
     onResetKeys: () -> Unit,
     onOpenKeyBuilder: () -> Unit,
+    onOpenGlassTuning: () -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -185,6 +186,13 @@ fun SettingsScreen(
                 ActionRow(
                     title = stringResource(R.string.builder_open),
                     onClick = onOpenKeyBuilder,
+                )
+            }
+
+            SettingsSection(title = stringResource(R.string.glass_section)) {
+                ActionRow(
+                    title = stringResource(R.string.glass_open),
+                    onClick = onOpenGlassTuning,
                 )
             }
 

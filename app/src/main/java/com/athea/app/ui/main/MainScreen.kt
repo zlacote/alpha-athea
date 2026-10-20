@@ -107,8 +107,15 @@ fun MainScreen(viewModel: MainViewModel) {
             onCustomKeysChange = viewModel::setCustomKeys,
             onResetKeys = viewModel::resetKeysToDefaults,
             onOpenKeyBuilder = { viewModel.setShowKeyBuilder(true) },
+            onOpenGlassTuning = { viewModel.setShowGlassTuning(true) },
             onBack = { viewModel.setShowSettings(false) },
         )
+        return
+    }
+
+    if (state.showGlassTuning) {
+        BackHandler { viewModel.setShowGlassTuning(false) }
+        GlassTuningScreen(onBack = { viewModel.setShowGlassTuning(false) })
         return
     }
 
