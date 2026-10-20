@@ -132,7 +132,7 @@ fun Modifier.liquidGlass(
                     }
                 }
                 if (lensEffect != null) {
-                    lensEffect.update(size, radiusPx)
+                    lensEffect.update(size, radiusPx, placement.rootOrigin)
                     if (lensLayer.renderEffect != lensEffect.composeEffect) {
                         lensLayer.renderEffect = lensEffect.composeEffect
                     }

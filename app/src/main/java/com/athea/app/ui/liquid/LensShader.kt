@@ -7,6 +7,7 @@ import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.asComposeRenderEffect
 import androidx.compose.ui.platform.LocalDensity
@@ -26,8 +27,9 @@ internal class LensEffect(
 ) {
 
     /** Sets every uniform the shader declares; they are all written on every draw. */
-    fun update(size: Size, cornerRadiusPx: Float) {
+    fun update(size: Size, cornerRadiusPx: Float, originPx: Offset) {
         shader.setFloatUniform("lensSize", size.width, size.height)
+        shader.setFloatUniform("origin", originPx.x, originPx.y)
         shader.setFloatUniform("cornerRadius", cornerRadiusPx)
         shader.setFloatUniform("bezel", bezelPx)
         shader.setFloatUniform("bend", bendPx)
@@ -106,6 +108,7 @@ private val LIGHT_DIR = floatArrayOf(-0.5f, -0.87f)
 private const val LENS_AGSL = """
 uniform shader content;
 uniform float2 lensSize;
+uniform float2 origin;
 uniform float cornerRadius;
 uniform float bezel;
 uniform float bend;
@@ -134,19 +137,15 @@ float circleMap(float x) {
 }
 
 half4 main(float2 xy) {
+    // xy arrives in window space, so the lens is measured from the element's own origin.
+    float2 local = xy - origin;
     float2 halfSize = lensSize * 0.5;
     float r = min(cornerRadius, min(halfSize.x, halfSize.y));
-    float2 p = xy - halfSize;
+    float2 p = local - halfSize;
     float sdf = roundBoxSdf(p, halfSize, r);
     half4 backdrop = content.eval(xy);
-    // DEBUG PROBE, remove after the test: yellow = coordinates outside the lens box,
-    // magenta = inside the box but outside the shape (clipped away on screen).
-    bool inside = xy.x >= 0.0 && xy.y >= 0.0 && xy.x <= lensSize.x && xy.y <= lensSize.y;
-    if (!inside) {
-        return half4(1.0, 1.0, 0.0, 1.0);
-    }
     if (sdf > 1.0) {
-        return half4(1.0, 0.0, 1.0, 1.0);
+        return backdrop;
     }
     float minHalf = min(halfSize.x, halfSize.y);
     float bezelWidth = min(bezel, minHalf);
