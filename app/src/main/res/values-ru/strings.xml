@@ -176,4 +176,9 @@
     <string name="setup_termux_failed">Не подключилось: %1$s</string>
     <string name="setup_termux_use">Использовать Termux</string>
     <string name="setup_termux_key_loading">Создаём ключ…</string>
+    <string name="attach_path">Вставить путь</string>
+    <string name="attach_termux_notice">Termux пока не видит файлы Athea, поэтому копирование и ссылки там не работают.</string>
+    <string name="settings_attach_sends_now">Отправлять команды файлов сразу</string>
+    <string name="settings_attach_sends_now_desc">Выкл: команда ставится в поле ввода с новой строки</string>
+    <string name="setup_termux_key_failed">Не удалось создать ключ: %1$s</string>
 </resources>

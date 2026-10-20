@@ -23,7 +23,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.ContentCut
 import androidx.compose.material.icons.filled.InsertLink
-import androidx.compose.material.icons.filled.Title
+import androidx.compose.material.icons.filled.TextFields
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -83,6 +83,7 @@ fun MainScreen(viewModel: MainViewModel) {
             )
             SetupPage.TERMUX -> SetupTermux(
                 publicKey = state.sshPublicKey,
+                keyError = state.sshKeyError,
                 check = state.sshCheck,
                 onCheck = viewModel::checkTermux,
                 onUse = viewModel::useTermux,
@@ -151,6 +152,8 @@ fun MainScreen(viewModel: MainViewModel) {
                 stringResource(R.string.shell_local)
             },
             onOpenShell = { viewModel.openSetup(SetupPage.SHELL, fromSettings = true) },
+            attachSendsNow = state.workspace.settings.attachSendsNow,
+            onAttachSendsNowChange = viewModel::setAttachSendsNow,
             onOpenGlassTuning = { viewModel.setShowGlassTuning(true) },
             onBack = { viewModel.setShowSettings(false) },
         )
@@ -184,17 +187,32 @@ fun MainScreen(viewModel: MainViewModel) {
         }
     }
     if (state.showAttachChooser) {
-        val attachOptions: List<Triple<String, String, androidx.compose.ui.graphics.vector.ImageVector>> = listOf(
-            Triple("copy", stringResource(R.string.attach_copy), Icons.Filled.ContentCopy),
-            Triple("move", stringResource(R.string.attach_move), Icons.Filled.ContentCut),
-            Triple("link", stringResource(R.string.attach_link), Icons.Filled.InsertLink),
-            Triple("name", stringResource(R.string.attach_name), Icons.Filled.Title),
-        )
+        // Files are copied into Athea's own folder, which Termux cannot read yet.
+        val onTermux = SshTarget.fromShellPath(state.workspace.settings.shellPath) != null
+        val attachOptions: List<Triple<String, String, androidx.compose.ui.graphics.vector.ImageVector>> =
+            if (onTermux) {
+                emptyList()
+            } else {
+                listOf(
+                    Triple("copy", stringResource(R.string.attach_copy), Icons.Filled.ContentCopy),
+                    Triple("move", stringResource(R.string.attach_move), Icons.Filled.ContentCut),
+                    Triple("link", stringResource(R.string.attach_link), Icons.Filled.InsertLink),
+                    Triple("path", stringResource(R.string.attach_path), Icons.Filled.TextFields),
+                )
+            }
         AtheaDialogContainer(
             title = stringResource(R.string.attach_chooser_title),
             onDismiss = { viewModel.setShowAttachChooser(false) },
             content = {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    if (onTermux) {
+                        Text(
+                            text = stringResource(R.string.attach_termux_notice),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 14.dp),
+                        )
+                    }
                     attachOptions.forEach { (action, label, icon) ->
                         Row(
                             Modifier
@@ -460,12 +478,10 @@ private fun BottomBar(
         InputBar(
             draft = draft,
             suggestion = suggestion,
-            attachments = state.workspace.attachments,
             onDraftChange = viewModel::updateDraft,
             onSend = viewModel::sendDraft,
             onExpandEditor = { viewModel.setEditorExpanded(true) },
             onAddClick = { viewModel.setShowAttachChooser(true) },
-            onRemoveAttachment = viewModel::removeAttachment,
             search = state.workspace.search,
             onSearchQueryChange = viewModel::updateSearchQuery,
             onSearchNext = viewModel::nextSearchMatch,

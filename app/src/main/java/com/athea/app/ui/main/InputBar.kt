@@ -1,7 +1,5 @@
 package com.athea.app.ui.main
 
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -10,7 +8,6 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
@@ -19,7 +16,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.OpenInFull
 import androidx.compose.material.icons.filled.Search
@@ -48,10 +44,8 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.TextFieldValue
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.athea.app.R
-import com.athea.app.core.model.Attachment
 import com.athea.app.session.SearchState
 import com.athea.app.ui.theme.Ui
 import com.athea.app.ui.liquid.LiquidBackdrop
@@ -70,12 +64,10 @@ import com.athea.app.ui.theme.messageStyle
 fun InputBar(
     draft: String,
     suggestion: String?,
-    attachments: List<Attachment>,
     onDraftChange: (String) -> Unit,
     onSend: () -> Unit,
     onExpandEditor: () -> Unit,
     onAddClick: () -> Unit,
-    onRemoveAttachment: (Attachment) -> Unit,
     search: SearchState?,
     onSearchQueryChange: (String) -> Unit,
     onSearchNext: () -> Unit,
@@ -90,12 +82,10 @@ fun InputBar(
         DraftPanel(
             draft = draft,
             suggestion = suggestion,
-            attachments = attachments,
             onDraftChange = onDraftChange,
             onSend = onSend,
             onExpandEditor = onExpandEditor,
             onAddClick = onAddClick,
-            onRemoveAttachment = onRemoveAttachment,
             enterSends = enterSends,
             caret = caret,
             onCaretChange = onCaretChange,
@@ -133,12 +123,10 @@ private fun Modifier.barPadding(): Modifier =
 private fun DraftPanel(
     draft: String,
     suggestion: String?,
-    attachments: List<Attachment>,
     onDraftChange: (String) -> Unit,
     onSend: () -> Unit,
     onExpandEditor: () -> Unit,
     onAddClick: () -> Unit,
-    onRemoveAttachment: (Attachment) -> Unit,
     enterSends: Boolean,
     caret: Int,
     onCaretChange: (Int) -> Unit,
@@ -162,23 +150,6 @@ private fun DraftPanel(
             .liquidGlass(backdrop, Ui.panelShape, Ui.panelRadius, strong = true),
     ) {
         Column(Modifier.padding(horizontal = 4.dp, vertical = 4.dp)) {
-            if (attachments.isNotEmpty()) {
-                Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 6.dp, vertical = 4.dp)
-                        .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    attachments.forEach { attachment ->
-                        AttachmentChip(
-                            attachment = attachment,
-                            onRemove = { onRemoveAttachment(attachment) },
-                        )
-                    }
-                }
-            }
-
             Box {
                 BasicTextField(
                     value = TextFieldValue(draft, TextRange(if (caret in 0..draft.length) caret else draft.length)),
@@ -266,7 +237,7 @@ private fun DraftPanel(
                             )
                         }
                     }
-                    val hasText = draft.isNotBlank() || attachments.isNotEmpty()
+                    val hasText = draft.isNotBlank()
                     FilledIconButton(
                         onClick = onSend,
                         enabled = hasText,
@@ -305,48 +276,6 @@ private fun DraftPanel(
                         )
                     }
                 }
-            }
-        }
-    }
-}
-
-@Composable
-private fun AttachmentChip(
-    attachment: Attachment,
-    onRemove: () -> Unit,
-) {
-    Box(
-        Modifier
-            .width(104.dp)
-            .glass(Ui.attachmentShape, strong = true),
-    ) {
-        Column(Modifier.padding(start = 10.dp, end = 10.dp, top = 8.dp, bottom = 8.dp)) {
-            Icon(
-                Icons.Default.Code,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurface,
-            )
-            Text(
-                text = attachment.name,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(top = 6.dp),
-            )
-        }
-        Box(
-            Modifier
-                .align(Alignment.TopEnd)
-                .padding(2.dp),
-        ) {
-            IconButton(onClick = onRemove, modifier = Modifier.size(24.dp)) {
-                Icon(
-                    Icons.Default.Close,
-                    contentDescription = stringResource(R.string.cd_close),
-                    tint = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.size(14.dp),
-                )
             }
         }
     }

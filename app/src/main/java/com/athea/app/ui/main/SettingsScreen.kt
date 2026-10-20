@@ -30,6 +30,8 @@ fun SettingsScreen(
     previewLines: Int,
     bubbleFontSizeSp: Int,
     onKeyRowVisibleChange: (Boolean) -> Unit,
+    attachSendsNow: Boolean,
+    onAttachSendsNowChange: (Boolean) -> Unit,
     onEnterSendsChange: (Boolean) -> Unit,
     onAutoScrollOnSendChange: (Boolean) -> Unit,
     onRawStreamChange: (Boolean) -> Unit,
@@ -68,6 +70,12 @@ fun SettingsScreen(
                     subtitle = stringResource(R.string.settings_autocomplete_desc),
                     checked = autocompleteEnabled,
                     onChange = onAutocompleteEnabledChange,
+                )
+                SwitchRow(
+                    title = stringResource(R.string.settings_attach_sends_now),
+                    subtitle = stringResource(R.string.settings_attach_sends_now_desc),
+                    checked = attachSendsNow,
+                    onChange = onAttachSendsNowChange,
                 )
                 SwitchRow(
                     title = stringResource(R.string.settings_auto_scroll),

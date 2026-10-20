@@ -151,6 +151,7 @@ private fun ShellOption(title: String, description: String, onClick: () -> Unit)
 @Composable
 fun SetupTermux(
     publicKey: String,
+    keyError: String?,
     check: SshCheck,
     onCheck: (String, Int) -> Unit,
     onUse: (String, Int) -> Unit,
@@ -192,7 +193,11 @@ fun SetupTermux(
 
             StepText(stringResource(R.string.setup_termux_step_key))
             CodeLine(
-                text = if (keyCommand.isEmpty()) stringResource(R.string.setup_termux_key_loading) else keyCommand,
+                text = when {
+                    keyCommand.isNotEmpty() -> keyCommand
+                    keyError != null -> stringResource(R.string.setup_termux_key_failed, keyError)
+                    else -> stringResource(R.string.setup_termux_key_loading)
+                },
                 copyable = keyCommand.isNotEmpty(),
                 onCopy = { context.copyToClipboard(keyCommand, "athea-setup") },
             )

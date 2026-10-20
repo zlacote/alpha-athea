@@ -56,6 +56,8 @@ data class AtheaSettings(
     val pinchZoomEnabled: Boolean = true,
     val shellPath: String = DEFAULT_SHELL_PATH,
     val virtualizeLargeOutput: Boolean = false,
+    /** Commands made from picked files run at once; off, they wait in the composer on a new line. */
+    val attachSendsNow: Boolean = false,
 )
 
 /**

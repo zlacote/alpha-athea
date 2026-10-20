@@ -103,7 +103,8 @@ internal class SshShellEngine(
             _isAlive.value = true
             AtheaLog.log("ssh", "connected to ${target.host}:${target.port} as ${target.user}")
             pump(shell)
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
+            // A Throwable escaping this thread would end the app, so every failure is reported here.
             AtheaLog.error("ssh", "connection failed", e)
             val reason = e.message ?: e.javaClass.simpleName
             _events.tryEmit(EngineEvent.Output("ssh: could not connect ($reason)\n".toByteArray()))
@@ -169,6 +170,7 @@ internal fun probeSsh(target: SshTarget, identityFile: File): String? =
         probe.connect(10_000)
         probe.disconnect()
         null
-    } catch (e: Exception) {
+    } catch (e: Throwable) {
+        // Linkage errors are caught too: they would otherwise end the app on the check.
         e.message ?: e.javaClass.simpleName
     }

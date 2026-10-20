@@ -1,6 +1,5 @@
 package com.athea.app.session
 
-import com.athea.app.core.model.Attachment
 import com.athea.app.core.model.CommandBlock
 import com.athea.app.core.model.OutputBlock
 import com.athea.app.core.terminal.EngineEvent
@@ -68,14 +67,33 @@ class WorkspaceTest {
     }
 
     @Test
-    fun `staged attachments run before the draft and are then cleared`() = runTest {
+    fun `a prepared command waits in the composer on its own line`() = runTest {
         val ws = workspace()
-        ws.stageAttachment(Attachment(name = "a.txt", command = "cp '/x/a.txt' ./"))
-        ws.updateDraft("echo hi")
-        ws.sendDraft()
+        ws.updateDraft("Something")
+        ws.placeCommand("cp '/x/a.txt' ./")
 
-        assertEquals(listOf("cp '/x/a.txt' ./\n", "echo hi\n"), started.single().written)
-        assertEquals(emptyList<Attachment>(), ws.state.value.attachments)
+        assertEquals("Something\ncp '/x/a.txt' ./", ws.state.value.sessions.single().draft)
+        assertTrue(started.single().written.isEmpty())
+    }
+
+    @Test
+    fun `a prepared command runs at once when the setting says so`() = runTest {
+        val ws = workspace()
+        ws.updateSettings { it.copy(attachSendsNow = true) }
+        ws.updateDraft("Something")
+        ws.placeCommand("cp '/x/a.txt' ./")
+
+        assertEquals(listOf("cp '/x/a.txt' ./\n"), started.single().written)
+        assertEquals("Something", ws.state.value.sessions.single().draft)
+    }
+
+    @Test
+    fun `a path goes after a space on the same line`() = runTest {
+        val ws = workspace()
+        ws.updateDraft("ls")
+        ws.placePath("'/data/a b.txt'")
+
+        assertEquals("ls '/data/a b.txt'", ws.state.value.sessions.single().draft)
     }
 
     @Test

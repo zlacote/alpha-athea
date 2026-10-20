@@ -8,7 +8,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.athea.app.R
-import com.athea.app.core.model.Attachment
 import com.athea.app.core.terminal.TerminalEngine
 import com.athea.app.data.AtheaStorage
 import com.athea.app.data.CustomKey
@@ -29,6 +28,7 @@ import com.athea.app.ui.main.FORM_FEED
 import com.athea.app.ui.main.effectiveKeyRow
 import com.athea.app.util.AtheaLog
 import com.athea.app.util.dropOldestSharedFlow
+import com.athea.app.util.shellQuote
 import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -38,6 +38,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * Everything the main screen renders: the workspace projection plus the
@@ -55,6 +56,8 @@ data class UiState(
     val setupFromSettings: Boolean = false,
     /** This app's SSH public key, once it exists. */
     val sshPublicKey: String = "",
+    /** Why the key could not be created, if it could not. */
+    val sshKeyError: String? = null,
     val sshCheck: SshCheck = SshCheck.Idle,
     val showSettings: Boolean = false,
     val showFavorites: Boolean = false,
@@ -269,8 +272,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     // ------------------------------------------------------------ attachments
 
     /**
-     * Copies a picked file into the app attachment folder and stages the
-     * command that places it, to run with the next submission.
+     * Copies a picked file into the app's attachment folder, then puts the command or the path
+     * that uses it into the composer, or runs the command when the setting says so.
      */
     fun importAttachment(uri: Uri, action: String, context: Context) {
         viewModelScope.launch(Dispatchers.Default) {
@@ -297,19 +300,19 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 } ?: throw IllegalStateException("cannot open $uri")
 
                 AtheaLog.log("attach", "imported $safeName action=$action")
-                workspace.stageAttachment(
-                    Attachment(
-                        name = safeName,
-                        command = Attachments.command(action, target.absolutePath, safeName),
-                    ),
-                )
+                withContext(Dispatchers.Main) {
+                    if (action == Attachments.PATH) {
+                        workspace.placePath(target.absolutePath.shellQuote())
+                    } else {
+                        workspace.placeCommand(Attachments.command(action, target.absolutePath, safeName))
+                    }
+                }
             } catch (e: Exception) {
                 AtheaLog.error("attach", "import failed", e)
             }
         }
     }
 
-    fun removeAttachment(attachment: Attachment) = workspace.removeAttachment(attachment)
 
     // ------------------------------------------------------------------ favourites
 
@@ -391,8 +394,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun openTermuxSetup() {
         openSetup(SetupPage.TERMUX, _state.value.setupFromSettings)
         viewModelScope.launch(Dispatchers.IO) {
-            val key = SshIdentity.publicKeyLine(getApplication<Application>().filesDir)
-            _state.update { it.copy(sshPublicKey = key) }
+            // Anything thrown here would end the app, so the failure is shown on the page instead.
+            val result = runCatching { SshIdentity.publicKeyLine(getApplication<Application>().filesDir) }
+            result.onFailure { AtheaLog.error("ssh", "could not create the key", it) }
+            _state.update {
+                it.copy(
+                    sshPublicKey = result.getOrDefault(""),
+                    sshKeyError = result.exceptionOrNull()?.let { error -> error.message ?: error.javaClass.simpleName },
+                )
+            }
         }
     }
 
@@ -423,6 +433,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun setKeyRowVisible(visible: Boolean) = workspace.updateSettings { it.copy(keyRowVisible = visible) }
+
+    fun setAttachSendsNow(value: Boolean) = workspace.updateSettings { it.copy(attachSendsNow = value) }
 
     fun setEnterSends(value: Boolean) = workspace.updateSettings { it.copy(enterSends = value) }
 

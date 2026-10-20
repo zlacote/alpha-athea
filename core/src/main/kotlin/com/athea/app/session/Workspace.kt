@@ -2,7 +2,6 @@ package com.athea.app.session
 
 import com.athea.app.core.journal.JournalEvent
 import com.athea.app.core.journal.SessionJournal
-import com.athea.app.core.model.Attachment
 import com.athea.app.core.model.FavoriteCommand
 import com.athea.app.core.terminal.EngineEvent
 import com.athea.app.core.terminal.TerminalEngine
@@ -286,19 +285,15 @@ class Workspace(
         updateSuggestion(id, text)
     }
 
-    /** Submits staged attachments, then the draft. Returns false when there was nothing to send. */
+    /** Submits the draft. Returns false when there was nothing to send. */
     fun sendDraft(): Boolean {
         val id = _state.value.currentSessionId ?: return false
-        val attachments = _state.value.attachments
         synchronized(lock) {
             val draft = metas[id]?.draft.orEmpty().trimCommand()
-            if (draft.isBlank() && attachments.isEmpty()) return false
-            // Staged files go first, each as its own command.
-            for (attachment in attachments) submit(id, attachment.command)
-            if (draft.isNotBlank()) submit(id, draft)
+            if (draft.isBlank()) return false
+            submit(id, draft)
             mutateMeta(id) { it.copy(draft = "") }
         }
-        if (attachments.isNotEmpty()) _state.update { it.copy(attachments = emptyList()) }
         persistTransientState()
         return true
     }
@@ -439,14 +434,30 @@ class Workspace(
         _state.update { it.copy(customKeys = keys) }
     }
 
-    // ----------------------------------------------------------- attachments
+    // ------------------------------------------------------------- placement
 
-    fun stageAttachment(attachment: Attachment) {
-        _state.update { it.copy(attachments = it.attachments + attachment) }
+    /**
+     * Puts a command the app prepared (a file copied, moved or linked) into the composer on a line
+     * of its own, or runs it at once when the setting says so.
+     */
+    fun placeCommand(command: String) {
+        if (_state.value.settings.attachSendsNow) {
+            executeDirectly(command)
+            return
+        }
+        val draft = currentDraft()
+        insertIntoDraft(if (draft.isEmpty() || draft.endsWith("\n")) command else "\n$command")
     }
 
-    fun removeAttachment(attachment: Attachment) {
-        _state.update { it.copy(attachments = it.attachments - attachment) }
+    /** Puts an already quoted path into the composer, after a space on the same line. */
+    fun placePath(quotedPath: String) {
+        val draft = currentDraft()
+        insertIntoDraft(if (draft.isEmpty() || draft.last().isWhitespace()) quotedPath else " $quotedPath")
+    }
+
+    private fun currentDraft(): String {
+        val state = _state.value
+        return state.sessions.firstOrNull { it.id == state.currentSessionId }?.draft.orEmpty()
     }
 
     // ----------------------------------------------------------------- search

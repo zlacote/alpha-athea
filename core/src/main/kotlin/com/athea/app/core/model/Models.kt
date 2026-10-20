@@ -36,8 +36,3 @@ data class FavoriteCommand(
     val text: String,
 )
 
-/** A file staged for the next submission, already prepared as a command. */
-data class Attachment(
-    val name: String,
-    val command: String,
-)

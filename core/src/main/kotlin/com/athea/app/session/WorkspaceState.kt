@@ -1,6 +1,5 @@
 package com.athea.app.session
 
-import com.athea.app.core.model.Attachment
 import com.athea.app.core.model.FavoriteCommand
 import com.athea.app.core.terminal.TerminalEngine
 import com.athea.app.data.AtheaSettings
@@ -32,7 +31,6 @@ data class WorkspaceState(
     val currentSessionId: Long? = null,
     val favorites: List<FavoriteCommand> = emptyList(),
     val customKeys: List<CustomKey> = emptyList(),
-    val attachments: List<Attachment> = emptyList(),
     val settings: AtheaSettings = AtheaSettings(),
     val search: SearchState? = null,
     val suggestion: String? = null,
