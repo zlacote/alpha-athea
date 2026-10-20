@@ -166,7 +166,8 @@ fun SetupTermux(
     val keyCommand = if (publicKey.isEmpty()) {
         ""
     } else {
-        "mkdir -p ~/.ssh && echo '$publicKey' >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys"
+        // The home folder must not be writable by its group, or sshd refuses every key.
+        "chmod go-w ~ && mkdir -p ~/.ssh && chmod 700 ~/.ssh && echo '$publicKey' >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys"
     }
 
     AtheaScaffold(onBack = onBack) {
