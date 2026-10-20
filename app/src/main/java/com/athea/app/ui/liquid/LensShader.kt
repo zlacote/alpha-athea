@@ -90,11 +90,12 @@ private fun createLensEffect(
 // Tuned to the KMP Liquid Glass demos: a light blur, a 16-24 dp refraction bezel with a
 // bend of 8-16 dp, and a chromatic fringe. Bezels are clamped to the surface's half size.
 private val LENS_BLUR = 3.dp
-private val LENS_BEZEL = 20.dp
-private val LENS_BEND = 12.dp
-private val HIGHLIGHT_WIDTH = 1.5f.dp
+// TEMPORARY, to check on device whether the bend and rim highlight draw at all: exaggerated values.
+private val LENS_BEZEL = 60.dp
+private val LENS_BEND = 40.dp
+private val HIGHLIGHT_WIDTH = 6f.dp
 private const val CHROMA = 0.6f
-private const val HIGHLIGHT_STRENGTH = 0.55f
+private const val HIGHLIGHT_STRENGTH = 1.0f
 private val LIGHT_DIR = floatArrayOf(-0.5f, -0.87f)
 
 /**
