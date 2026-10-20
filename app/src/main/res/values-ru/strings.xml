@@ -181,4 +181,11 @@
     <string name="settings_attach_sends_now">Отправлять команды файлов сразу</string>
     <string name="settings_attach_sends_now_desc">Выкл: команда ставится в поле ввода с новой строки</string>
     <string name="setup_termux_key_failed">Не удалось создать ключ: %1$s</string>
+    <string name="settings_glow_section">Свечение</string>
+    <string name="settings_glow">Свечение, пока команда работает</string>
+    <string name="settings_glow_desc">Мягкий свет поднимается от низа экрана</string>
+    <string name="settings_glow_strength">Сила, %</string>
+    <string name="settings_glow_height">Высота, dp</string>
+    <string name="settings_glow_width">Ширина, %</string>
+    <string name="settings_glow_period">Период, мс</string>
 </resources>

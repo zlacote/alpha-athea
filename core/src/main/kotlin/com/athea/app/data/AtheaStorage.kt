@@ -58,6 +58,16 @@ data class AtheaSettings(
     val virtualizeLargeOutput: Boolean = false,
     /** Commands made from picked files run at once; off, they wait in the composer on a new line. */
     val attachSendsNow: Boolean = false,
+    /** The light that rises from the bottom edge while a command runs. */
+    val glowEnabled: Boolean = true,
+    /** Peak brightness of the glow, in percent. */
+    val glowStrengthPct: Int = 50,
+    /** Height of the glow, in dp. */
+    val glowHeightDp: Int = 28,
+    /** Width of the glow, as a percentage of the screen width. */
+    val glowWidthPct: Int = 86,
+    /** One pulse, in milliseconds. */
+    val glowPeriodMs: Int = 2400,
 )
 
 /**

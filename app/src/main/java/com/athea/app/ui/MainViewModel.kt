@@ -436,6 +436,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun setAttachSendsNow(value: Boolean) = workspace.updateSettings { it.copy(attachSendsNow = value) }
 
+    fun setGlowEnabled(value: Boolean) = workspace.updateSettings { it.copy(glowEnabled = value) }
+
+    fun setGlowStrengthPct(value: Int) = workspace.updateSettings { it.copy(glowStrengthPct = value) }
+
+    fun setGlowHeightDp(value: Int) = workspace.updateSettings { it.copy(glowHeightDp = value) }
+
+    fun setGlowWidthPct(value: Int) = workspace.updateSettings { it.copy(glowWidthPct = value) }
+
+    fun setGlowPeriodMs(value: Int) = workspace.updateSettings { it.copy(glowPeriodMs = value) }
+
     fun setEnterSends(value: Boolean) = workspace.updateSettings { it.copy(enterSends = value) }
 
     fun setAutoScrollOnSend(value: Boolean) = workspace.updateSettings { it.copy(autoScrollOnSend = value) }

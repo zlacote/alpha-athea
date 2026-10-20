@@ -5,6 +5,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,7 +22,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ContentCopy
-import androidx.compose.material.icons.filled.ContentCut
 import androidx.compose.material.icons.filled.InsertLink
 import androidx.compose.material.icons.filled.TextFields
 import androidx.compose.material3.DrawerValue
@@ -70,6 +70,15 @@ import kotlinx.coroutines.launch
 @Composable
 fun MainScreen(viewModel: MainViewModel) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+
+    // Settings keep their scroll position while a sub-page is open, and start at the top again
+    // once Settings is left.
+    val settingsScroll = rememberScrollState()
+    val scope = rememberCoroutineScope()
+    fun closeSettings() {
+        scope.launch { settingsScroll.scrollTo(0) }
+        viewModel.setShowSettings(false)
+    }
 
     val setup = state.setup
     if (setup != null) {
@@ -123,8 +132,9 @@ fun MainScreen(viewModel: MainViewModel) {
     }
 
     if (state.showSettings) {
-        BackHandler { viewModel.setShowSettings(false) }
+        BackHandler { closeSettings() }
         SettingsScreen(
+            scrollState = settingsScroll,
             keyRowVisible = state.workspace.settings.keyRowVisible,
             onKeyRowVisibleChange = viewModel::setKeyRowVisible,
             enterSends = state.workspace.settings.enterSends,
@@ -152,10 +162,20 @@ fun MainScreen(viewModel: MainViewModel) {
                 stringResource(R.string.shell_local)
             },
             onOpenShell = { viewModel.openSetup(SetupPage.SHELL, fromSettings = true) },
+            glowEnabled = state.workspace.settings.glowEnabled,
+            glowStrengthPct = state.workspace.settings.glowStrengthPct,
+            glowHeightDp = state.workspace.settings.glowHeightDp,
+            glowWidthPct = state.workspace.settings.glowWidthPct,
+            glowPeriodMs = state.workspace.settings.glowPeriodMs,
+            onGlowEnabledChange = viewModel::setGlowEnabled,
+            onGlowStrengthChange = viewModel::setGlowStrengthPct,
+            onGlowHeightChange = viewModel::setGlowHeightDp,
+            onGlowWidthChange = viewModel::setGlowWidthPct,
+            onGlowPeriodChange = viewModel::setGlowPeriodMs,
             attachSendsNow = state.workspace.settings.attachSendsNow,
             onAttachSendsNowChange = viewModel::setAttachSendsNow,
             onOpenGlassTuning = { viewModel.setShowGlassTuning(true) },
-            onBack = { viewModel.setShowSettings(false) },
+            onBack = { closeSettings() },
         )
         return
     }
@@ -195,7 +215,6 @@ fun MainScreen(viewModel: MainViewModel) {
             } else {
                 listOf(
                     Triple("copy", stringResource(R.string.attach_copy), Icons.Filled.ContentCopy),
-                    Triple("move", stringResource(R.string.attach_move), Icons.Filled.ContentCut),
                     Triple("link", stringResource(R.string.attach_link), Icons.Filled.InsertLink),
                     Triple("path", stringResource(R.string.attach_path), Icons.Filled.TextFields),
                 )
@@ -377,9 +396,9 @@ private fun MainScreenBody(viewModel: MainViewModel, state: UiState, composerBac
 
                 RunningGlow(
                     running = current?.running == true,
+                    settings = state.workspace.settings,
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
-                        .fillMaxWidth(Ui.glowWidthFraction)
                         .navigationBarsPadding(),
                 )
 

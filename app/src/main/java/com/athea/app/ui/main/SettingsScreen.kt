@@ -4,7 +4,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -32,6 +32,16 @@ fun SettingsScreen(
     onKeyRowVisibleChange: (Boolean) -> Unit,
     attachSendsNow: Boolean,
     onAttachSendsNowChange: (Boolean) -> Unit,
+    glowEnabled: Boolean,
+    glowStrengthPct: Int,
+    glowHeightDp: Int,
+    glowWidthPct: Int,
+    glowPeriodMs: Int,
+    onGlowEnabledChange: (Boolean) -> Unit,
+    onGlowStrengthChange: (Int) -> Unit,
+    onGlowHeightChange: (Int) -> Unit,
+    onGlowWidthChange: (Int) -> Unit,
+    onGlowPeriodChange: (Int) -> Unit,
     onEnterSendsChange: (Boolean) -> Unit,
     onAutoScrollOnSendChange: (Boolean) -> Unit,
     onRawStreamChange: (Boolean) -> Unit,
@@ -45,6 +55,7 @@ fun SettingsScreen(
     onOpenShell: () -> Unit,
     onOpenKeys: () -> Unit,
     onOpenGlassTuning: () -> Unit,
+    scrollState: ScrollState,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -54,7 +65,7 @@ fun SettingsScreen(
         Column(
             Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState()),
+                .verticalScroll(scrollState),
         ) {
             AtheaScrollHeader(stringResource(R.string.settings))
 
@@ -121,6 +132,43 @@ fun SettingsScreen(
                     value = bubbleFontSizeSp,
                     range = 12f..24f,
                     onChange = onBubbleFontSizeChange,
+                )
+            }
+
+            SettingsSection(title = stringResource(R.string.settings_glow_section)) {
+                SwitchRow(
+                    title = stringResource(R.string.settings_glow),
+                    subtitle = stringResource(R.string.settings_glow_desc),
+                    checked = glowEnabled,
+                    onChange = onGlowEnabledChange,
+                )
+                SliderRow(
+                    title = stringResource(R.string.settings_glow_strength),
+                    value = glowStrengthPct,
+                    range = 10f..100f,
+                    onChange = onGlowStrengthChange,
+                    enabled = glowEnabled,
+                )
+                SliderRow(
+                    title = stringResource(R.string.settings_glow_height),
+                    value = glowHeightDp,
+                    range = 12f..56f,
+                    onChange = onGlowHeightChange,
+                    enabled = glowEnabled,
+                )
+                SliderRow(
+                    title = stringResource(R.string.settings_glow_width),
+                    value = glowWidthPct,
+                    range = 40f..100f,
+                    onChange = onGlowWidthChange,
+                    enabled = glowEnabled,
+                )
+                SliderRow(
+                    title = stringResource(R.string.settings_glow_period),
+                    value = glowPeriodMs,
+                    range = 1000f..5000f,
+                    onChange = onGlowPeriodChange,
+                    enabled = glowEnabled,
                 )
             }
 

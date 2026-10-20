@@ -28,6 +28,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import com.athea.app.ui.theme.Ui
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -105,11 +107,13 @@ internal fun SliderRow(
     value: Int,
     range: ClosedFloatingPointRange<Float>,
     onChange: (Int) -> Unit,
+    enabled: Boolean = true,
 ) {
     Column(
         Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .alpha(if (enabled) 1f else Ui.ghostAlpha),
     ) {
         Row(
             Modifier.fillMaxWidth(),
@@ -126,6 +130,7 @@ internal fun SliderRow(
         Slider(
             value = value.toFloat(),
             onValueChange = { onChange(it.toInt()) },
+            enabled = enabled,
             valueRange = range,
         )
     }

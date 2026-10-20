@@ -12,11 +12,13 @@ object Attachments {
 
     fun safeName(raw: String): String = raw.replace(UNSAFE_NAME_CHARS, "_")
 
-    /** [action] is copy, move or link. Anything else behaves like copy. */
+    /**
+     * [action] is copy or link. Anything else behaves like copy. The original file is never
+     * touched: the picker grants read access only, so this is a copy, not a move.
+     */
     fun command(action: String, absolutePath: String, safeName: String): String {
         val quoted = absolutePath.shellQuote()
         return when (action) {
-            "move" -> "mv $quoted ./"
             "link" -> "ln -s $quoted ./'$safeName'"
             else -> "cp $quoted ./"
         }

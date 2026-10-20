@@ -84,8 +84,9 @@ fun SessionsDrawerContent(
 
     // Surface (not a bare background) so inner text picks up the proper
     // content color instead of the default dark one.
+    // The dark tint sits between the glass and the rows, so the panel darkens and the text does not.
     Surface(
-        color = Color.Transparent,
+        color = Color.Black.copy(alpha = Ui.drawerDarkenAlpha),
         contentColor = MaterialTheme.colorScheme.onSurface,
         modifier = modifier
             .fillMaxHeight()

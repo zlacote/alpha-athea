@@ -186,4 +186,11 @@
     <string name="settings_attach_sends_now">Send file commands at once</string>
     <string name="settings_attach_sends_now_desc">Off: the command goes into the input on a new line</string>
     <string name="setup_termux_key_failed">Could not create the key: %1$s</string>
+    <string name="settings_glow_section">Glow</string>
+    <string name="settings_glow">Glow while a command runs</string>
+    <string name="settings_glow_desc">A soft light rises from the bottom edge</string>
+    <string name="settings_glow_strength">Strength, %</string>
+    <string name="settings_glow_height">Height, dp</string>
+    <string name="settings_glow_width">Width, %</string>
+    <string name="settings_glow_period">Pulse, ms</string>
 </resources>
