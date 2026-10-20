@@ -22,11 +22,11 @@ object Glass {
     /** Denser fill for panels over busy content: drawer and menus. */
     val FILL_STRONG = Color(0xB8141418)
 
-    /** Almost clear fill under a refracting lens: the bent backdrop carries the look. */
-    val FILL_CLEAR = Color(0x1F141418)
+    /** Faint frost under a refracting lens: it lifts the glass off a black background. */
+    val FILL_CLEAR = Color(0x14FFFFFF)
 
-    /** One thin rim of the same weight on every side. */
-    val RIM = Color(0x2EFFFFFF)
+    /** One rim of the same weight on every side, bright enough to read on black. */
+    val RIM = Color(0x40FFFFFF)
 
     /** Fill of a selected row inside a glass panel. */
     val SELECTED = Color(0x1FFFFFFF)

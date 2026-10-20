@@ -268,7 +268,7 @@ private fun MainScreenBody(viewModel: MainViewModel, state: UiState, composerBac
                 // (InputBar + key row) floats above it for both the
                 // session and the empty state, wired in exactly one place.
             if (current != null) {
-                Box(Modifier.fillMaxSize().liquidBackdrop(composerBackdrop)) {
+                Box(Modifier.fillMaxSize().liquidBackdrop(composerBackdrop, MaterialTheme.colorScheme.background)) {
                     val overlayBottom = bottomBarHeight + Ui.contentPaddingV
                     TranscriptView(
                         session = current,

@@ -55,7 +55,7 @@ fun AtheaScaffold(
                 Column(
                     Modifier
                         .fillMaxSize()
-                        .liquidBackdrop(backdrop)
+                        .liquidBackdrop(backdrop, MaterialTheme.colorScheme.background)
                         .windowInsetsPadding(
                             WindowInsets.safeDrawing.only(
                                 WindowInsetsSides.Start + WindowInsetsSides.End + WindowInsetsSides.Bottom,

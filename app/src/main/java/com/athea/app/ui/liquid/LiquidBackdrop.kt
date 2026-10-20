@@ -7,6 +7,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipPath
@@ -50,12 +51,17 @@ fun rememberLiquidBackdrop(): LiquidBackdrop {
     return remember(layer) { LiquidBackdrop(layer) }
 }
 
-/** Marks this subtree as backdrop content: it is drawn normally and recorded for glass. */
-fun Modifier.liquidBackdrop(backdrop: LiquidBackdrop): Modifier =
+/**
+ * Marks this subtree as backdrop content: it is drawn normally and recorded for glass.
+ * [background] is painted inside the recording too. A background set on a parent is
+ * not part of this subtree, so glass would sample transparent pixels and show nothing.
+ */
+fun Modifier.liquidBackdrop(backdrop: LiquidBackdrop, background: Color = Color.Unspecified): Modifier =
     onGloballyPositioned { backdrop.rootOrigin = it.positionInRoot() }
         .drawWithContent {
             val pixels = IntSize(size.width.roundToInt(), size.height.roundToInt())
             backdrop.layer.record(this@drawWithContent, layoutDirection, pixels) {
+                if (background.isSpecified) drawRect(background)
                 this@drawWithContent.drawContent()
             }
             drawLayer(backdrop.layer)
