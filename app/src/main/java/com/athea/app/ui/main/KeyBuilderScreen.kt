@@ -24,16 +24,17 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.athea.app.R
 import com.athea.app.data.CustomKey
 import com.athea.app.data.KeyKind
 import com.athea.app.ui.common.AtheaScaffold
+import com.athea.app.ui.common.AtheaScrollHeader
 import com.athea.app.util.isCtrlCombinable
 import com.athea.app.util.toControlChar
 
@@ -63,12 +64,18 @@ private fun chars(row: String): List<BuilderKey> = row.map { typed(it.toString()
 
 /**
  * The keyboard, row by row, laid out like a phone keyboard on a grid of ten units.
- * Shorter rows are centred. No key appears twice.
+ * Shorter rows are centred. No key appears twice. Function keys and the
+ * navigation block follow the xterm sequences.
  */
 private val BUILDER_ROWS: List<List<BuilderKey>> = listOf(
     listOf(
-        typed("ESC", "\u001B"), typed("F1", "\u001BOP"), typed("F2", "\u001BOQ"), typed("F3", "\u001BOR"),
-        typed("F4", "\u001BOS"), typed("F5", "\u001B[15~"), typed("TAB", "\t"),
+        typed("ESC", "\u001B"), typed("TAB", "\t"),
+        typed("F1", "\u001BOP"), typed("F2", "\u001BOQ"), typed("F3", "\u001BOR"), typed("F4", "\u001BOS"),
+        typed("F5", "\u001B[15~"), typed("F6", "\u001B[17~"),
+    ),
+    listOf(
+        typed("F7", "\u001B[18~"), typed("F8", "\u001B[19~"), typed("F9", "\u001B[20~"), typed("F10", "\u001B[21~"),
+        typed("F11", "\u001B[23~"), typed("F12", "\u001B[24~"), typed("INS", "\u001B[2~"), typed("DEL", "\u001B[3~"),
     ),
     chars("1234567890"),
     chars("qwertyuiop"),
@@ -79,8 +86,8 @@ private val BUILDER_ROWS: List<List<BuilderKey>> = listOf(
     chars("`~|\$&*()!?"),
     chars("@#%^+_{}<>"),
     listOf(
-        typed("↑", "\u001B[A"), typed("↓", "\u001B[B"), typed("←", "\u001B[D"), typed("→", "\u001B[C"),
         typed("HOME", "\u001B[H"), typed("END", "\u001B[F"), typed("PGUP", "\u001B[5~"), typed("PGDN", "\u001B[6~"),
+        typed("↑", "\u001B[A"), typed("↓", "\u001B[B"), typed("←", "\u001B[D"), typed("→", "\u001B[C"),
     ),
     listOf(
         typed(","),
@@ -120,18 +127,14 @@ fun KeyBuilderScreen(
         }
     }
 
-    AtheaScaffold(
-        title = stringResource(R.string.builder_title),
-        onBack = onBack,
-        modifier = modifier,
-    ) { headerInset ->
+    AtheaScaffold(onBack = onBack, modifier = modifier) {
         Column(
             Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 8.dp),
         ) {
-            Spacer(Modifier.height(headerInset))
+            AtheaScrollHeader(stringResource(R.string.builder_title))
 
             Row(
                 Modifier

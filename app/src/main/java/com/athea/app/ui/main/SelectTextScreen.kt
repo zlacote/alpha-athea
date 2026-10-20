@@ -1,9 +1,7 @@
 package com.athea.app.ui.main
 
 import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.selection.SelectionContainer
@@ -15,6 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import com.athea.app.R
 import com.athea.app.ui.common.AtheaScaffold
+import com.athea.app.ui.common.AtheaScrollHeader
 import com.athea.app.ui.theme.Ui
 import com.athea.app.ui.theme.codeStyle
 
@@ -29,12 +28,8 @@ fun SelectTextScreen(
     onClose: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    AtheaScaffold(
-        title = stringResource(R.string.select_text_title),
-        onBack = onClose,
-        modifier = modifier,
-    ) { headerInset ->
-        Spacer(Modifier.height(headerInset))
+    AtheaScaffold(onBack = onClose, modifier = modifier) {
+        AtheaScrollHeader(stringResource(R.string.select_text_title))
         SelectionContainer(
             Modifier
                 .weight(1f)

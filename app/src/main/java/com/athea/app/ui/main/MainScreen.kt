@@ -80,10 +80,29 @@ fun MainScreen(viewModel: MainViewModel) {
         return
     }
 
+    if (state.showGlassTuning) {
+        BackHandler { viewModel.setShowGlassTuning(false) }
+        GlassTuningScreen(onBack = { viewModel.setShowGlassTuning(false) })
+        return
+    }
+
+    if (state.showKeys) {
+        BackHandler { viewModel.setShowKeys(false) }
+        KeysScreen(
+            keyRowVisible = state.workspace.settings.keyRowVisible,
+            keys = effectiveKeyRow(state.workspace.customKeys),
+            onKeyRowVisibleChange = viewModel::setKeyRowVisible,
+            onKeysChange = viewModel::setCustomKeys,
+            onResetKeys = viewModel::resetKeysToDefaults,
+            onOpenKeyBuilder = { viewModel.setShowKeyBuilder(true) },
+            onBack = { viewModel.setShowKeys(false) },
+        )
+        return
+    }
+
     if (state.showSettings) {
         BackHandler { viewModel.setShowSettings(false) }
         SettingsScreen(
-            keyRowVisible = state.workspace.settings.keyRowVisible,
             enterSends = state.workspace.settings.enterSends,
             autoScrollOnSend = state.workspace.settings.autoScrollOnSend,
             rawStream = state.workspace.settings.rawStream,
@@ -93,8 +112,6 @@ fun MainScreen(viewModel: MainViewModel) {
             outputFontSizeSp = state.workspace.settings.outputFontSizeSp,
             previewLines = state.workspace.settings.previewLines,
             bubbleFontSizeSp = state.workspace.settings.bubbleFontSizeSp,
-            customKeys = effectiveKeyRow(state.workspace.customKeys),
-            onKeyRowVisibleChange = viewModel::setKeyRowVisible,
             onEnterSendsChange = viewModel::setEnterSends,
             onAutoScrollOnSendChange = viewModel::setAutoScrollOnSend,
             onRawStreamChange = viewModel::setRawStream,
@@ -104,18 +121,10 @@ fun MainScreen(viewModel: MainViewModel) {
             onOutputFontSizeChange = viewModel::setOutputFontSize,
             onPreviewLinesChange = viewModel::setPreviewLines,
             onBubbleFontSizeChange = viewModel::setBubbleFontSize,
-            onCustomKeysChange = viewModel::setCustomKeys,
-            onResetKeys = viewModel::resetKeysToDefaults,
-            onOpenKeyBuilder = { viewModel.setShowKeyBuilder(true) },
+            onOpenKeys = { viewModel.setShowKeys(true) },
             onOpenGlassTuning = { viewModel.setShowGlassTuning(true) },
             onBack = { viewModel.setShowSettings(false) },
         )
-        return
-    }
-
-    if (state.showGlassTuning) {
-        BackHandler { viewModel.setShowGlassTuning(false) }
-        GlassTuningScreen(onBack = { viewModel.setShowGlassTuning(false) })
         return
     }
 
@@ -274,34 +283,34 @@ private fun MainScreenBody(viewModel: MainViewModel, state: UiState, composerBac
                 // Transcript fills the available area; the bottom bar
                 // (InputBar + key row) floats above it for both the
                 // session and the empty state, wired in exactly one place.
-            if (current != null) {
-                Box(Modifier.fillMaxSize().liquidBackdrop(composerBackdrop, MaterialTheme.colorScheme.background)) {
-                    val overlayBottom = bottomBarHeight + Ui.contentPaddingV
-                    TranscriptView(
-                        session = current,
-                        search = state.workspace.search,
-                        scrollRequests = viewModel.scrollRequests,
-                        jumpToBottom = viewModel.jumpToBottom,
-                        previewLines = state.workspace.settings.previewLines,
-                        contentTopPadding = statusBarTop + Ui.topBarContentTop,
-                        contentBottomPadding = overlayBottom,
-                        pinchZoomEnabled = state.workspace.settings.pinchZoomEnabled,
-                        virtualizeLargeOutput = state.workspace.settings.virtualizeLargeOutput,
-                        onOutputFontZoom = viewModel::onOutputFontZoom,
-                        onToggleBlock = viewModel::toggleBlockCollapsed,
-                        onRevealBlock = viewModel::revealBlock,
-                        onLocateBlock = { blockId ->
-                            current.blocks.indexOfFirst { it.block.id == blockId }
-                        },
-                        onCopyCommand = { text ->
-                            context.copyToClipboard(text, "athea-command")
-                        },
-                        onSelectCommandText = viewModel::showSelectText,
-                        onAddToFavorites = viewModel::addFavorite,
-                        onAreaResized = viewModel::onTranscriptAreaResized,
-                        modifier = Modifier.fillMaxSize(),
-                    )
-                }
+                if (current != null) {
+                    Box(Modifier.fillMaxSize().liquidBackdrop(composerBackdrop, MaterialTheme.colorScheme.background)) {
+                        val overlayBottom = bottomBarHeight + Ui.contentPaddingV
+                        TranscriptView(
+                            session = current,
+                            search = state.workspace.search,
+                            scrollRequests = viewModel.scrollRequests,
+                            jumpToBottom = viewModel.jumpToBottom,
+                            previewLines = state.workspace.settings.previewLines,
+                            contentTopPadding = statusBarTop + Ui.topBarContentTop,
+                            contentBottomPadding = overlayBottom,
+                            pinchZoomEnabled = state.workspace.settings.pinchZoomEnabled,
+                            virtualizeLargeOutput = state.workspace.settings.virtualizeLargeOutput,
+                            onOutputFontZoom = viewModel::onOutputFontZoom,
+                            onToggleBlock = viewModel::toggleBlockCollapsed,
+                            onRevealBlock = viewModel::revealBlock,
+                            onLocateBlock = { blockId ->
+                                current.blocks.indexOfFirst { it.block.id == blockId }
+                            },
+                            onCopyCommand = { text ->
+                                context.copyToClipboard(text, "athea-command")
+                            },
+                            onSelectCommandText = viewModel::showSelectText,
+                            onAddToFavorites = viewModel::addFavorite,
+                            onAreaResized = viewModel::onTranscriptAreaResized,
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    }
                 }
 
                 BottomBar(

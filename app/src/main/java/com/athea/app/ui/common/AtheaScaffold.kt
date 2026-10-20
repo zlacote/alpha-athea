@@ -3,15 +3,15 @@ package com.athea.app.ui.common
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
-import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material.icons.Icons
@@ -19,78 +19,90 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.text.style.TextOverflow
 import com.athea.app.ui.liquid.LocalLiquidBackdrop
 import com.athea.app.ui.liquid.liquidBackdrop
 import com.athea.app.ui.liquid.rememberLiquidBackdrop
 import com.athea.app.ui.theme.Ui
 
 /**
- * A screen with a floating header: a glass back button and a glass title over
- * the content. The header is not a bar. The content starts under it and scrolls
- * beneath it, so [content] receives [headerInset], the height the header takes:
- * the scrolling column puts that much space first, so the first item sits below
- * the header at rest.
+ * A screen with a floating glass back button. The back button stays in its corner;
+ * the screen's content, which starts with [AtheaScrollHeader], scrolls under it.
  */
 @Composable
 fun AtheaScaffold(
-    title: String,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
     backIcon: ImageVector = Icons.AutoMirrored.Filled.ArrowBack,
-    content: @Composable ColumnScope.(headerInset: Dp) -> Unit,
+    content: @Composable ColumnScope.() -> Unit,
 ) {
     val backdrop = rememberLiquidBackdrop()
-    val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
-    val headerInset = statusBarTop + Ui.topBarTopPadding + Ui.topButtonSize + Ui.topBarBottomPadding
+    val background = MaterialTheme.colorScheme.background
 
-    Surface(color = MaterialTheme.colorScheme.background, modifier = modifier.fillMaxSize()) {
+    Surface(color = background, modifier = modifier.fillMaxSize()) {
         CompositionLocalProvider(LocalLiquidBackdrop provides backdrop) {
             Box(Modifier.fillMaxSize()) {
                 Column(
                     Modifier
                         .fillMaxSize()
-                        .liquidBackdrop(backdrop, MaterialTheme.colorScheme.background)
+                        .liquidBackdrop(backdrop, background)
                         .windowInsetsPadding(
                             WindowInsets.safeDrawing.only(
                                 WindowInsetsSides.Start + WindowInsetsSides.End + WindowInsetsSides.Bottom,
                             ),
                         ),
                 ) {
-                    content(headerInset)
+                    content()
                 }
                 Box(
                     Modifier
                         .fillMaxWidth()
                         .statusBarsPadding()
-                        .padding(
-                            start = Ui.topBarHorizontalPadding,
-                            end = Ui.topBarHorizontalPadding,
-                            top = Ui.topBarTopPadding,
-                            bottom = Ui.topBarBottomPadding,
-                        ),
+                        .padding(start = Ui.topBarHorizontalPadding, top = Ui.topBarTopPadding),
                 ) {
-                    AtheaRoundButton(
-                        onClick = onBack,
-                        modifier = Modifier.align(Alignment.CenterStart),
-                    ) {
+                    AtheaRoundButton(onClick = onBack) {
                         Icon(
                             backIcon,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.onSurface,
                         )
                     }
-                    AtheaTitlePill(
-                        title = title,
-                        modifier = Modifier.align(Alignment.Center),
-                    )
                 }
             }
         }
+    }
+}
+
+/**
+ * The screen title as plain text at the top of the scrolling content, in the row the
+ * back button leaves free. It has no outline and scrolls away with the content.
+ */
+@Composable
+fun AtheaScrollHeader(title: String) {
+    Column(Modifier.fillMaxWidth()) {
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .statusBarsPadding()
+                .padding(top = Ui.topBarTopPadding)
+                .height(Ui.topButtonSize)
+                .padding(horizontal = Ui.topButtonSize + Ui.topBarHorizontalPadding * 2),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onBackground,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        Spacer(Modifier.height(Ui.topBarBottomPadding))
     }
 }

@@ -2,15 +2,14 @@ package com.athea.app.ui.main
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.item
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
@@ -34,9 +33,10 @@ import androidx.compose.ui.unit.dp
 import com.athea.app.R
 import com.athea.app.core.model.FavoriteCommand
 import com.athea.app.ui.common.AtheaMenuHost
+import com.athea.app.ui.common.AtheaScaffold
+import com.athea.app.ui.common.AtheaScrollHeader
 import com.athea.app.ui.common.AtheaTextFieldDialog
 import com.athea.app.ui.common.rememberAtheaMenu
-import com.athea.app.ui.common.AtheaScaffold
 
 /**
  * Full list of favorite commands: tap inserts into the editor, long
@@ -54,25 +54,22 @@ fun FavoritesScreen(
     modifier: Modifier = Modifier,
 ) {
     var editTarget by remember { mutableStateOf<FavoriteCommand?>(null) }
+    val title = stringResource(R.string.favorites)
 
-    AtheaScaffold(
-        title = stringResource(R.string.favorites),
-        onBack = onBack,
-        modifier = modifier,
-    ) { headerInset ->
+    AtheaScaffold(onBack = onBack, modifier = modifier) {
         if (favorites.isEmpty()) {
-            Spacer(Modifier.height(headerInset))
-            Text(
-                text = stringResource(R.string.favorites_empty),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(20.dp),
-            )
+            Column(Modifier.fillMaxSize()) {
+                AtheaScrollHeader(title)
+                Text(
+                    text = stringResource(R.string.favorites_empty),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(20.dp),
+                )
+            }
         } else {
-            LazyColumn(
-                Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(top = headerInset),
-            ) {
+            LazyColumn(Modifier.fillMaxSize()) {
+                item { AtheaScrollHeader(title) }
                 items(favorites, key = { it.id }) { favorite ->
                     val menu = rememberAtheaMenu()
                     Row(

@@ -74,6 +74,11 @@
     <string name="settings_virtualize_desc">When large, scroll inside instead of full page; uses same lines as collapsed view ×4</string>
     <string name="settings_section_input">Input</string>
     <string name="settings_section_output">Output</string>
+    <string name="keys_open">Keys and buttons</string>
+    <string name="keys_title">Keys</string>
+    <string name="keys_add">Add</string>
+    <string name="keys_enter_after">Enter after</string>
+    <string name="keys_list_title">Buttons</string>
     <string name="settings_keys_section">Keys</string>
     <string name="settings_keys_add">Add key</string>
     <string name="settings_keys_reset">Reset to defaults</string>

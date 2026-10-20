@@ -7,7 +7,6 @@ import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.asComposeRenderEffect
 import androidx.compose.ui.platform.LocalDensity
@@ -16,60 +15,78 @@ import kotlin.math.cos
 import kotlin.math.sin
 
 /**
- * One lens: a RuntimeShader that bends the recorded backdrop inside a rounded
- * rectangle. Each glass surface owns its own instance, so uniforms never collide.
+ * One lens: a RuntimeShader that bends the recorded backdrop inside a rounded rectangle.
+ * Each glass surface owns its own instance, so uniforms never collide.
+ *
+ * Android copies a RuntimeShader's uniforms into the RenderEffect when the effect is
+ * created. Setting them afterwards left every parameter at zero, so the lens never drew.
+ * The effect is therefore rebuilt whenever one of the parameters changes.
  */
 internal class LensEffect(
     private val shader: RuntimeShader,
-    val composeEffect: androidx.compose.ui.graphics.RenderEffect,
     private val density: Float,
 ) {
+    private var applied: FloatArray? = null
+    private var effect: androidx.compose.ui.graphics.RenderEffect? = null
 
-    /** Sets every uniform the shader declares from [GlassTuning]; written on every draw. */
-    fun update(size: Size, cornerRadiusPx: Float, originPx: Offset) {
+    /** The render effect for a surface of [size], rebuilt only when a parameter changed. */
+    fun effectFor(size: Size, cornerRadiusPx: Float): androidx.compose.ui.graphics.RenderEffect {
         val lens = GlassTuning.mode == GlassMode.LENS
         val angle = GlassTuning.lightAngleDeg * DEGREES_TO_RADIANS
-        shader.setFloatUniform("lensSize", size.width, size.height)
-        shader.setFloatUniform("origin", originPx.x, originPx.y)
-        shader.setFloatUniform("cornerRadius", cornerRadiusPx)
-        shader.setFloatUniform("bezel", GlassTuning.bezelDp * density)
-        shader.setFloatUniform("bend", if (lens) GlassTuning.bendDp * density else 0f)
-        shader.setFloatUniform("chroma", GlassTuning.chroma)
-        shader.setFloatUniform("highlightWidth", GlassTuning.highlightWidthDp * density)
-        shader.setFloatUniform("highlightStrength", if (lens) GlassTuning.highlightStrength else 0f)
-        shader.setFloatUniform("lightDir", cos(angle), sin(angle))
+        val values = floatArrayOf(
+            size.width,
+            size.height,
+            cornerRadiusPx,
+            GlassTuning.bezelDp * density,
+            if (lens) GlassTuning.bendDp * density else 0f,
+            GlassTuning.chroma,
+            GlassTuning.highlightWidthDp * density,
+            if (lens) GlassTuning.highlightStrength else 0f,
+            cos(angle),
+            sin(angle),
+            GlassTuning.blurDp * density,
+        )
+        val previous = applied
+        val cached = effect
+        if (cached != null && previous != null && values.contentEquals(previous)) return cached
+
+        shader.setFloatUniform("lensSize", values[0], values[1])
+        shader.setFloatUniform("cornerRadius", values[2])
+        shader.setFloatUniform("bezel", values[3])
+        shader.setFloatUniform("bend", values[4])
+        shader.setFloatUniform("chroma", values[5])
+        shader.setFloatUniform("highlightWidth", values[6])
+        shader.setFloatUniform("highlightStrength", values[7])
+        shader.setFloatUniform("lightDir", values[8], values[9])
+        val blurPx = values[10].coerceAtLeast(0.01f)
+        // The backdrop is blurred first, then the lens bends the blurred image.
+        val built = RenderEffect.createChainEffect(
+            RenderEffect.createRuntimeShaderEffect(shader, "content"),
+            RenderEffect.createBlurEffect(blurPx, blurPx, Shader.TileMode.CLAMP),
+        ).asComposeRenderEffect()
+        applied = values
+        effect = built
+        return built
     }
 }
 
 /**
  * The lens for this surface, or null below Android 13 where RuntimeShader does not exist.
- * The blur radius is baked into the render effect, so the effect is rebuilt when it changes.
+ * The density is needed to turn the dp parameters into pixels.
  */
 @Composable
 internal fun rememberLensEffect(): LensEffect? {
     val density = LocalDensity.current.density
-    val blurDp = GlassTuning.blurDp
-    return remember(density, blurDp) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
-            null
-        } else {
-            createLensEffect(blurPx = (blurDp * density).coerceAtLeast(0.01f), density = density)
-        }
+    return remember(density) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) null else createLensEffect(density)
     }
 }
 
 @RequiresApi(Build.VERSION_CODES.TIRAMISU)
-private fun createLensEffect(blurPx: Float, density: Float): LensEffect? = try {
-    val shader = RuntimeShader(LENS_AGSL)
-    // The backdrop is blurred first, then the lens bends the blurred image.
-    val blur = RenderEffect.createBlurEffect(blurPx, blurPx, Shader.TileMode.CLAMP)
-    val lens = RenderEffect.createRuntimeShaderEffect(shader, "content")
+private fun createLensEffect(density: Float): LensEffect? = try {
+    val effect = LensEffect(RuntimeShader(LENS_AGSL), density)
     AtheaLog.log("lens", "shader ready")
-    LensEffect(
-        shader = shader,
-        composeEffect = RenderEffect.createChainEffect(lens, blur).asComposeRenderEffect(),
-        density = density,
-    )
+    effect
 } catch (e: Exception) {
     AtheaLog.error("lens", "lens shader failed to compile; glass is shown without refraction", e)
     null
@@ -88,7 +105,6 @@ private const val DEGREES_TO_RADIANS = 0.017453292f
 private const val LENS_AGSL = """
 uniform shader content;
 uniform float2 lensSize;
-uniform float2 origin;
 uniform float cornerRadius;
 uniform float bezel;
 uniform float bend;
@@ -117,11 +133,9 @@ float circleMap(float x) {
 }
 
 half4 main(float2 xy) {
-    // xy arrives in window space, so the lens is measured from the element's own origin.
-    float2 local = xy - origin;
     float2 halfSize = lensSize * 0.5;
     float r = min(cornerRadius, min(halfSize.x, halfSize.y));
-    float2 p = local - halfSize;
+    float2 p = xy - halfSize;
     float sdf = roundBoxSdf(p, halfSize, r);
     half4 backdrop = content.eval(xy);
     if (sdf > 1.0) {

@@ -132,10 +132,8 @@ fun Modifier.liquidGlass(
                     }
                 }
                 if (lensEffect != null) {
-                    lensEffect.update(size, radiusPx, placement.rootOrigin)
-                    if (lensLayer.renderEffect != lensEffect.composeEffect) {
-                        lensLayer.renderEffect = lensEffect.composeEffect
-                    }
+                    val effect = lensEffect.effectFor(size, radiusPx)
+                    if (lensLayer.renderEffect != effect) lensLayer.renderEffect = effect
                 }
                 clipPath(path) { drawLayer(lensLayer) }
                 drawPath(path, color = fill)

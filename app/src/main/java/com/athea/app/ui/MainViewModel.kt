@@ -43,6 +43,7 @@ data class UiState(
     val showSettings: Boolean = false,
     val showFavorites: Boolean = false,
     val showAttachChooser: Boolean = false,
+    val showKeys: Boolean = false,
     val showKeyBuilder: Boolean = false,
     val showGlassTuning: Boolean = false,
     val renameTargetId: Long? = null,
@@ -228,6 +229,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun setShowFavorites(visible: Boolean) = _state.update { it.copy(showFavorites = visible) }
 
     fun setShowAttachChooser(visible: Boolean) = _state.update { it.copy(showAttachChooser = visible) }
+
+    fun setShowKeys(visible: Boolean) = _state.update { it.copy(showKeys = visible) }
 
     fun setShowKeyBuilder(visible: Boolean) = _state.update { it.copy(showKeyBuilder = visible) }
 

@@ -65,6 +65,11 @@
     <string name="settings_pinch_zoom_desc">Два пальца на транскрипте меняют размер шрифта</string>
     <string name="settings_section_input">Ввод</string>
     <string name="settings_section_output">Вывод</string>
+    <string name="keys_open">Клавиши и кнопки</string>
+    <string name="keys_title">Клавиши</string>
+    <string name="keys_add">Добавить</string>
+    <string name="keys_enter_after">Enter в конце</string>
+    <string name="keys_list_title">Кнопки</string>
     <string name="settings_keys_section">Клавиши</string>
     <string name="settings_keys_add">Добавить клавишу</string>
     <string name="settings_keys_reset">Сбросить к стандартным</string>
@@ -127,4 +132,7 @@
     <string name="glass_rim">Сила обода</string>
     <string name="glass_reset">Сбросить к стандартным</string>
     <string name="glass_sample_line">Строка %1$d: фон за стеклом</string>
+    <string name="scroll_inside">прокрутка внутри</string>
+    <string name="settings_virtualize">Большой вывод внутри прокрутки</string>
+    <string name="settings_virtualize_desc">Если вывод большой, прокручивать его внутри блока, а не всю страницу; показывает столько же строк, сколько свёрнутый вид ×4</string>
 </resources>

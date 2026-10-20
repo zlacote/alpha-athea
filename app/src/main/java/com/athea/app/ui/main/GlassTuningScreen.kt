@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.matchParentSize
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -32,13 +33,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.athea.app.R
 import com.athea.app.ui.common.AtheaRoundButton
-import com.athea.app.ui.common.AtheaTitlePill
 import com.athea.app.ui.liquid.GlassMode
 import com.athea.app.ui.liquid.GlassTuning
 import com.athea.app.ui.liquid.LocalLiquidBackdrop
@@ -47,37 +49,90 @@ import com.athea.app.ui.liquid.liquidGlass
 import com.athea.app.ui.liquid.rememberLiquidBackdrop
 import com.athea.app.ui.theme.Ui
 
-/** Height of the sample area at the top of the screen. */
+/** Height of the pinned sample, measured below the status bar. */
 private val SAMPLE_HEIGHT = 260.dp
 private const val SAMPLE_LINES = 12
 
 /**
- * Live tuning of the glass: every parameter of [GlassTuning] as a slider over a sample
- * glass that follows the sliders. Off and Blur draw the same glass without the lens, so
- * the bend and the highlight can be judged against them.
+ * Live tuning of the glass. The sample stays pinned at the top of the screen and every
+ * parameter of [GlassTuning] is a slider below it. Off and Blur draw the same glass
+ * without the lens, so the bend and the highlight can be judged against them.
  */
 @Composable
 fun GlassTuningScreen(
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val headerBackdrop = rememberLiquidBackdrop()
     val sampleBackdrop = rememberLiquidBackdrop()
     val background = MaterialTheme.colorScheme.background
     val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
-    val headerInset = statusBarTop + Ui.topBarTopPadding + Ui.topButtonSize + Ui.topBarBottomPadding
 
     Surface(color = background, modifier = modifier.fillMaxSize()) {
-        Box(Modifier.fillMaxSize()) {
-            // The controls scroll under the header; the sample sits over the top of them.
+        Column(Modifier.fillMaxSize()) {
+            // Pinned: nothing scrolls above or behind the sample.
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .height(statusBarTop + SAMPLE_HEIGHT),
+            ) {
+                // The backdrop the sample glass refracts. It is recorded on its own, so the
+                // sample glass never records itself, and it is clipped to the sample area.
+                Box(
+                    Modifier
+                        .matchParentSize()
+                        .clipToBounds()
+                        .liquidBackdrop(sampleBackdrop, background),
+                ) {
+                    SamplePattern()
+                }
+                // The sample glass sits outside any recorded node, centred below the status bar.
+                Box(
+                    Modifier
+                        .matchParentSize()
+                        .padding(top = statusBarTop),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Box(
+                        Modifier
+                            .size(width = 240.dp, height = 120.dp)
+                            .liquidGlass(sampleBackdrop, RoundedCornerShape(32.dp), 32.dp),
+                    )
+                }
+                // The back button sits where it does on every screen and refracts the sample.
+                CompositionLocalProvider(LocalLiquidBackdrop provides sampleBackdrop) {
+                    Box(
+                        Modifier
+                            .statusBarsPadding()
+                            .padding(start = Ui.topBarHorizontalPadding, top = Ui.topBarTopPadding),
+                    ) {
+                        AtheaRoundButton(onClick = onBack) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurface,
+                            )
+                        }
+                    }
+                }
+            }
+
+            // The controls scroll below the pinned sample, title first, so nothing shows above it.
             Column(
                 Modifier
-                    .fillMaxSize()
-                    .liquidBackdrop(headerBackdrop, background)
+                    .weight(1f)
+                    .fillMaxWidth()
                     .verticalScroll(rememberScrollState())
                     .navigationBarsPadding(),
             ) {
-                Spacer(Modifier.height(headerInset + SAMPLE_HEIGHT))
+                Text(
+                    text = stringResource(R.string.glass_tuning_title),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onBackground,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 12.dp),
+                )
                 Text(
                     text = stringResource(R.string.glass_hint),
                     style = MaterialTheme.typography.bodySmall,
@@ -147,60 +202,6 @@ fun GlassTuningScreen(
                 }
                 Spacer(Modifier.height(24.dp))
             }
-
-            // The backdrop the sample glass refracts. It is recorded on its own, so the
-            // sample glass never records itself.
-            Box(
-                Modifier
-                    .fillMaxWidth()
-                    .padding(top = headerInset)
-                    .height(SAMPLE_HEIGHT)
-                    .liquidBackdrop(sampleBackdrop, background),
-            ) {
-                SamplePattern()
-            }
-            // The sample glass sits outside any recorded node.
-            Box(
-                Modifier
-                    .fillMaxWidth()
-                    .padding(top = headerInset)
-                    .height(SAMPLE_HEIGHT),
-                contentAlignment = Alignment.Center,
-            ) {
-                Box(
-                    Modifier
-                        .size(width = 240.dp, height = 120.dp)
-                        .liquidGlass(sampleBackdrop, RoundedCornerShape(32.dp), 32.dp),
-                )
-            }
-            CompositionLocalProvider(LocalLiquidBackdrop provides headerBackdrop) {
-                Box(
-                    Modifier
-                        .fillMaxWidth()
-                        .statusBarsPadding()
-                        .padding(
-                            start = Ui.topBarHorizontalPadding,
-                            end = Ui.topBarHorizontalPadding,
-                            top = Ui.topBarTopPadding,
-                            bottom = Ui.topBarBottomPadding,
-                        ),
-                ) {
-                    AtheaRoundButton(
-                        onClick = onBack,
-                        modifier = Modifier.align(Alignment.CenterStart),
-                    ) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurface,
-                        )
-                    }
-                    AtheaTitlePill(
-                        title = stringResource(R.string.glass_tuning_title),
-                        modifier = Modifier.align(Alignment.Center),
-                    )
-                }
-            }
         }
     }
 }
@@ -263,10 +264,15 @@ private fun TuningSlider(
 private fun SamplePattern() {
     Box(Modifier.fillMaxSize()) {
         Canvas(Modifier.fillMaxSize()) {
-            val radius = size.minDimension * 0.22f
-            drawCircle(Color(0xFFFF4D4D), radius, Offset(size.width * 0.2f, size.height * 0.45f))
-            drawCircle(Color(0xFF4DFF88), radius, Offset(size.width * 0.75f, size.height * 0.3f))
-            drawCircle(Color(0xFF4D8BFF), radius, Offset(size.width * 0.55f, size.height * 0.85f))
+            // Centres are kept inside the area, so no disc spills past the sample's edge.
+            val radius = size.minDimension * 0.2f
+            fun centre(fx: Float, fy: Float) = Offset(
+                (size.width * fx).coerceIn(radius, size.width - radius),
+                (size.height * fy).coerceIn(radius, size.height - radius),
+            )
+            drawCircle(Color(0xFFFF4D4D), radius, centre(0.2f, 0.45f))
+            drawCircle(Color(0xFF4DFF88), radius, centre(0.75f, 0.3f))
+            drawCircle(Color(0xFF4D8BFF), radius, centre(0.55f, 0.85f))
         }
         Column(Modifier.fillMaxSize().padding(16.dp)) {
             repeat(SAMPLE_LINES) { index ->

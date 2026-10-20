@@ -3,22 +3,17 @@ package com.athea.app.ui.common
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
 import com.athea.app.ui.liquid.LocalLiquidBackdrop
 import com.athea.app.ui.liquid.liquidGlass
 import com.athea.app.ui.theme.Ui
@@ -65,29 +60,6 @@ fun AtheaPill(
         modifier = modifier.liquidGlass(LocalLiquidBackdrop.current, Ui.pillShape, ROUND_RADIUS),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, content = content)
-    }
-}
-
-/** A screen title in a glass capsule as tall as the round buttons beside it. */
-@Composable
-fun AtheaTitlePill(
-    title: String,
-    modifier: Modifier = Modifier,
-) {
-    Box(
-        modifier
-            .liquidGlass(LocalLiquidBackdrop.current, Ui.pillShape, ROUND_RADIUS)
-            .height(Ui.topButtonSize)
-            .padding(horizontal = 20.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onSurface,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
     }
 }
 
