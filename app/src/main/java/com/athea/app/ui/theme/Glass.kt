@@ -2,7 +2,6 @@ package com.athea.app.ui.theme
 
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithCache
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Path
@@ -10,24 +9,24 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.dp
 
-/** Glass palette: a dark translucent base and a bright rim that catches light from above. */
+/**
+ * Glass palette: flat translucent fills, so what shows through is the blurred
+ * backdrop, not a tint. There are no gradients: a vertical gradient over the
+ * glass read as a colour wash instead of a surface.
+ */
 object Glass {
 
-    /** Base of a regular glass panel, top to bottom. */
-    val BASE_TOP = Color(0x8C16161C)
-    val BASE_BOTTOM = Color(0xB80C0C10)
+    /** Fill of a regular glass panel: the blurred backdrop shows through. */
+    val FILL = Color(0x40141418)
 
-    /** Denser base for panels over busy content: drawer and menus. */
-    val BASE_STRONG_TOP = Color(0xD916161C)
-    val BASE_STRONG_BOTTOM = Color(0xF00A0A0D)
+    /** Denser fill for panels over busy content: drawer and menus. */
+    val FILL_STRONG = Color(0xB8141418)
 
-    /** Almost clear base under a refracting lens: the bend has to show through. */
-    val CLEAR_TOP = Color(0x1F16161C)
-    val CLEAR_BOTTOM = Color(0x2A0C0C10)
+    /** Almost clear fill under a refracting lens: the bent backdrop carries the look. */
+    val FILL_CLEAR = Color(0x1F141418)
 
-    /** The rim is bright at the top, where light falls, and fades down the sides. */
-    val RIM_TOP = Color(0x9AFFFFFF)
-    val RIM_BOTTOM = Color(0x1EFFFFFF)
+    /** One thin rim of the same weight on every side. */
+    val RIM = Color(0x2EFFFFFF)
 
     /** Fill of a selected row inside a glass panel. */
     val SELECTED = Color(0x1FFFFFFF)
@@ -36,20 +35,18 @@ object Glass {
     val CANVAS_TINT = Color(0xFF101014)
 }
 
-internal fun glassBase(strong: Boolean, clear: Boolean): Brush = when {
-    clear -> Brush.verticalGradient(listOf(Glass.CLEAR_TOP, Glass.CLEAR_BOTTOM))
-    strong -> Brush.verticalGradient(listOf(Glass.BASE_STRONG_TOP, Glass.BASE_STRONG_BOTTOM))
-    else -> Brush.verticalGradient(listOf(Glass.BASE_TOP, Glass.BASE_BOTTOM))
+internal fun glassFill(strong: Boolean, clear: Boolean): Color = when {
+    clear -> Glass.FILL_CLEAR
+    strong -> Glass.FILL_STRONG
+    else -> Glass.FILL
 }
 
-internal fun glassRim(): Brush = Brush.verticalGradient(listOf(Glass.RIM_TOP, Glass.RIM_BOTTOM))
-
 /**
- * Glass surface without refraction: a dark translucent base and a bright rim.
+ * Glass surface without refraction: a flat translucent fill and a thin rim.
  *
  * @param lit false drops the rim, for full-width bars.
- * @param strong a denser base, for panels over busy content.
- * @param clear an almost transparent base, for panels with a refracting lens behind them.
+ * @param strong a denser fill, for panels over busy content.
+ * @param clear an almost transparent fill, for panels with a refracting lens behind them.
  */
 fun Modifier.glass(
     shape: Shape,
@@ -57,14 +54,13 @@ fun Modifier.glass(
     strong: Boolean = false,
     clear: Boolean = false,
 ): Modifier {
-    val base = glassBase(strong, clear)
-    val rim = glassRim()
+    val fill = glassFill(strong, clear)
     return drawWithCache {
         val path = shape.createOutline(size, layoutDirection, this).toPath()
         val rimWidth = 1.dp.toPx()
         onDrawBehind {
-            drawPath(path, brush = base)
-            if (lit) drawPath(path, brush = rim, style = Stroke(width = rimWidth))
+            drawPath(path, color = fill)
+            if (lit) drawPath(path, color = Glass.RIM, style = Stroke(width = rimWidth))
         }
     }
 }

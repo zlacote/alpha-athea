@@ -44,17 +44,19 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.athea.app.R
-import com.athea.app.data.KeyKind
 import com.athea.app.ui.MainViewModel
 import com.athea.app.session.WorkspaceEvent
 import com.athea.app.ui.UiState
 import com.athea.app.ui.common.AtheaDialogContainer
 import com.athea.app.ui.liquid.LiquidBackdrop
+import com.athea.app.ui.liquid.LocalLiquidBackdrop
 import com.athea.app.ui.liquid.liquidBackdrop
 import com.athea.app.ui.liquid.rememberLiquidBackdrop
 import com.athea.app.ui.theme.LocalMessageFontSize
@@ -91,7 +93,7 @@ fun MainScreen(viewModel: MainViewModel) {
             outputFontSizeSp = state.workspace.settings.outputFontSizeSp,
             previewLines = state.workspace.settings.previewLines,
             bubbleFontSizeSp = state.workspace.settings.bubbleFontSizeSp,
-            customKeys = state.workspace.customKeys,
+            customKeys = effectiveKeyRow(state.workspace.customKeys),
             onKeyRowVisibleChange = viewModel::setKeyRowVisible,
             onEnterSendsChange = viewModel::setEnterSends,
             onAutoScrollOnSendChange = viewModel::setAutoScrollOnSend,
@@ -191,10 +193,21 @@ fun MainScreen(viewModel: MainViewModel) {
 
 @Composable
 private fun MainScreenContent(viewModel: MainViewModel, state: UiState) {
+    val composerBackdrop = rememberLiquidBackdrop()
+    // Every glass surface on this screen refracts the same transcript backdrop.
+    CompositionLocalProvider(LocalLiquidBackdrop provides composerBackdrop) {
+        MainScreenBody(viewModel, state, composerBackdrop)
+    }
+}
+
+@Composable
+private fun MainScreenBody(viewModel: MainViewModel, state: UiState, composerBackdrop: LiquidBackdrop) {
     val context = LocalContext.current
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
-    val composerBackdrop = rememberLiquidBackdrop()
+    val density = LocalDensity.current
+    // Measured height of the composer and key row: the transcript keeps its last line above them.
+    var bottomBarHeight by remember { mutableStateOf(0.dp) }
 
     // Native toasts: the system renders them, no custom surfaces needed.
     LaunchedEffect(viewModel) {
@@ -256,8 +269,7 @@ private fun MainScreenContent(viewModel: MainViewModel, state: UiState) {
                 // session and the empty state, wired in exactly one place.
             if (current != null) {
                 Box(Modifier.fillMaxSize().liquidBackdrop(composerBackdrop)) {
-                    // Peek-through: let transcript peek behind InputBar margins with dimming; keep last line above KeyRow only
-                    val overlayBottom = 72.dp + Ui.contentPaddingV
+                    val overlayBottom = bottomBarHeight + Ui.contentPaddingV
                     TranscriptView(
                         session = current,
                         search = state.workspace.search,
@@ -282,20 +294,6 @@ private fun MainScreenContent(viewModel: MainViewModel, state: UiState) {
                         onAreaResized = viewModel::onTranscriptAreaResized,
                         modifier = Modifier.fillMaxSize(),
                     )
-                    // Obvious half-height dimming: starts mid-pill, strong fade so peek is visible
-                    Box(
-                        Modifier
-                            .align(Alignment.BottomStart)
-                            .fillMaxWidth()
-                            .height(130.dp)
-                            .background(
-                                Brush.verticalGradient(
-                                    0f to Color.Transparent,
-                                    0.45f to Color.Transparent,
-                                    1f to Color.Black.copy(alpha = 0.70f),
-                                )
-                            ),
-                    )
                 }
                 }
 
@@ -307,7 +305,8 @@ private fun MainScreenContent(viewModel: MainViewModel, state: UiState) {
                     composerBackdrop = composerBackdrop,
                     modifier = Modifier
                         .align(Alignment.BottomStart)
-                        .fillMaxWidth(),
+                        .fillMaxWidth()
+                        .onSizeChanged { bottomBarHeight = with(density) { it.height.toDp() } },
                 )
 
                 // Top scrim: same gradient as before, now sibling of Column
@@ -419,7 +418,9 @@ private fun BottomBar(
             composerBackdrop = composerBackdrop,
         )
         if (state.workspace.settings.keyRowVisible && state.workspace.search == null) {
-            val keys = remember(state.workspace.customKeys) { keyRowKeys(state) }
+            val keys = remember(state.workspace.customKeys) {
+                effectiveKeyRow(state.workspace.customKeys).map { it.toTerminalKey() }
+            }
             KeyRow(
                 keys = keys,
                 stickyCtrl = state.stickyCtrl,
@@ -435,21 +436,5 @@ private fun BottomBar(
     }
 }
 
-/** User-configured keys, or the built-in row when nothing is customized. */
-private fun keyRowKeys(state: UiState): List<TerminalKey> {
-    val custom = state.workspace.customKeys
-    if (custom.isEmpty()) return DefaultKeys.row
-    return custom.map { key ->
-        TerminalKey(
-            label = key.label,
-            kind = when (key.kind) {
-                KeyKind.INSERT -> KeyActionKind.INSERT_INTO_DRAFT
-                KeyKind.SEND -> KeyActionKind.SEND_TO_TERMINAL
-                KeyKind.CTRL -> KeyActionKind.TOGGLE_STICKY_CTRL
-            },
-            payload = key.payload,
-        )
-    }
-}
 
 

@@ -19,6 +19,7 @@ import com.athea.app.session.EngineFactory
 import com.athea.app.session.Workspace
 import com.athea.app.session.WorkspaceEvent
 import com.athea.app.session.WorkspaceState
+import com.athea.app.ui.main.effectiveKeyRow
 import com.athea.app.util.AtheaLog
 import com.athea.app.util.dropOldestSharedFlow
 import java.io.File
@@ -229,7 +230,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun setShowKeyBuilder(visible: Boolean) = _state.update { it.copy(showKeyBuilder = visible) }
 
-    fun addCustomKey(key: CustomKey) = workspace.setCustomKeys(workspace.state.value.customKeys + key)
+    fun addCustomKey(key: CustomKey) = workspace.setCustomKeys(effectiveKeyRow(workspace.state.value.customKeys) + key)
 
     /** Replaces the whole key row (used by the settings editor). */
     fun setCustomKeys(keys: List<CustomKey>) = workspace.setCustomKeys(keys)

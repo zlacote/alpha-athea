@@ -1,7 +1,9 @@
 package com.athea.app.ui.common
 
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -123,10 +125,12 @@ fun AtheaDropdownMenu(
             androidx.compose.material3.Surface(
                 shape = Ui.menuShape,
                 color = Color.Transparent,
+                contentColor = MaterialTheme.colorScheme.onSurface,
                 shadowElevation = Ui.menuElevation,
                 modifier = Modifier.widthIn(min = Ui.menuMinWidth).glass(Ui.menuShape, strong = true),
             ) {
-                androidx.compose.foundation.layout.Column(content = content)
+                // As wide as its widest item, so the menu hugs its content.
+                androidx.compose.foundation.layout.Column(Modifier.width(IntrinsicSize.Max), content = content)
             }
         }
     }

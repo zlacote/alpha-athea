@@ -1,6 +1,7 @@
 package com.athea.app.ui.liquid
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithCache
@@ -19,9 +20,9 @@ import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import com.athea.app.ui.theme.Glass
 import com.athea.app.ui.theme.glass
-import com.athea.app.ui.theme.glassBase
-import com.athea.app.ui.theme.glassRim
+import com.athea.app.ui.theme.glassFill
 import com.athea.app.ui.theme.toPath
 import com.athea.app.util.AtheaLog
 import kotlin.math.roundToInt
@@ -39,6 +40,9 @@ class LiquidBackdrop internal constructor(internal val layer: GraphicsLayer) {
     /** Window-root position of the recorded content. Glass surfaces subtract it to align. */
     internal var rootOrigin: Offset = Offset.Zero
 }
+
+/** The backdrop that glass surfaces below this point refract. Null means plain glass. */
+val LocalLiquidBackdrop = compositionLocalOf<LiquidBackdrop?> { null }
 
 @Composable
 fun rememberLiquidBackdrop(): LiquidBackdrop {
@@ -83,8 +87,7 @@ fun Modifier.liquidGlass(
     val lensEffect = rememberLensEffect()
     val placement = remember { GlassPlacement() }
     if (backdrop == null) return glass(shape, lit, strong, clear)
-    val base = glassBase(strong, clear)
-    val rim = glassRim()
+    val fill = glassFill(strong, clear)
     return this
         .onGloballyPositioned { placement.rootOrigin = it.positionInRoot() }
         .drawWithCache {
@@ -112,8 +115,8 @@ fun Modifier.liquidGlass(
                     }
                 }
                 clipPath(path) { drawLayer(lensLayer) }
-                drawPath(path, brush = base)
-                if (lit) drawPath(path, brush = rim, style = Stroke(width = rimWidth))
+                drawPath(path, color = fill)
+                if (lit) drawPath(path, color = Glass.RIM, style = Stroke(width = rimWidth))
                 drawContent()
             }
         }

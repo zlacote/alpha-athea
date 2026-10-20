@@ -17,10 +17,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.athea.app.data.CustomKey
+import com.athea.app.data.KeyKind
 import com.athea.app.ui.common.EqualCellStrip
+import com.athea.app.ui.liquid.LocalLiquidBackdrop
+import com.athea.app.ui.liquid.liquidGlass
 import com.athea.app.ui.theme.Ui
-import com.athea.app.ui.theme.glass
 import com.athea.app.util.isCtrlCombinable
 import com.athea.app.util.toControlChar
 
@@ -57,6 +61,30 @@ object DefaultKeys {
     val row = listOf(CTRL, ESC, TAB, UP, DOWN, LEFT, RIGHT, SLASH, PIPE, DASH, KILL)
 }
 
+/** The key row as the user sees it: their stored keys, or the built-in row until they change it. */
+fun effectiveKeyRow(stored: List<CustomKey>): List<CustomKey> =
+    stored.ifEmpty { DefaultKeys.row.map { it.toCustomKey() } }
+
+fun CustomKey.toTerminalKey(): TerminalKey = TerminalKey(
+    label = label,
+    kind = when (kind) {
+        KeyKind.INSERT -> KeyActionKind.INSERT_INTO_DRAFT
+        KeyKind.SEND -> KeyActionKind.SEND_TO_TERMINAL
+        KeyKind.CTRL -> KeyActionKind.TOGGLE_STICKY_CTRL
+    },
+    payload = payload,
+)
+
+private fun TerminalKey.toCustomKey(): CustomKey = CustomKey(
+    label = label,
+    payload = payload,
+    kind = when (kind) {
+        KeyActionKind.INSERT_INTO_DRAFT -> KeyKind.INSERT
+        KeyActionKind.SEND_TO_TERMINAL -> KeyKind.SEND
+        KeyActionKind.TOGGLE_STICKY_CTRL -> KeyKind.CTRL
+    },
+)
+
 @Composable
 fun KeyRow(
     keys: List<TerminalKey>,
@@ -74,7 +102,10 @@ fun KeyRow(
     // itself. One strip, one scroll state, one place to reason about.
     Surface(
         color = Color.Transparent,
-        modifier = modifier.fillMaxWidth().glass(RectangleShape, lit = false),
+        contentColor = MaterialTheme.colorScheme.onSurface,
+        modifier = modifier
+            .fillMaxWidth()
+            .liquidGlass(LocalLiquidBackdrop.current, RectangleShape, 0.dp, lit = false),
     ) {
         EqualCellStrip(
             items = keys,

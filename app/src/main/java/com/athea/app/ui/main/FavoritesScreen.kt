@@ -2,9 +2,12 @@ package com.athea.app.ui.main
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -56,8 +59,9 @@ fun FavoritesScreen(
         title = stringResource(R.string.favorites),
         onBack = onBack,
         modifier = modifier,
-    ) {
+    ) { headerInset ->
         if (favorites.isEmpty()) {
+            Spacer(Modifier.height(headerInset))
             Text(
                 text = stringResource(R.string.favorites_empty),
                 style = MaterialTheme.typography.bodySmall,
@@ -65,7 +69,10 @@ fun FavoritesScreen(
                 modifier = Modifier.padding(20.dp),
             )
         } else {
-            LazyColumn(Modifier.fillMaxSize()) {
+            LazyColumn(
+                Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(top = headerInset),
+            ) {
                 items(favorites, key = { it.id }) { favorite ->
                     val menu = rememberAtheaMenu()
                     Row(

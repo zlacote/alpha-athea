@@ -3,6 +3,7 @@ package com.athea.app.ui.main
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -10,16 +11,17 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.FilterChip
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -32,6 +34,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -40,7 +43,6 @@ import com.athea.app.data.CustomKey
 import com.athea.app.data.KeyKind
 import com.athea.app.ui.common.AtheaDialogContainer
 import com.athea.app.ui.common.AtheaScaffold
-import com.athea.app.ui.theme.Ui
 import com.athea.app.util.AtheaLog
 import com.athea.app.util.copyToClipboard
 
@@ -77,18 +79,15 @@ fun SettingsScreen(
         title = stringResource(R.string.settings),
         onBack = onBack,
         modifier = modifier,
-    ) {
+    ) { headerInset ->
         Column(
             Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState()),
         ) {
-                SwitchRow(
-                    title = stringResource(R.string.settings_key_row),
-                    subtitle = stringResource(R.string.settings_key_row_desc),
-                    checked = keyRowVisible,
-                    onChange = onKeyRowVisibleChange,
-                )
+            Spacer(Modifier.height(headerInset))
+
+            SettingsSection(title = stringResource(R.string.settings_section_input)) {
                 SwitchRow(
                     title = stringResource(R.string.settings_enter_sends),
                     subtitle = stringResource(R.string.settings_enter_sends_desc),
@@ -96,22 +95,25 @@ fun SettingsScreen(
                     onChange = onEnterSendsChange,
                 )
                 SwitchRow(
+                    title = stringResource(R.string.settings_autocomplete),
+                    subtitle = stringResource(R.string.settings_autocomplete_desc),
+                    checked = autocompleteEnabled,
+                    onChange = onAutocompleteEnabledChange,
+                )
+                SwitchRow(
                     title = stringResource(R.string.settings_auto_scroll),
                     subtitle = stringResource(R.string.settings_auto_scroll_desc),
                     checked = autoScrollOnSend,
                     onChange = onAutoScrollOnSendChange,
                 )
+            }
+
+            SettingsSection(title = stringResource(R.string.settings_section_output)) {
                 SwitchRow(
                     title = stringResource(R.string.settings_raw_stream),
                     subtitle = stringResource(R.string.settings_raw_stream_desc),
                     checked = rawStream,
                     onChange = onRawStreamChange,
-                )
-                SwitchRow(
-                    title = stringResource(R.string.settings_autocomplete),
-                    subtitle = stringResource(R.string.settings_autocomplete_desc),
-                    checked = autocompleteEnabled,
-                    onChange = onAutocompleteEnabledChange,
                 )
                 SwitchRow(
                     title = stringResource(R.string.settings_pinch_zoom),
@@ -125,9 +127,6 @@ fun SettingsScreen(
                     checked = virtualizeLargeOutput,
                     onChange = onVirtualizeLargeOutputChange,
                 )
-
-                HorizontalDivider(Modifier.padding(vertical = Ui.dividerPadding))
-
                 SliderRow(
                     title = stringResource(R.string.settings_font_size),
                     value = outputFontSizeSp,
@@ -146,23 +145,20 @@ fun SettingsScreen(
                     range = 12f..24f,
                     onChange = onBubbleFontSizeChange,
                 )
+            }
 
-                HorizontalDivider(Modifier.padding(vertical = Ui.dividerPadding))
-
-                // ---- Key row tools -----------------------------------
-                Text(
-                    text = stringResource(R.string.settings_keys_section),
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
+            SettingsSection(title = stringResource(R.string.settings_keys_section)) {
+                SwitchRow(
+                    title = stringResource(R.string.settings_key_row),
+                    subtitle = stringResource(R.string.settings_key_row_desc),
+                    checked = keyRowVisible,
+                    onChange = onKeyRowVisibleChange,
                 )
                 customKeys.forEach { key ->
                     KeyEditRow(
                         key = key,
                         onEdit = { edited ->
-                            onCustomKeysChange(
-                                customKeys.map { if (it == key) edited else it }
-                            )
+                            onCustomKeysChange(customKeys.map { if (it == key) edited else it })
                         },
                         onDelete = {
                             onCustomKeysChange(customKeys.filterNot { it == key })
@@ -172,16 +168,12 @@ fun SettingsScreen(
                 Row(
                     Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 4.dp),
+                        .padding(horizontal = 8.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
                     TextButton(onClick = {
                         onCustomKeysChange(
-                            customKeys + CustomKey(
-                                label = "",
-                                payload = "",
-                                kind = KeyKind.SEND,
-                            )
+                            customKeys + CustomKey(label = "", payload = "", kind = KeyKind.SEND)
                         )
                     }) {
                         Text(stringResource(R.string.settings_keys_add))
@@ -190,39 +182,53 @@ fun SettingsScreen(
                         Text(stringResource(R.string.settings_keys_reset))
                     }
                 }
-                TextButton(
+                ActionRow(
+                    title = stringResource(R.string.builder_open),
                     onClick = onOpenKeyBuilder,
-                    modifier = Modifier.padding(horizontal = 12.dp),
-                ) {
-                    Text(stringResource(R.string.builder_open))
-                }
-
-                HorizontalDivider(Modifier.padding(vertical = Ui.dividerPadding))
-
-                // ---- Diagnostics --------------------------------------
-                Text(
-                    text = stringResource(R.string.settings_diag_section),
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
                 )
-                val context = androidx.compose.ui.platform.LocalContext.current
-                TextButton(
-                    onClick = {
-                        val log = AtheaLog.dump()
-                        context.copyToClipboard(log, "athea-logs")
-                        android.widget.Toast.makeText(
-                            context,
-                            context.getString(R.string.settings_diag_copied),
-                            android.widget.Toast.LENGTH_SHORT,
-                        ).show()
-                    },
-                    modifier = Modifier.padding(horizontal = 12.dp),
-                ) {
-                    Text(stringResource(R.string.settings_diag_copy))
-                }
-                Spacer(Modifier.height(24.dp))
             }
+
+            SettingsSection(title = stringResource(R.string.settings_diag_section)) {
+                val context = LocalContext.current
+                ActionRow(title = stringResource(R.string.settings_diag_copy)) {
+                    context.copyToClipboard(AtheaLog.dump(), "athea-logs")
+                    android.widget.Toast.makeText(
+                        context,
+                        context.getString(R.string.settings_diag_copied),
+                        android.widget.Toast.LENGTH_SHORT,
+                    ).show()
+                }
+            }
+
+            Spacer(Modifier.height(24.dp))
+        }
+    }
+}
+
+/** A titled group of settings rows, drawn as one rounded card. */
+@Composable
+private fun SettingsSection(
+    title: String,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+    ) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.padding(start = 4.dp, bottom = 8.dp),
+        )
+        Surface(
+            shape = RoundedCornerShape(20.dp),
+            color = MaterialTheme.colorScheme.surfaceContainer,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Column(Modifier.padding(vertical = 6.dp), content = content)
+        }
     }
 }
 
@@ -233,30 +239,47 @@ private fun SliderRow(
     range: ClosedFloatingPointRange<Float>,
     onChange: (Int) -> Unit,
 ) {
-    Text(
-        text = title,
-        style = MaterialTheme.typography.bodyLarge,
-        modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
-    )
-    Row(
+    Column(
         Modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
+            .padding(horizontal = 16.dp, vertical = 8.dp),
     ) {
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(text = title, style = MaterialTheme.typography.bodyLarge)
+            Text(
+                text = "$value",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
         Slider(
             value = value.toFloat(),
             onValueChange = { onChange(it.toInt()) },
             valueRange = range,
-            modifier = Modifier
-                .weight(1f)
-                .padding(horizontal = 8.dp),
         )
+    }
+}
+
+@Composable
+private fun ActionRow(
+    title: String,
+    onClick: () -> Unit,
+) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
         Text(
-            text = "$value",
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(end = 12.dp),
+            text = title,
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.primary,
         )
     }
 }
@@ -273,7 +296,7 @@ private fun KeyEditRow(
         Modifier
             .fillMaxWidth()
             .clickable { editing = true }
-            .padding(horizontal = 20.dp, vertical = 10.dp),
+            .padding(start = 16.dp, end = 4.dp, top = 10.dp, bottom = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.weight(1f)) {
@@ -393,7 +416,7 @@ private fun SwitchRow(
         Modifier
             .fillMaxWidth()
             .clickable { onChange(!checked) }
-            .padding(horizontal = 20.dp, vertical = 12.dp),
+            .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.weight(1f)) {

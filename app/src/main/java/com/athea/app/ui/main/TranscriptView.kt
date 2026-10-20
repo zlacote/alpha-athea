@@ -391,7 +391,7 @@ fun TranscriptView(
                 color = MaterialTheme.colorScheme.surfaceContainerHigh,
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .padding(end = 16.dp, bottom = 10.dp),
+                    .padding(end = 16.dp, bottom = contentBottomPadding + 8.dp),
             ) {
                     Box(Modifier.size(Ui.scrollbarButtonSize), contentAlignment = Alignment.Center) {
                         Icon(

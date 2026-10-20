@@ -2,12 +2,15 @@ package com.athea.app.ui.liquid
 
 import android.graphics.RenderEffect
 import android.graphics.RuntimeShader
+import android.graphics.Shader
 import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.asComposeRenderEffect
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.dp
 import com.athea.app.util.AtheaLog
 
 /**
@@ -32,29 +35,32 @@ internal class LensEffect(
     }
 }
 
-/** The lens for this surface, or null below Android 13 where RuntimeShader does not exist. */
+/**
+ * The lens for this surface, or null below Android 13 where RuntimeShader does not exist.
+ * The blur radius is in pixels, so the effect is rebuilt when the density changes.
+ */
 @Composable
-internal fun rememberLensEffect(): LensEffect? = remember {
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
-        null
-    } else {
-        createLensEffect()
+internal fun rememberLensEffect(): LensEffect? {
+    val blurPx = with(LocalDensity.current) { LENS_BLUR.toPx() }
+    return remember(blurPx) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) null else createLensEffect(blurPx)
     }
 }
 
 @RequiresApi(Build.VERSION_CODES.TIRAMISU)
-private fun createLensEffect(): LensEffect? = try {
+private fun createLensEffect(blurPx: Float): LensEffect? = try {
     val shader = RuntimeShader(LENS_AGSL)
+    // The backdrop is blurred first, then the lens bends the blurred image.
+    val blur = RenderEffect.createBlurEffect(blurPx, blurPx, Shader.TileMode.CLAMP)
+    val lens = RenderEffect.createRuntimeShaderEffect(shader, "content")
     AtheaLog.log("lens", "shader ready")
-    LensEffect(
-        shader,
-        RenderEffect.createRuntimeShaderEffect(shader, "content").asComposeRenderEffect(),
-    )
+    LensEffect(shader, RenderEffect.createChainEffect(lens, blur).asComposeRenderEffect())
 } catch (e: Exception) {
     AtheaLog.error("lens", "lens shader failed to compile; glass is shown without refraction", e)
     null
 }
 
+private val LENS_BLUR = 12.dp
 private const val REFRACTION = 1.0f
 private const val DISPERSION = 0.6f
 private const val RIM_STRENGTH = 0.35f

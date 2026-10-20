@@ -24,7 +24,6 @@ object Ui {
     val menuItemMinHeight = 56.dp
     val menuIconSize = 24.dp
     val menuElevation = 8.dp
-    val menuTopOffset = 4.dp
 
     // ---- Top bar ----------------------------------------------------------
     val topButtonSize = 48.dp
@@ -33,6 +32,9 @@ object Ui {
     val topBarBottomPadding = 6.dp
     val topBarScrimHeight = 30.dp
     val topBarContentTop = 62.dp
+
+    /** Top of the menu under the top-right pill: the pill's bottom edge plus a gap. */
+    val menuTopOffset = topBarTopPadding + topButtonSize + 8.dp
 
     // ---- Composer ---------------------------------------------------------
     val composerButtonSize = 38.dp

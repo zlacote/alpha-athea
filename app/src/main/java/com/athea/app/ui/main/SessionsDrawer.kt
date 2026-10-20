@@ -56,9 +56,10 @@ import com.athea.app.ui.common.AtheaMenuHost
 import com.athea.app.ui.common.AtheaPill
 import com.athea.app.ui.common.AtheaPillIcon
 import com.athea.app.ui.common.rememberAtheaMenu
+import com.athea.app.ui.liquid.LocalLiquidBackdrop
+import com.athea.app.ui.liquid.liquidGlass
 import com.athea.app.ui.theme.Glass
 import com.athea.app.ui.theme.Ui
-import com.athea.app.ui.theme.glass
 
 /**
  * Persistent navigation drawer: sessions on top (pinned first),
@@ -85,10 +86,11 @@ fun SessionsDrawerContent(
     // content color instead of the default dark one.
     Surface(
         color = Color.Transparent,
+        contentColor = MaterialTheme.colorScheme.onSurface,
         modifier = modifier
             .fillMaxHeight()
             .fillMaxWidth(Ui.drawerWidthFraction)
-            .glass(RectangleShape, lit = false, strong = true),
+            .liquidGlass(LocalLiquidBackdrop.current, RectangleShape, 0.dp, lit = false, strong = true),
     ) {
         Column(
             Modifier
