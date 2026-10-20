@@ -91,7 +91,8 @@ private class GlassPlacement {
 /**
  * Glass surface that refracts [backdrop] inside [shape]. With a null backdrop it is
  * the plain glass of [com.athea.app.ui.theme.glass]. Below Android 13 the backdrop
- * is shown without the bend, still with the base and the rim.
+ * is shown without the bend, still with the base and the rim. [flat] surfaces, such as
+ * bars along a screen edge, are blurred but not bent or highlighted; see [LensEffect.effectFor].
  */
 @Composable
 fun Modifier.liquidGlass(
@@ -101,6 +102,7 @@ fun Modifier.liquidGlass(
     lit: Boolean = true,
     strong: Boolean = false,
     clear: Boolean = false,
+    flat: Boolean = false,
 ): Modifier {
     // A render effect is only drawn through an offscreen buffer; without it the lens is dropped.
     val lensLayer = rememberGraphicsLayer().apply {
@@ -134,7 +136,7 @@ fun Modifier.liquidGlass(
                     }
                 }
                 if (lensEffect != null) {
-                    val effect = lensEffect.effectFor(size, radiusPx)
+                    val effect = lensEffect.effectFor(size, radiusPx, flat)
                     if (lensLayer.renderEffect != effect) lensLayer.renderEffect = effect
                 }
                 clipPath(path) { drawLayer(lensLayer) }

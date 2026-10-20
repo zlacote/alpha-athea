@@ -91,7 +91,7 @@ fun SessionsDrawerContent(
         modifier = modifier
             .fillMaxHeight()
             .fillMaxWidth(Ui.drawerWidthFraction)
-            .liquidGlass(LocalLiquidBackdrop.current, RectangleShape, 0.dp, lit = false, strong = true),
+            .liquidGlass(LocalLiquidBackdrop.current, RectangleShape, 0.dp, lit = false, strong = true, flat = true),
     ) {
         Column(
             Modifier

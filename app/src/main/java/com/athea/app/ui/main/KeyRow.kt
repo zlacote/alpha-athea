@@ -136,7 +136,7 @@ fun KeyRow(
         contentColor = MaterialTheme.colorScheme.onSurface,
         modifier = modifier
             .fillMaxWidth()
-            .liquidGlass(LocalLiquidBackdrop.current, RectangleShape, 0.dp, lit = false),
+            .liquidGlass(LocalLiquidBackdrop.current, RectangleShape, 0.dp, lit = false, flat = true),
     ) {
         EqualCellStrip(
             items = keys,

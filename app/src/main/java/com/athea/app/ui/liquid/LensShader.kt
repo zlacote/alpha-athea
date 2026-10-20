@@ -29,19 +29,23 @@ internal class LensEffect(
     private var applied: FloatArray? = null
     private var effect: androidx.compose.ui.graphics.RenderEffect? = null
 
-    /** The render effect for a surface of [size], rebuilt only when a parameter changed. */
-    fun effectFor(size: Size, cornerRadiusPx: Float): androidx.compose.ui.graphics.RenderEffect {
-        val lens = GlassTuning.mode == GlassMode.LENS
+    /**
+     * The render effect for a surface of [size], rebuilt only when a parameter changed.
+     * A [flat] surface, such as a bar that spans an edge, keeps its blur but is neither bent
+     * nor lit: along a straight edge the bend and the highlight read as a bright line.
+     */
+    fun effectFor(size: Size, cornerRadiusPx: Float, flat: Boolean = false): androidx.compose.ui.graphics.RenderEffect {
+        val bent = GlassTuning.mode == GlassMode.LENS && !flat
         val angle = GlassTuning.lightAngleDeg * DEGREES_TO_RADIANS
         val values = floatArrayOf(
             size.width,
             size.height,
             cornerRadiusPx,
             GlassTuning.bezelDp * density,
-            if (lens) GlassTuning.bendDp * density else 0f,
-            GlassTuning.chroma,
+            if (bent) GlassTuning.bendDp * density else 0f,
+            if (bent) GlassTuning.chroma else 0f,
             GlassTuning.highlightWidthDp * density,
-            if (lens) GlassTuning.highlightStrength else 0f,
+            if (bent) GlassTuning.highlightStrength else 0f,
             cos(angle),
             sin(angle),
             GlassTuning.blurDp * density,
