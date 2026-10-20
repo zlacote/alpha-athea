@@ -33,6 +33,12 @@ class LensRegion(val cornerRadius: Dp) {
 
     /** Owning layer's origin in window-root coordinates. */
     internal var origin = Offset.Zero
+
+    /** True on Android 13+, the only level where the layer refracts. */
+    val supported: Boolean = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+
+    /** Set after the first applied frame, so the diagnostic line is written once. */
+    internal var reported = false
 }
 
 @Composable
@@ -61,7 +67,7 @@ fun LiquidLayer(
     modifier: Modifier = Modifier,
     content: @Composable BoxScope.() -> Unit,
 ) {
-    val lensShader = rememberLensShader()
+    val lensShader = rememberLensShader(lens)
     Box(
         modifier
             .onGloballyPositioned { lens.origin = it.positionInRoot() }
@@ -69,6 +75,10 @@ fun LiquidLayer(
                 val shader = lensShader ?: return@graphicsLayer
                 val rect = lens.rect
                 if (rect.width <= 0f || rect.height <= 0f) return@graphicsLayer
+                if (!lens.reported) {
+                    lens.reported = true
+                    AtheaLog.log("lens", "applied rect=$rect origin=${lens.origin}")
+                }
                 shader.shader.setFloatUniform("lensCenter", rect.center.x, rect.center.y)
                 shader.shader.setFloatUniform("lensSize", rect.width, rect.height)
                 shader.shader.setFloatUniform("cornerRadius", lens.cornerRadius.toPx())
@@ -86,8 +96,13 @@ fun LiquidLayer(
 private class LensShader(val shader: RuntimeShader, val composeEffect: androidx.compose.ui.graphics.RenderEffect)
 
 @Composable
-private fun rememberLensShader(): LensShader? = remember {
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) createLensShader() else null
+private fun rememberLensShader(lens: LensRegion): LensShader? = remember {
+    if (!lens.supported) {
+        AtheaLog.log("lens", "refraction off: needs Android 13+, this device is SDK ${Build.VERSION.SDK_INT}")
+        null
+    } else {
+        createLensShader()?.also { AtheaLog.log("lens", "shader ready") }
+    }
 }
 
 @RequiresApi(Build.VERSION_CODES.TIRAMISU)
@@ -100,10 +115,10 @@ private fun createLensShader(): LensShader? = try {
     null
 }
 
-private const val LENS_REFRACTION = 0.9f
-private const val LENS_DISPERSION = 0.8f
-private const val LENS_RIM_STRENGTH = 0.22f
-private val LENS_TINT = floatArrayOf(0.02f, 0.02f, 0.03f, 0.15f)
+private const val LENS_REFRACTION = 1.0f
+private const val LENS_DISPERSION = 0.6f
+private const val LENS_RIM_STRENGTH = 0.35f
+private val LENS_TINT = floatArrayOf(0.02f, 0.02f, 0.03f, 0.10f)
 private val LENS_LIGHT_DIR = floatArrayOf(-0.5f, -0.87f)
 
 /**
@@ -151,10 +166,10 @@ half4 main(float2 xy) {
     float minHalf = min(halfSize.x, halfSize.y);
     float2 n = outwardNormal(p, halfSize, r);
 
-    // 1 at the rim, 0 at the centre: the bend is strongest where the glass curves.
+    // 1 at the rim, 0 half a lens-half inside: the bend covers the whole lens and is
+    // strongest at the edge, where a real glass slab bends light the most.
     float depth = clamp(-sdf / (minHalf * 0.5), 0.0, 1.0);
-    float edgeWeight = (1.0 - depth) * (1.0 - depth);
-    float bend = refraction * minHalf * 0.35 * edgeWeight;
+    float bend = refraction * minHalf * 0.5 * (1.0 - depth);
 
     float k = dispersion * 0.12;
     half rChannel = content.eval(xy - n * bend * (1.0 + k)).r;

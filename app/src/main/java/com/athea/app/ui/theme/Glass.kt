@@ -31,6 +31,10 @@ object Glass {
     val BASE_STRONG_TOP = Color(0xD916161C)
     val BASE_STRONG_BOTTOM = Color(0xF00A0A0D)
 
+    /** Almost clear base under a refracting lens: the bend has to show through. */
+    val CLEAR_TOP = Color(0x1F16161C)
+    val CLEAR_BOTTOM = Color(0x2A0C0C10)
+
     /** Colours of the moving sheen: cool, violet, warm. */
     val SHEEN_COOL = Color(0x384FD8FF)
     val SHEEN_VIOLET = Color(0x3AB06BFF)
@@ -58,6 +62,7 @@ object Glass {
  *
  * @param lit false drops the rim, for full-width bars.
  * @param strong a denser base, for panels over busy content.
+ * @param clear an almost transparent base, for panels with a refracting lens behind them.
  * @param animated false keeps the surface static, for text-heavy or numerous surfaces.
  */
 @Composable
@@ -65,13 +70,14 @@ fun Modifier.glass(
     shape: Shape,
     lit: Boolean = true,
     strong: Boolean = false,
+    clear: Boolean = false,
     animated: Boolean = true,
 ): Modifier {
     val sheen = if (animated) rememberSheenPhase() else null
-    val base = if (strong) {
-        Brush.verticalGradient(listOf(Glass.BASE_STRONG_TOP, Glass.BASE_STRONG_BOTTOM))
-    } else {
-        Brush.verticalGradient(listOf(Glass.BASE_TOP, Glass.BASE_BOTTOM))
+    val base = when {
+        clear -> Brush.verticalGradient(listOf(Glass.CLEAR_TOP, Glass.CLEAR_BOTTOM))
+        strong -> Brush.verticalGradient(listOf(Glass.BASE_STRONG_TOP, Glass.BASE_STRONG_BOTTOM))
+        else -> Brush.verticalGradient(listOf(Glass.BASE_TOP, Glass.BASE_BOTTOM))
     }
     val rim = Brush.verticalGradient(listOf(Glass.RIM_TOP, Glass.RIM_BOTTOM))
     return drawWithCache {

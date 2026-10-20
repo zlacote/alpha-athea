@@ -154,7 +154,7 @@ private fun DraftPanel(
             .fillMaxWidth()
             .barPadding()
             .then(if (lens != null) Modifier.lensAnchor(lens) else Modifier)
-            .glass(Ui.panelShape, animated = false),
+            .glass(Ui.panelShape, animated = false, clear = lens?.supported == true),
     ) {
         Column(Modifier.padding(horizontal = 4.dp, vertical = 4.dp)) {
             if (attachments.isNotEmpty()) {
