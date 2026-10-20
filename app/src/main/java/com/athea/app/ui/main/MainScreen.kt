@@ -305,6 +305,9 @@ private fun MainScreenBody(viewModel: MainViewModel, state: UiState, composerBac
                             onCopyCommand = { text ->
                                 context.copyToClipboard(text, "athea-command")
                             },
+                            onCopyOutput = { text ->
+                                context.copyToClipboard(text, "athea-output")
+                            },
                             onSelectCommandText = viewModel::showSelectText,
                             onAddToFavorites = viewModel::addFavorite,
                             onAreaResized = viewModel::onTranscriptAreaResized,
@@ -323,6 +326,14 @@ private fun MainScreenBody(viewModel: MainViewModel, state: UiState, composerBac
                         .align(Alignment.BottomStart)
                         .fillMaxWidth()
                         .onSizeChanged { bottomBarHeight = with(density) { it.height.toDp() } },
+                )
+
+                RunningGlow(
+                    running = current?.running == true,
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth(Ui.glowWidthFraction)
+                        .navigationBarsPadding(),
                 )
 
                 // Top scrim: same gradient as before, now sibling of Column

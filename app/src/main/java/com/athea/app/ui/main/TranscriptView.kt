@@ -44,6 +44,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -99,6 +100,7 @@ private sealed interface DisplayItem {
         val isFirst: Boolean,
         val isLast: Boolean,
         val exitCode: Int?,
+        val text: String,
     ) : DisplayItem
 }
 
@@ -119,6 +121,7 @@ fun TranscriptView(
     onRevealBlock: (String) -> Unit,
     onLocateBlock: (String) -> Int,
     onCopyCommand: (String) -> Unit,
+    onCopyOutput: (String) -> Unit,
     onSelectCommandText: (String) -> Unit,
     onAddToFavorites: (String) -> Unit,
     onAreaResized: (rows: Int, cols: Int) -> Unit,
@@ -181,7 +184,7 @@ fun TranscriptView(
                             val annotated = block.styled.trimTrailingNewlines().toAnnotated()
                             val chunks = chunkAnnotated(annotated, viewportChunkSize)
                             chunks.forEachIndexed { idx, chunk ->
-                                list.add(DisplayItem.Chunk(block.id, chunk, idx, idx == 0, idx == chunks.lastIndex, block.exitCode))
+                                list.add(DisplayItem.Chunk(block.id, chunk, idx, idx == 0, idx == chunks.lastIndex, block.exitCode, block.text))
                             }
                             continue
                         }
@@ -324,6 +327,7 @@ fun TranscriptView(
                                 previewLines = previewLines,
                                 jumpToBottom = jumpToBottom,
                                 onToggle = { onToggleBlock(block.id) },
+                                onCopy = onCopyOutput,
                             )
                         }
                     }
@@ -356,16 +360,11 @@ fun TranscriptView(
                                 )
                             }
                             if (item.isLast) {
-                                Icon(
-                                    Icons.Default.KeyboardArrowDown,
-                                    contentDescription = stringResource(R.string.cd_collapse),
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = Ui.chevronAlpha),
-                                    modifier = Modifier
-                                        .align(Alignment.CenterHorizontally)
-                                        .padding(top = Ui.keyRowPaddingV)
-                                        .size(Ui.chevronCollapseSize)
-                                        .rotate(180f)
-                                        .clickable(onClick = { onToggleBlock(item.blockId) }),
+                                OutputFooter(
+                                    expandable = true,
+                                    collapsed = false,
+                                    onCopy = { onCopyOutput(item.text.trimCommand()) },
+                                    onToggle = { onToggleBlock(item.blockId) },
                                 )
                             }
                         }
@@ -564,6 +563,7 @@ private fun OutputPanel(
     previewLines: Int,
     jumpToBottom: Flow<Unit>,
     onToggle: () -> Unit,
+    onCopy: (String) -> Unit,
 ) {
     Column(
         Modifier
@@ -620,34 +620,11 @@ private fun OutputPanel(
                         ),
                 )
             }
-            // Centered expand chevron, same pattern as command bubbles.
-            Icon(
-                Icons.Default.KeyboardArrowDown,
-                contentDescription = stringResource(R.string.cd_expand_editor),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier
-                    .align(Alignment.CenterHorizontally)
-                    .padding(top = Ui.keyRowPaddingV)
-                    .size(Ui.chevronExpandSize)
-                    .clickable(onClick = onToggle),
-            )
         } else if (virtualizeEnabled && lineCount > Ui.hugeLinesThreshold) {
             // Large output: internal scroll only when toggle on; threshold is TAIL_LINES*4.
             VirtualizedOutput(annotated = displayAnnotated, query = query, jumpToBottom = jumpToBottom)
             if (block.running) {
                 BlinkingCursor()
-            } else if (collapsible) {
-                Icon(
-                    Icons.Default.KeyboardArrowDown,
-                    contentDescription = stringResource(R.string.cd_collapse),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = Ui.chevronAlpha),
-                    modifier = Modifier
-                        .align(Alignment.CenterHorizontally)
-                        .padding(top = Ui.keyRowPaddingV)
-                        .size(Ui.chevronCollapseSize)
-                        .rotate(180f)
-                        .clickable(onClick = onToggle),
-                )
             }
         } else {
             // Always chunk huge text to avoid Compose Text OOM, even when
@@ -671,20 +648,56 @@ private fun OutputPanel(
             }
             if (block.running) {
                 BlinkingCursor()
-            } else if (collapsible) {
-                // Collapse affordance: centered, same style as command bubbles.
-                Icon(
-                    Icons.Default.KeyboardArrowDown,
-                    contentDescription = stringResource(R.string.cd_collapse),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = Ui.chevronAlpha),
-                    modifier = Modifier
-                        .align(Alignment.CenterHorizontally)
-                        .padding(top = Ui.keyRowPaddingV)
-                        .size(Ui.chevronCollapseSize)
-                        .rotate(180f)
-                        .clickable(onClick = onToggle),
-                )
             }
+        }
+        if (!block.running) {
+            OutputFooter(
+                expandable = collapsible,
+                collapsed = collapsed,
+                onCopy = { onCopy(plainText) },
+                onToggle = onToggle,
+            )
+        }
+    }
+}
+
+/**
+ * The row under a finished output: copy on the left, the expand or collapse chevron centred.
+ * Copy is a plain text button without an outline.
+ */
+@Composable
+private fun OutputFooter(
+    expandable: Boolean,
+    collapsed: Boolean,
+    onCopy: () -> Unit,
+    onToggle: () -> Unit,
+) {
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .padding(top = Ui.keyRowPaddingV),
+        contentAlignment = Alignment.Center,
+    ) {
+        TextButton(onClick = onCopy, modifier = Modifier.align(Alignment.CenterStart)) {
+            Icon(
+                Icons.Default.ContentCopy,
+                contentDescription = null,
+                modifier = Modifier.size(16.dp),
+            )
+            Spacer(Modifier.width(6.dp))
+            Text(stringResource(R.string.copy), style = MaterialTheme.typography.labelMedium)
+        }
+        if (expandable) {
+            Icon(
+                Icons.Default.KeyboardArrowDown,
+                contentDescription = stringResource(if (collapsed) R.string.cd_expand_editor else R.string.cd_collapse),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = Ui.chevronAlpha),
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .size(if (collapsed) Ui.chevronExpandSize else Ui.chevronCollapseSize)
+                    .rotate(if (collapsed) 0f else 180f)
+                    .clickable(onClick = onToggle),
+            )
         }
     }
 }

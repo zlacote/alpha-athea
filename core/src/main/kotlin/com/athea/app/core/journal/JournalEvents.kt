@@ -42,4 +42,14 @@ sealed class JournalEvent {
     data class CommandFinished(
         val exitCode: Int?,
     ) : JournalEvent()
+
+    /**
+     * The user cleared the screen. Replay drops everything shown before it; the earlier
+     * events stay in the journal.
+     */
+    @Serializable
+    @SerialName("clr")
+    data class ScreenCleared(
+        val timestampMs: Long,
+    ) : JournalEvent()
 }

@@ -125,7 +125,7 @@
     <string name="glass_section">Glass</string>
     <string name="glass_open">Glass tuning</string>
     <string name="glass_tuning_title">Glass</string>
-    <string name="glass_hint">Every glass element on the screen follows these values</string>
+    <string name="glass_hint">Greyed-out sliders wait for the setting they depend on</string>
     <string name="glass_mode_off">Off</string>
     <string name="glass_mode_blur">Blur</string>
     <string name="glass_mode_lens">Lens</string>
@@ -139,6 +139,14 @@
     <string name="glass_fill">Fill under the lens</string>
     <string name="glass_rim">Rim strength</string>
     <string name="glass_reset">Reset to defaults</string>
+    <string name="glass_group_blur">Blur</string>
+    <string name="glass_group_lens">Lens</string>
+    <string name="glass_group_highlight">Highlight</string>
+    <string name="glass_needs_glass">needs Blur or Lens</string>
+    <string name="glass_needs_lens">needs Lens mode</string>
+    <string name="glass_needs_bezel">needs a bezel above 0</string>
+    <string name="glass_needs_bend">needs a bend above 0</string>
+    <string name="glass_needs_highlight">needs highlight strength above 0</string>
     <string name="glass_sample_line">Sample line %1$d: the backdrop behind the glass</string>
     <string name="welcome_title">Welcome to Athea!</string>
     <string name="welcome_intro">Type a command below and tap the arrow to run it.</string>

@@ -44,5 +44,5 @@ private const val DEFAULT_CHROMA = 0.6f
 private const val DEFAULT_HIGHLIGHT_WIDTH_DP = 1.5f
 private const val DEFAULT_HIGHLIGHT_STRENGTH = 0.55f
 private const val DEFAULT_LIGHT_ANGLE_DEG = 240f
-private const val DEFAULT_FILL_ALPHA = 0.05f
+private const val DEFAULT_FILL_ALPHA = 0f
 private const val DEFAULT_RIM_ALPHA = 0.15f

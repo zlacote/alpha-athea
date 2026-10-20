@@ -54,8 +54,8 @@ private const val SAMPLE_LINES = 12
 
 /**
  * Live tuning of the glass. The sample stays pinned at the top of the screen and every
- * parameter of [GlassTuning] is a slider below it. Off and Blur draw the same glass
- * without the lens, so the bend and the highlight can be judged against them.
+ * parameter of [GlassTuning] is a slider below it, grouped so each setting sits next to the
+ * one it depends on. A slider whose setting is off is greyed out and says what it needs.
  */
 @Composable
 fun GlassTuningScreen(
@@ -139,60 +139,93 @@ fun GlassTuningScreen(
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                 )
                 ModeRow()
+
+                val mode = GlassTuning.mode
+                val lens = mode == GlassMode.LENS
+                val lensReason = if (lens) null else stringResource(R.string.glass_needs_lens)
+
+                SectionTitle(stringResource(R.string.glass_group_blur))
                 TuningSlider(
                     label = stringResource(R.string.glass_blur),
                     value = GlassTuning.blurDp,
                     range = 0f..24f,
+                    reason = if (mode == GlassMode.OFF) stringResource(R.string.glass_needs_glass) else null,
                     onChange = { GlassTuning.blurDp = it },
                 )
+
+                SectionTitle(stringResource(R.string.glass_group_lens))
                 TuningSlider(
                     label = stringResource(R.string.glass_bezel),
                     value = GlassTuning.bezelDp,
                     range = 0f..80f,
+                    reason = lensReason,
                     onChange = { GlassTuning.bezelDp = it },
                 )
                 TuningSlider(
                     label = stringResource(R.string.glass_bend),
                     value = GlassTuning.bendDp,
                     range = 0f..60f,
+                    reason = lensReason ?: if (GlassTuning.bezelDp <= 0f) {
+                        stringResource(R.string.glass_needs_bezel)
+                    } else {
+                        null
+                    },
                     onChange = { GlassTuning.bendDp = it },
                 )
                 TuningSlider(
                     label = stringResource(R.string.glass_chroma),
                     value = GlassTuning.chroma,
                     range = 0f..1f,
+                    reason = lensReason ?: if (GlassTuning.bendDp <= 0f) {
+                        stringResource(R.string.glass_needs_bend)
+                    } else {
+                        null
+                    },
                     onChange = { GlassTuning.chroma = it },
-                )
-                TuningSlider(
-                    label = stringResource(R.string.glass_highlight_width),
-                    value = GlassTuning.highlightWidthDp,
-                    range = 0f..12f,
-                    onChange = { GlassTuning.highlightWidthDp = it },
-                )
-                TuningSlider(
-                    label = stringResource(R.string.glass_highlight),
-                    value = GlassTuning.highlightStrength,
-                    range = 0f..1f,
-                    onChange = { GlassTuning.highlightStrength = it },
-                )
-                TuningSlider(
-                    label = stringResource(R.string.glass_light_angle),
-                    value = GlassTuning.lightAngleDeg,
-                    range = 0f..360f,
-                    onChange = { GlassTuning.lightAngleDeg = it },
                 )
                 TuningSlider(
                     label = stringResource(R.string.glass_fill),
                     value = GlassTuning.fillAlpha,
                     range = 0f..0.4f,
+                    reason = lensReason,
                     onChange = { GlassTuning.fillAlpha = it },
+                )
+
+                SectionTitle(stringResource(R.string.glass_group_highlight))
+                TuningSlider(
+                    label = stringResource(R.string.glass_highlight),
+                    value = GlassTuning.highlightStrength,
+                    range = 0f..1f,
+                    reason = lensReason,
+                    onChange = { GlassTuning.highlightStrength = it },
+                )
+                val noHighlight = if (GlassTuning.highlightStrength <= 0f) {
+                    stringResource(R.string.glass_needs_highlight)
+                } else {
+                    null
+                }
+                TuningSlider(
+                    label = stringResource(R.string.glass_highlight_width),
+                    value = GlassTuning.highlightWidthDp,
+                    range = 0f..12f,
+                    reason = lensReason ?: noHighlight,
+                    onChange = { GlassTuning.highlightWidthDp = it },
+                )
+                TuningSlider(
+                    label = stringResource(R.string.glass_light_angle),
+                    value = GlassTuning.lightAngleDeg,
+                    range = 0f..360f,
+                    reason = lensReason ?: noHighlight,
+                    onChange = { GlassTuning.lightAngleDeg = it },
                 )
                 TuningSlider(
                     label = stringResource(R.string.glass_rim),
                     value = GlassTuning.rimAlpha,
                     range = 0f..0.6f,
+                    reason = if (mode == GlassMode.OFF) stringResource(R.string.glass_needs_glass) else null,
                     onChange = { GlassTuning.rimAlpha = it },
                 )
+
                 TextButton(
                     onClick = { GlassTuning.reset() },
                     modifier = Modifier.padding(horizontal = 16.dp),
@@ -228,12 +261,33 @@ private fun ModeRow() {
 }
 
 @Composable
+private fun SectionTitle(title: String) {
+    Text(
+        text = title,
+        style = MaterialTheme.typography.titleSmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 2.dp),
+    )
+}
+
+/**
+ * One parameter. A non-null [reason] greys the slider out and says what it waits for; a
+ * disabled slider cannot be dragged.
+ */
+@Composable
 private fun TuningSlider(
     label: String,
     value: Float,
     range: ClosedFloatingPointRange<Float>,
+    reason: String?,
     onChange: (Float) -> Unit,
 ) {
+    val enabled = reason == null
+    val labelColor = if (enabled) {
+        MaterialTheme.colorScheme.onSurface
+    } else {
+        MaterialTheme.colorScheme.onSurface.copy(alpha = Ui.ghostAlpha)
+    }
     Column(
         Modifier
             .fillMaxWidth()
@@ -243,16 +297,24 @@ private fun TuningSlider(
             Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
-            Text(text = label, style = MaterialTheme.typography.bodyLarge)
+            Text(text = label, style = MaterialTheme.typography.bodyLarge, color = labelColor)
             Text(
                 text = "%.2f".format(value),
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
+        if (reason != null) {
+            Text(
+                text = reason,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
         Slider(
             value = value,
             onValueChange = onChange,
+            enabled = enabled,
             valueRange = range,
         )
     }

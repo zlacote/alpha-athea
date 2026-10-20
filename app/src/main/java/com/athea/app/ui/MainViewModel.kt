@@ -21,6 +21,7 @@ import com.athea.app.session.Workspace
 import com.athea.app.session.WorkspaceEvent
 import com.athea.app.session.WorkspaceState
 import com.athea.app.ui.main.CursorKey
+import com.athea.app.ui.main.FORM_FEED
 import com.athea.app.ui.main.effectiveKeyRow
 import com.athea.app.util.AtheaLog
 import com.athea.app.util.dropOldestSharedFlow
@@ -188,7 +189,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _state.update { it.copy(composerCaret = -1) }
     }
 
-    fun sendDirectText(payload: String) = workspace.sendRaw(payload)
+    /** Raw bytes to the shell. Ctrl+L clears the screen while no command runs. */
+    fun sendDirectText(payload: String) {
+        val state = _state.value.workspace
+        val running = state.sessions.firstOrNull { it.id == state.currentSessionId }?.running == true
+        if (payload == FORM_FEED && !running) workspace.clearScreen() else workspace.sendRaw(payload)
+    }
 
     /**
      * The cursor keys. A running program gets their bytes. An idle prompt uses them to walk the

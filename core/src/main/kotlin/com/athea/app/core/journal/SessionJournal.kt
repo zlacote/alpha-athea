@@ -176,6 +176,12 @@ class SessionJournal(private val file: File) {
                 out.write(event.bytes)
             }
 
+            is JournalEvent.ScreenCleared -> {
+                out.writeByte(TAG_CLEAR)
+                out.writeInt(8)
+                out.writeLong(event.timestampMs)
+            }
+
             is JournalEvent.CommandFinished -> {
                 out.writeByte(TAG_FIN)
                 if (event.exitCode != null) {
@@ -225,6 +231,10 @@ class SessionJournal(private val file: File) {
                         events.add(JournalEvent.CommandFinished(code))
                     }
 
+                    TAG_CLEAR -> DataInputStream(ByteArrayInputStream(payload)).use { p ->
+                        events.add(JournalEvent.ScreenCleared(p.readLong()))
+                    }
+
                     else -> Unit // unknown future tag: payload already consumed
                 }
             }
@@ -245,5 +255,6 @@ class SessionJournal(private val file: File) {
         const val TAG_CMD = 1
         const val TAG_OUT = 2
         const val TAG_FIN = 3
+        const val TAG_CLEAR = 4
     }
 }

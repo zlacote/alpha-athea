@@ -109,7 +109,9 @@ fun Modifier.liquidGlass(
     val lensEffect = rememberLensEffect()
     val placement = remember { GlassPlacement() }
     if (backdrop == null || GlassTuning.mode == GlassMode.OFF) return glass(shape, lit, strong, clear)
-    val fill = if (clear) Color.White.copy(alpha = GlassTuning.fillAlpha) else glassFill(strong, clear)
+    val fill = glassFill(strong, clear)
+    // The fill under the lens is a white sheen over the lensed backdrop; it exists only with the lens on.
+    val sheen = if (GlassTuning.mode == GlassMode.LENS) Color.White.copy(alpha = GlassTuning.fillAlpha) else Color.Transparent
     val rim = Color.White.copy(alpha = GlassTuning.rimAlpha)
     return this
         .onGloballyPositioned { placement.rootOrigin = it.positionInRoot() }
@@ -137,6 +139,7 @@ fun Modifier.liquidGlass(
                 }
                 clipPath(path) { drawLayer(lensLayer) }
                 drawPath(path, color = fill)
+                drawPath(path, color = sheen)
                 if (lit) drawPath(path, color = rim, style = Stroke(width = rimWidth))
                 drawContent()
             }

@@ -20,6 +20,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -61,6 +63,11 @@ enum class CursorKey(val sequence: String) {
     }
 }
 
+/**
+ * Ctrl+L. While no command runs it clears the screen; a running program gets it as its redraw key.
+ */
+const val FORM_FEED = "\u000C"
+
 data class TerminalKey(
     val label: String,
     val kind: KeyActionKind,
@@ -79,8 +86,9 @@ object DefaultKeys {
     val PIPE = TerminalKey("|", KeyActionKind.INSERT_INTO_DRAFT, "|")
     val DASH = TerminalKey("-", KeyActionKind.INSERT_INTO_DRAFT, "-")
     val KILL = TerminalKey("^C", KeyActionKind.SEND_TO_TERMINAL, "\u0003")
+    val CLEAR = TerminalKey("^L", KeyActionKind.SEND_TO_TERMINAL, FORM_FEED)
 
-    val row = listOf(CTRL, ESC, TAB, UP, DOWN, LEFT, RIGHT, SLASH, PIPE, DASH, KILL)
+    val row = listOf(CTRL, ESC, TAB, UP, DOWN, LEFT, RIGHT, SLASH, PIPE, DASH, KILL, CLEAR)
 }
 
 /** The key row as the user sees it: their stored keys, or the built-in row until they change it. */
@@ -200,6 +208,7 @@ private fun KeyCell(
     // Two layers, one per state: the armed wash fades with the sticky Ctrl state, the press wash
     // with the finger. No material ripple, so a press never replays on top of the armed state.
     val source = remember { MutableInteractionSource() }
+    val haptic = LocalHapticFeedback.current
     val armed by animateFloatAsState(
         targetValue = if (selected) 1f else 0f,
         animationSpec = tween(durationMillis = 160),
@@ -211,7 +220,14 @@ private fun KeyCell(
             .clip(Ui.smallShape)
             .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = armed))
             .background(pressWash(source))
-            .clickable(interactionSource = source, indication = null, onClick = onClick)
+            .clickable(
+                interactionSource = source,
+                indication = null,
+                onClick = {
+                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    onClick()
+                },
+            )
             .padding(horizontal = Ui.keyPaddingH),
         contentAlignment = Alignment.Center,
     ) {

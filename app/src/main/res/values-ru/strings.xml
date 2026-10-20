@@ -117,7 +117,7 @@
     <string name="glass_section">Стекло</string>
     <string name="glass_open">Тонкая настройка стекла</string>
     <string name="glass_tuning_title">Стекло</string>
-    <string name="glass_hint">Все стеклянные элементы на экране следуют этим значениям</string>
+    <string name="glass_hint">Серые ползунки ждут настройку, от которой зависят</string>
     <string name="glass_mode_off">Выкл</string>
     <string name="glass_mode_blur">Блюр</string>
     <string name="glass_mode_lens">Линза</string>
@@ -131,6 +131,14 @@
     <string name="glass_fill">Заливка под линзой</string>
     <string name="glass_rim">Сила обода</string>
     <string name="glass_reset">Сбросить к стандартным</string>
+    <string name="glass_group_blur">Размытие</string>
+    <string name="glass_group_lens">Линза</string>
+    <string name="glass_group_highlight">Подсветка</string>
+    <string name="glass_needs_glass">нужен Блюр или Линза</string>
+    <string name="glass_needs_lens">нужен режим Линза</string>
+    <string name="glass_needs_bezel">нужен ободок больше 0</string>
+    <string name="glass_needs_bend">нужен изгиб больше 0</string>
+    <string name="glass_needs_highlight">нужна сила подсветки больше 0</string>
     <string name="glass_sample_line">Строка %1$d: фон за стеклом</string>
     <string name="scroll_inside">прокрутка внутри</string>
     <string name="settings_virtualize">Большой вывод внутри прокрутки</string>

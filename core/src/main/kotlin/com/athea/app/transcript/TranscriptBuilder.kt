@@ -95,6 +95,20 @@ class TranscriptBuilder(
         finishRunning(exitCode)
     }
 
+    /**
+     * Clears the screen: everything shown so far leaves the projections. A command that is still
+     * streaming keeps running; its later output opens a new block below the cleared screen.
+     */
+    fun applyScreenCleared() {
+        blocks.clear()
+        expandedOverrides.clear()
+        rawChunks.clear()
+        rawSize = 0
+        runningOutputId = null
+        runningOutputIndex = -1
+        runningText.clear()
+    }
+
     // ---------------------------------------------------------- interaction
 
     /** Flips the manual expand/collapse override for one block. */
@@ -251,6 +265,8 @@ class TranscriptBuilder(
 
                     is JournalEvent.CommandFinished ->
                         builder.applyCommandEnd(event.exitCode)
+
+                    is JournalEvent.ScreenCleared -> builder.applyScreenCleared()
                 }
             }
             return builder

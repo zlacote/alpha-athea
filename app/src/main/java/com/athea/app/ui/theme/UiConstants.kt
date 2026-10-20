@@ -21,6 +21,7 @@ object Ui {
 
     // ---- Menus ------------------------------------------------------------
     val menuMinWidth = 190.dp
+    val glowHeight = 28.dp
     val menuItemMinHeight = 56.dp
     val menuIconSize = 24.dp
 
@@ -81,6 +82,10 @@ object Ui {
     // ---- Alphas -----------------------------------------------------------
     const val highlightAlpha = 0.08f
     const val pressWashAlpha = 0.12f
+    const val glowWidthFraction = 0.86f
+    const val glowPeakAlpha = 0.5f
+    const val glowPeriodMs = 2400
+    const val glowFadeMs = 500
     const val virtualizedBgAlpha = 0.06f
     const val chevronAlpha = 0.5f
     const val chevronAlphaCollapsedPreview = 0.6f

@@ -326,6 +326,20 @@ class Workspace(
         _state.update { it.copy(suggestion = null) }
     }
 
+    /**
+     * Clears the shown transcript of the current session. The journal keeps every event, so a
+     * restart shows the same cleared screen and nothing is lost from disk.
+     */
+    fun clearScreen() {
+        val id = _state.value.currentSessionId ?: return
+        synchronized(lock) {
+            val pipe = pipes[id] ?: return
+            pipe.journal.append(JournalEvent.ScreenCleared(timestampMs = System.currentTimeMillis()))
+            pipe.builder.applyScreenCleared()
+            refreshSession(id)
+        }
+    }
+
     /** Commands sent in the current session, oldest first, for walking back with the up key. */
     fun commandHistory(): List<String> {
         val id = _state.value.currentSessionId ?: return emptyList()
