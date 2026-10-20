@@ -139,8 +139,14 @@ half4 main(float2 xy) {
     float2 p = xy - halfSize;
     float sdf = roundBoxSdf(p, halfSize, r);
     half4 backdrop = content.eval(xy);
+    // DEBUG PROBE, remove after the test: yellow = coordinates outside the lens box,
+    // magenta = inside the box but outside the shape (clipped away on screen).
+    bool inside = xy.x >= 0.0 && xy.y >= 0.0 && xy.x <= lensSize.x && xy.y <= lensSize.y;
+    if (!inside) {
+        return half4(1.0, 1.0, 0.0, 1.0);
+    }
     if (sdf > 1.0) {
-        return backdrop;
+        return half4(1.0, 0.0, 1.0, 1.0);
     }
     float minHalf = min(halfSize.x, halfSize.y);
     float bezelWidth = min(bezel, minHalf);
