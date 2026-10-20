@@ -18,6 +18,7 @@ import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import com.athea.app.ui.theme.glass
 import com.athea.app.ui.theme.glassBase
 import com.athea.app.ui.theme.glassRim
 import com.athea.app.ui.theme.toPath
@@ -48,7 +49,7 @@ fun Modifier.liquidBackdrop(backdrop: LiquidBackdrop): Modifier =
     onGloballyPositioned { backdrop.rootOrigin = it.positionInRoot() }
         .drawWithContent {
             val pixels = IntSize(size.width.roundToInt(), size.height.roundToInt())
-            backdrop.layer.record(density, layoutDirection, pixels) {
+            backdrop.layer.record(this@drawWithContent, layoutDirection, pixels) {
                 this@drawWithContent.drawContent()
             }
             drawLayer(backdrop.layer)
@@ -76,20 +77,7 @@ fun Modifier.liquidGlass(
     val lensLayer = rememberGraphicsLayer()
     val lensEffect = rememberLensEffect()
     val placement = remember { GlassPlacement() }
-    if (backdrop == null) {
-        return this.then(
-            Modifier.drawWithCache {
-                val path = shape.createOutline(size, layoutDirection, this).toPath()
-                val base = glassBase(strong, clear)
-                val rim = glassRim()
-                val rimWidth = 1.dp.toPx()
-                onDrawBehind {
-                    drawPath(path, brush = base)
-                    if (lit) drawPath(path, brush = rim, style = Stroke(width = rimWidth))
-                }
-            },
-        )
-    }
+    if (backdrop == null) return glass(shape, lit, strong, clear)
     val base = glassBase(strong, clear)
     val rim = glassRim()
     return this
@@ -102,7 +90,7 @@ fun Modifier.liquidGlass(
             onDrawWithContent {
                 // Record the backdrop, moved so that it lines up with this surface.
                 val offset = placement.rootOrigin - backdrop.rootOrigin
-                lensLayer.record(density, layoutDirection, pixels) {
+                lensLayer.record(this@onDrawWithContent, layoutDirection, pixels) {
                     translate(-offset.x, -offset.y) {
                         drawLayer(backdrop.layer)
                     }

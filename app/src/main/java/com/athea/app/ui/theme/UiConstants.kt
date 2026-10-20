@@ -94,7 +94,6 @@ object Ui {
     const val chunkSize = 4000
     const val chunkSlack = 400
     const val hugeCharsThreshold = 8000
-    const val virtualizeLinesFactor = 4
     const val hugeLinesThreshold = 20 // TAIL_LINES 5 * 4
 
     // ---- Throttle / caps --------------------------------------------------

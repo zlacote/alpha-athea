@@ -89,7 +89,6 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 
 private const val TAIL_LINES = 5
-private const val VIRTUALIZE_LINES_FACTOR = Ui.virtualizeLinesFactor
 
 private sealed interface DisplayItem {
     data class Block(val view: BlockView) : DisplayItem
