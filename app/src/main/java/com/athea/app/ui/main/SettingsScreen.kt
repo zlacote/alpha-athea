@@ -39,6 +39,8 @@ fun SettingsScreen(
     onOutputFontSizeChange: (Int) -> Unit,
     onPreviewLinesChange: (Int) -> Unit,
     onBubbleFontSizeChange: (Int) -> Unit,
+    shellLabel: String,
+    onOpenShell: () -> Unit,
     onOpenKeys: () -> Unit,
     onOpenGlassTuning: () -> Unit,
     onBack: () -> Unit,
@@ -111,6 +113,13 @@ fun SettingsScreen(
                     value = bubbleFontSizeSp,
                     range = 12f..24f,
                     onChange = onBubbleFontSizeChange,
+                )
+            }
+
+            SettingsSection(title = stringResource(R.string.settings_shell_section)) {
+                ActionRow(
+                    title = stringResource(R.string.shell_current, shellLabel),
+                    onClick = onOpenShell,
                 )
             }
 

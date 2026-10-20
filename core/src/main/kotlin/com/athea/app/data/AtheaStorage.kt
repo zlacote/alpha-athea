@@ -16,6 +16,9 @@ import kotlinx.serialization.json.Json
  * preference in [AtheaSettings], and storing a per-session copy of it here
  * only created a second source of truth to keep in sync.
  */
+/** Written once the first-run setup is finished. */
+private const val ONBOARDED_MARKER = "onboarded"
+
 /** Shell used when the user has not picked one. */
 const val DEFAULT_SHELL_PATH = "/system/bin/sh"
 
@@ -110,6 +113,15 @@ class AtheaStorage(root: File) {
     }
 
     // -------------------------------------------------------------- settings
+
+    /** True until the first-run setup is finished, or until any setting has been saved. */
+    fun needsOnboarding(): Boolean =
+        !File(sessionsDir, ONBOARDED_MARKER).exists() && !File(sessionsDir, "settings.json").exists()
+
+    fun markOnboarded() {
+        sessionsDir.mkdirs()
+        File(sessionsDir, ONBOARDED_MARKER).writeText("")
+    }
 
     fun loadSettings(): AtheaSettings =
         runCatching {

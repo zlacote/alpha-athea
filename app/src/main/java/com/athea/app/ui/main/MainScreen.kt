@@ -51,7 +51,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.athea.app.R
+import com.athea.app.data.SshTarget
 import com.athea.app.ui.MainViewModel
+import com.athea.app.ui.SetupPage
 import com.athea.app.session.WorkspaceEvent
 import com.athea.app.ui.UiState
 import com.athea.app.ui.common.AtheaDialogContainer
@@ -68,6 +70,27 @@ import kotlinx.coroutines.launch
 @Composable
 fun MainScreen(viewModel: MainViewModel) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+
+    val setup = state.setup
+    if (setup != null) {
+        BackHandler(enabled = setup != SetupPage.WELCOME) { viewModel.backSetup() }
+        when (setup) {
+            SetupPage.WELCOME -> SetupWelcome(onNext = { viewModel.openSetup(SetupPage.SHELL) })
+            SetupPage.SHELL -> SetupShellChoice(
+                onLocal = viewModel::chooseLocalShell,
+                onTermux = viewModel::openTermuxSetup,
+                onBack = viewModel::backSetup,
+            )
+            SetupPage.TERMUX -> SetupTermux(
+                publicKey = state.sshPublicKey,
+                check = state.sshCheck,
+                onCheck = viewModel::checkTermux,
+                onUse = viewModel::useTermux,
+                onBack = viewModel::backSetup,
+            )
+        }
+        return
+    }
 
     if (state.showKeyBuilder) {
         BackHandler { viewModel.setShowKeyBuilder(false) }
@@ -122,6 +145,12 @@ fun MainScreen(viewModel: MainViewModel) {
             onPreviewLinesChange = viewModel::setPreviewLines,
             onBubbleFontSizeChange = viewModel::setBubbleFontSize,
             onOpenKeys = { viewModel.setShowKeys(true) },
+            shellLabel = if (SshTarget.fromShellPath(state.workspace.settings.shellPath) != null) {
+                stringResource(R.string.shell_termux)
+            } else {
+                stringResource(R.string.shell_local)
+            },
+            onOpenShell = { viewModel.openSetup(SetupPage.SHELL, fromSettings = true) },
             onOpenGlassTuning = { viewModel.setShowGlassTuning(true) },
             onBack = { viewModel.setShowSettings(false) },
         )

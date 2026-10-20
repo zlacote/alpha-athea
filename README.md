@@ -47,7 +47,7 @@ core/            pure JVM, tested without a device
   session/       Workspace — sessions, drafts, history, favourites, settings
   core/journal/  SessionJournal — append-only binary log, replayed on start
 app/             Android
-  engine/        NativeShellEngine (PTY via JNI), SshShellEngine (stub)
+  engine/        NativeShellEngine (PTY via JNI), SshShellEngine (PTY channel over SSH, JSch)
   ui/            MainViewModel adapts Workspace to Compose; ui/main renders it
 ```
 
@@ -75,6 +75,9 @@ core or the screens.
 - **`\r` overwrites are approximated.** Carriage return is treated as "discard
   the line" rather than "overwrite from column 0", so progress bars can lose
   their prefix.
+- **Termux over SSH:** commands are not split into bubbles yet, because the
+  remote shell does not load Athea's integration marks. Host keys are not
+  checked yet; the setup only targets the loopback address of this phone.
 
 ## Build
 

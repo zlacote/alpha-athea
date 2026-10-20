@@ -12,8 +12,12 @@ import com.athea.app.core.model.Attachment
 import com.athea.app.core.terminal.TerminalEngine
 import com.athea.app.data.AtheaStorage
 import com.athea.app.data.CustomKey
+import com.athea.app.data.DEFAULT_SHELL_PATH
+import com.athea.app.data.SshTarget
 import com.athea.app.engine.NativeShellEngine
+import com.athea.app.engine.SshIdentity
 import com.athea.app.engine.SshShellEngine
+import com.athea.app.engine.probeSsh
 import com.athea.app.session.Attachments
 import com.athea.app.session.CommandRecall
 import com.athea.app.session.EngineFactory
@@ -45,6 +49,13 @@ data class UiState(
     val stickyCtrl: Boolean = false,
     /** Caret in the composer; -1 means the end of the draft. */
     val composerCaret: Int = -1,
+    /** The setup page showing, if any: the first-run welcome, or the shell choice and Termux page. */
+    val setup: SetupPage? = null,
+    /** True when the setup was opened from Settings, so Back closes it instead of returning to the welcome. */
+    val setupFromSettings: Boolean = false,
+    /** This app's SSH public key, once it exists. */
+    val sshPublicKey: String = "",
+    val sshCheck: SshCheck = SshCheck.Idle,
     val showSettings: Boolean = false,
     val showFavorites: Boolean = false,
     val showAttachChooser: Boolean = false,
@@ -61,6 +72,20 @@ data class UiState(
  * presentation-only flags (dialogs, overlays, sticky modifier) and mirrors
  * the workspace into [state] for Compose.
  */
+/** The shell setup pages: the first-run welcome, the choice of shell, and the Termux connection. */
+enum class SetupPage { WELCOME, SHELL, TERMUX }
+
+/** The state of the check that the Termux server accepts this app's key. */
+sealed interface SshCheck {
+    data object Idle : SshCheck
+
+    data object Checking : SshCheck
+
+    data class Ok(val target: SshTarget) : SshCheck
+
+    data class Failed(val message: String) : SshCheck
+}
+
 class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val storage = AtheaStorage(application.filesDir)
@@ -89,14 +114,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val jumpToBottom: SharedFlow<Unit> = _jumpToBottom.asSharedFlow()
 
     init {
+        if (storage.needsOnboarding()) _state.update { it.copy(setup = SetupPage.WELCOME) }
         viewModelScope.launch {
             workspace.state.collect { projection -> _state.update { it.copy(workspace = projection) } }
         }
     }
 
-    private fun createEngine(app: Application, shellPath: String): TerminalEngine =
-        if (shellPath.startsWith("ssh://")) {
-            SshShellEngine(shellPath)
+    private fun createEngine(app: Application, shellPath: String): TerminalEngine {
+        val ssh = SshTarget.fromShellPath(shellPath)
+        return if (ssh != null) {
+            SshShellEngine(ssh, SshIdentity.privateKey(app.filesDir))
         } else {
             NativeShellEngine(
                 homeDir = storage.shellHome().absolutePath,
@@ -104,6 +131,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 shellPath = shellPath,
             )
         }
+    }
 
     private fun readShellAsset(app: Application): ByteArray =
         runCatching {
@@ -337,6 +365,63 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun setShowGlassTuning(visible: Boolean) = _state.update { it.copy(showGlassTuning = visible) }
 
+    // ------------------------------------------------------------------ setup
+
+    /** Opens a setup page. [fromSettings] makes Back close the flow instead of returning to the welcome. */
+    fun openSetup(page: SetupPage, fromSettings: Boolean = false) =
+        _state.update { it.copy(setup = page, setupFromSettings = fromSettings, sshCheck = SshCheck.Idle) }
+
+    /** Back on the Termux page returns to the shell choice; on the choice it returns to the welcome, or closes. */
+    fun backSetup() {
+        val state = _state.value
+        when (state.setup) {
+            SetupPage.TERMUX -> openSetup(SetupPage.SHELL, state.setupFromSettings)
+            SetupPage.SHELL -> if (state.setupFromSettings) finishSetup() else openSetup(SetupPage.WELCOME)
+            SetupPage.WELCOME, null -> Unit
+        }
+    }
+
+    /** The built-in shell needs nothing installed, so the setup ends here. */
+    fun chooseLocalShell() {
+        workspace.updateSettings { it.copy(shellPath = DEFAULT_SHELL_PATH) }
+        finishSetup()
+    }
+
+    /** Opens the Termux page, with this app's key created and ready to show. */
+    fun openTermuxSetup() {
+        openSetup(SetupPage.TERMUX, _state.value.setupFromSettings)
+        viewModelScope.launch(Dispatchers.IO) {
+            val key = SshIdentity.publicKeyLine(getApplication<Application>().filesDir)
+            _state.update { it.copy(sshPublicKey = key) }
+        }
+    }
+
+    /** Connects to Termux on this phone as [user] on [port], with this app's key. */
+    fun checkTermux(user: String, port: Int) {
+        val target = SshTarget(user.trim(), LOOPBACK, port)
+        _state.update { it.copy(sshCheck = SshCheck.Checking) }
+        val identity = SshIdentity.privateKey(getApplication<Application>().filesDir)
+        viewModelScope.launch(Dispatchers.IO) {
+            val failure = probeSsh(target, identity)
+            _state.update {
+                it.copy(sshCheck = if (failure == null) SshCheck.Ok(target) else SshCheck.Failed(failure))
+            }
+        }
+    }
+
+    /** Makes Termux the shell of new sessions, and opens one. */
+    fun useTermux(user: String, port: Int) {
+        val target = SshTarget(user.trim(), LOOPBACK, port)
+        workspace.updateSettings { it.copy(shellPath = target.toShellPath()) }
+        workspace.newSession()
+        finishSetup()
+    }
+
+    private fun finishSetup() {
+        storage.markOnboarded()
+        _state.update { it.copy(setup = null, setupFromSettings = false, sshCheck = SshCheck.Idle) }
+    }
+
     fun setKeyRowVisible(visible: Boolean) = workspace.updateSettings { it.copy(keyRowVisible = visible) }
 
     fun setEnterSends(value: Boolean) = workspace.updateSettings { it.copy(enterSends = value) }
@@ -377,6 +462,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private companion object {
         const val SHELL_ASSET = "mkshrc"
+
+        /** Termux listens on the phone itself; the setup never targets another host. */
+        const val LOOPBACK = "127.0.0.1"
     }
 
     class Factory(private val app: Application) : ViewModelProvider.Factory {
