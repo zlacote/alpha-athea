@@ -126,7 +126,6 @@ fun AtheaDropdownMenu(
                 shape = Ui.menuShape,
                 color = Color.Transparent,
                 contentColor = MaterialTheme.colorScheme.onSurface,
-                shadowElevation = Ui.menuElevation,
                 modifier = Modifier.widthIn(min = Ui.menuMinWidth).glass(Ui.menuShape, strong = true),
             ) {
                 // As wide as its widest item, so the menu hugs its content.

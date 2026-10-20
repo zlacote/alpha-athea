@@ -15,10 +15,12 @@ import com.athea.app.data.CustomKey
 import com.athea.app.engine.NativeShellEngine
 import com.athea.app.engine.SshShellEngine
 import com.athea.app.session.Attachments
+import com.athea.app.session.CommandRecall
 import com.athea.app.session.EngineFactory
 import com.athea.app.session.Workspace
 import com.athea.app.session.WorkspaceEvent
 import com.athea.app.session.WorkspaceState
+import com.athea.app.ui.main.CursorKey
 import com.athea.app.ui.main.effectiveKeyRow
 import com.athea.app.util.AtheaLog
 import com.athea.app.util.dropOldestSharedFlow
@@ -40,6 +42,8 @@ data class UiState(
     val workspace: WorkspaceState = WorkspaceState(),
     val editorExpanded: Boolean = false,
     val stickyCtrl: Boolean = false,
+    /** Caret in the composer; -1 means the end of the draft. */
+    val composerCaret: Int = -1,
     val showSettings: Boolean = false,
     val showFavorites: Boolean = false,
     val showAttachChooser: Boolean = false,
@@ -69,6 +73,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _state = MutableStateFlow(UiState())
     val state: StateFlow<UiState> = _state
+
+    /** Walks the commands sent in a session with the up and down keys. */
+    private val recall = CommandRecall()
 
     val events: Flow<WorkspaceEvent> = workspace.events
 
@@ -104,9 +111,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     // ----------------------------------------------------------------- sessions
 
-    fun newSession() = workspace.newSession()
+    fun newSession() {
+        recall.reset()
+        workspace.newSession()
+    }
 
-    fun selectSession(id: Long) = workspace.selectSession(id)
+    fun selectSession(id: Long) {
+        recall.reset()
+        workspace.selectSession(id)
+    }
 
     fun requestRename(id: Long) = _state.update { it.copy(renameTargetId = id) }
 
@@ -139,9 +152,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     // ------------------------------------------------------------------- input
 
-    fun updateDraft(text: String) = workspace.updateDraft(text)
+    fun updateDraft(text: String) {
+        recall.reset()
+        workspace.updateDraft(text)
+    }
 
     fun sendDraft() {
+        recall.reset()
         if (workspace.sendDraft()) jumpIfEnabled()
     }
 
@@ -161,11 +178,53 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         if (workspace.state.value.settings.autoScrollOnSend) _jumpToBottom.tryEmit(Unit)
     }
 
-    fun insertIntoDraft(text: String) = workspace.insertIntoDraft(text)
+    fun insertIntoDraft(text: String) {
+        workspace.insertIntoDraft(text)
+        _state.update { it.copy(composerCaret = -1) }
+    }
 
-    fun acceptSuggestion() = workspace.acceptSuggestion()
+    fun acceptSuggestion() {
+        workspace.acceptSuggestion()
+        _state.update { it.copy(composerCaret = -1) }
+    }
 
     fun sendDirectText(payload: String) = workspace.sendRaw(payload)
+
+    /**
+     * The cursor keys. A running program gets their bytes. An idle prompt uses them to walk the
+     * sent commands (up and down) and to move the caret in the composer (left and right).
+     */
+    fun pressCursorKey(key: CursorKey) {
+        val state = _state.value.workspace
+        val session = state.sessions.firstOrNull { it.id == state.currentSessionId } ?: return
+        if (session.running) {
+            sendDirectText(key.sequence)
+            return
+        }
+        when (key) {
+            CursorKey.UP -> recallCommand(older = true)
+            CursorKey.DOWN -> recallCommand(older = false)
+            CursorKey.LEFT -> moveCaret(-1)
+            CursorKey.RIGHT -> moveCaret(1)
+        }
+    }
+
+    fun setComposerCaret(caret: Int) = _state.update { it.copy(composerCaret = caret) }
+
+    private fun recallCommand(older: Boolean) {
+        val state = _state.value.workspace
+        val session = state.sessions.firstOrNull { it.id == state.currentSessionId } ?: return
+        val text = recall.step(workspace.commandHistory(), session.draft.orEmpty(), older) ?: return
+        workspace.updateDraft(text)
+        _state.update { it.copy(composerCaret = -1) }
+    }
+
+    private fun moveCaret(delta: Int) {
+        val state = _state.value.workspace
+        val draft = state.sessions.firstOrNull { it.id == state.currentSessionId }?.draft.orEmpty()
+        val caret = _state.value.composerCaret.takeIf { it >= 0 } ?: draft.length
+        _state.update { it.copy(composerCaret = (caret + delta).coerceIn(0, draft.length)) }
+    }
 
     fun onTranscriptAreaResized(rows: Int, cols: Int) = workspace.onAreaResized(rows, cols)
 

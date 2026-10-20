@@ -409,34 +409,29 @@ fun TranscriptView(
 private fun EmptyGreeting(modifier: Modifier = Modifier) {
     Column(modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
         Text(
-            text = "Welcome to Athea!",
+            text = stringResource(R.string.welcome_title),
             style = CodeStyle,
             color = MaterialTheme.colorScheme.onBackground,
         )
         Spacer(Modifier.height(Ui.spacerMedium))
         Text(
-            text = "Working with the terminal:\n" +
-                "- Type:   enter a command below\n" +
-                "- Send:   tap the arrow button\n" +
-                "- Edit:   tap the expand icon for multi-line",
+            text = stringResource(R.string.welcome_intro),
             style = CodeStyle,
             color = MaterialTheme.colorScheme.onBackground,
         )
         Spacer(Modifier.height(Ui.spacerMedium))
-        Text(
-            text = "Working with sessions:\n" +
-                "- Drawer:  tap the menu icon (top left)\n" +
-                "- New:     tap the + icon (top right)\n" +
-                "- Search:  tap ⋮ → Search",
-            style = CodeStyle,
-            color = MaterialTheme.colorScheme.onBackground,
-        )
-        Spacer(Modifier.height(Ui.spacerMedium))
-        Text(
-            text = "Long-press a sent command to add it to favorites.",
-            style = CodeStyle,
-            color = MaterialTheme.colorScheme.onBackground,
-        )
+        listOf(
+            R.string.welcome_tip_sessions,
+            R.string.welcome_tip_search,
+            R.string.welcome_tip_favorites,
+            R.string.welcome_tip_keys,
+        ).forEach { tip ->
+            Text(
+                text = "- " + stringResource(tip),
+                style = CodeStyle,
+                color = MaterialTheme.colorScheme.onBackground,
+            )
+        }
     }
 }
 

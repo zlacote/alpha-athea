@@ -32,14 +32,12 @@ import com.athea.app.ui.common.AtheaScrollHeader
 import com.athea.app.ui.liquid.LocalLiquidBackdrop
 
 /**
- * The key row and its buttons, in their own room. The title, the live key row and the
- * input stay fixed at the top; only the list of buttons scrolls below them.
+ * The buttons of the key row, in their own room. The title, the live key row and the input stay
+ * fixed at the top; only the list of buttons scrolls below them.
  */
 @Composable
 fun KeysScreen(
-    keyRowVisible: Boolean,
     keys: List<CustomKey>,
-    onKeyRowVisibleChange: (Boolean) -> Unit,
     onKeysChange: (List<CustomKey>) -> Unit,
     onResetKeys: () -> Unit,
     onOpenKeyBuilder: () -> Unit,
@@ -47,7 +45,7 @@ fun KeysScreen(
     modifier: Modifier = Modifier,
 ) {
     var draft by remember { mutableStateOf("") }
-    var withEnter by remember { mutableStateOf(false) }
+    var sendNow by remember { mutableStateOf(false) }
 
     AtheaScaffold(onBack = onBack, modifier = modifier) {
         Column(Modifier.fillMaxWidth()) {
@@ -61,6 +59,7 @@ fun KeysScreen(
                     suggestionActive = false,
                     onInsert = {},
                     onSendBytes = {},
+                    onCursor = {},
                     onAcceptSuggestion = {},
                     onToggleStickyCtrl = {},
                     onConsumeStickyCtrl = {},
@@ -83,13 +82,13 @@ fun KeysScreen(
                 )
                 Button(
                     onClick = {
-                        onKeysChange(
-                            keys + CustomKey(
-                                label = draft.take(12),
-                                payload = if (withEnter) draft + "\r" else draft,
-                                kind = KeyKind.SEND,
-                            ),
-                        )
+                        // Without "send now" the text lands in the composer, where it is visible.
+                        val key = if (sendNow) {
+                            CustomKey(label = draft.take(12), payload = draft + "\r", kind = KeyKind.SEND)
+                        } else {
+                            CustomKey(label = draft.take(12), payload = draft, kind = KeyKind.INSERT)
+                        }
+                        onKeysChange(keys + key)
                         draft = ""
                     },
                     enabled = draft.isNotEmpty(),
@@ -103,9 +102,9 @@ fun KeysScreen(
                     .padding(horizontal = 16.dp),
             ) {
                 FilterChip(
-                    selected = withEnter,
-                    onClick = { withEnter = !withEnter },
-                    label = { Text(stringResource(R.string.keys_enter_after)) },
+                    selected = sendNow,
+                    onClick = { sendNow = !sendNow },
+                    label = { Text(stringResource(R.string.keys_send_now)) },
                 )
             }
         }
@@ -117,12 +116,6 @@ fun KeysScreen(
                 .verticalScroll(rememberScrollState()),
         ) {
             SettingsSection(title = stringResource(R.string.keys_list_title)) {
-                SwitchRow(
-                    title = stringResource(R.string.settings_key_row),
-                    subtitle = stringResource(R.string.settings_key_row_desc),
-                    checked = keyRowVisible,
-                    onChange = onKeyRowVisibleChange,
-                )
                 keys.forEach { key ->
                     KeyEditRow(
                         key = key,

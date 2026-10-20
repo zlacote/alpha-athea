@@ -52,7 +52,7 @@
 
     <!-- Settings screen -->
     <string name="settings_key_row">Ряд клавиш</string>
-    <string name="settings_key_row_desc">Дополнительные клавиши над транскриптом</string>
+    <string name="settings_key_row_desc">Дополнительные клавиши под полем ввода</string>
     <string name="settings_enter_sends">Enter отправляет команду</string>
     <string name="settings_enter_sends_desc">Выключено — Enter переносит строку</string>
     <string name="settings_auto_scroll">Переходить в конец при отправке</string>
@@ -68,7 +68,7 @@
     <string name="keys_open">Клавиши и кнопки</string>
     <string name="keys_title">Клавиши</string>
     <string name="keys_add">Добавить</string>
-    <string name="keys_enter_after">Enter в конце</string>
+    <string name="keys_send_now">Отправить сразу</string>
     <string name="keys_list_title">Кнопки</string>
     <string name="settings_keys_section">Клавиши</string>
     <string name="settings_keys_add">Добавить клавишу</string>
@@ -135,4 +135,10 @@
     <string name="scroll_inside">прокрутка внутри</string>
     <string name="settings_virtualize">Большой вывод внутри прокрутки</string>
     <string name="settings_virtualize_desc">Если вывод большой, прокручивать его внутри блока, а не всю страницу; показывает столько же строк, сколько свёрнутый вид ×4</string>
+    <string name="welcome_title">Добро пожаловать в Athea!</string>
+    <string name="welcome_intro">Напишите команду внизу и нажмите стрелку, чтобы её выполнить.</string>
+    <string name="welcome_tip_sessions">Кнопка меню слева вверху открывает сессии. + создаёт новую.</string>
+    <string name="welcome_tip_search">⋮ → Поиск находит текст в этой сессии.</string>
+    <string name="welcome_tip_favorites">Долгое нажатие на отправленную команду сохраняет её в избранное.</string>
+    <string name="welcome_tip_keys">Клавиши под полем ввода настраиваются в настройках.</string>
 </resources>

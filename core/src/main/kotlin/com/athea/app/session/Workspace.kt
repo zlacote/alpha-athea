@@ -326,6 +326,12 @@ class Workspace(
         _state.update { it.copy(suggestion = null) }
     }
 
+    /** Commands sent in the current session, oldest first, for walking back with the up key. */
+    fun commandHistory(): List<String> {
+        val id = _state.value.currentSessionId ?: return emptyList()
+        return synchronized(lock) { histories[id]?.toList() }.orEmpty()
+    }
+
     /** Raw bytes to the current shell, bypassing the draft (key row). */
     fun sendRaw(payload: String) {
         val id = _state.value.currentSessionId ?: return

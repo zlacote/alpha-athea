@@ -59,7 +59,7 @@
 
     <!-- Settings screen -->
     <string name="settings_key_row">Key row</string>
-    <string name="settings_key_row_desc">Extra keys above the transcript</string>
+    <string name="settings_key_row_desc">Extra keys under the composer</string>
     <string name="settings_enter_sends">Enter sends command</string>
     <string name="settings_enter_sends_desc">Off keeps Enter for a new line</string>
     <string name="settings_auto_scroll">Jump to bottom on send</string>
@@ -77,7 +77,7 @@
     <string name="keys_open">Keys and buttons</string>
     <string name="keys_title">Keys</string>
     <string name="keys_add">Add</string>
-    <string name="keys_enter_after">Enter after</string>
+    <string name="keys_send_now">Send now</string>
     <string name="keys_list_title">Buttons</string>
     <string name="settings_keys_section">Keys</string>
     <string name="settings_keys_add">Add key</string>
@@ -140,4 +140,10 @@
     <string name="glass_rim">Rim strength</string>
     <string name="glass_reset">Reset to defaults</string>
     <string name="glass_sample_line">Sample line %1$d: the backdrop behind the glass</string>
+    <string name="welcome_title">Welcome to Athea!</string>
+    <string name="welcome_intro">Type a command below and tap the arrow to run it.</string>
+    <string name="welcome_tip_sessions">The menu button, top left, opens your sessions. + starts a new one.</string>
+    <string name="welcome_tip_search">⋮ → Search finds text in this session.</string>
+    <string name="welcome_tip_favorites">Long-press a command you sent to save it to favorites.</string>
+    <string name="welcome_tip_keys">The keys under the composer are set up in Settings.</string>
 </resources>

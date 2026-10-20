@@ -89,9 +89,7 @@ fun MainScreen(viewModel: MainViewModel) {
     if (state.showKeys) {
         BackHandler { viewModel.setShowKeys(false) }
         KeysScreen(
-            keyRowVisible = state.workspace.settings.keyRowVisible,
             keys = effectiveKeyRow(state.workspace.customKeys),
-            onKeyRowVisibleChange = viewModel::setKeyRowVisible,
             onKeysChange = viewModel::setCustomKeys,
             onResetKeys = viewModel::resetKeysToDefaults,
             onOpenKeyBuilder = { viewModel.setShowKeyBuilder(true) },
@@ -103,6 +101,8 @@ fun MainScreen(viewModel: MainViewModel) {
     if (state.showSettings) {
         BackHandler { viewModel.setShowSettings(false) }
         SettingsScreen(
+            keyRowVisible = state.workspace.settings.keyRowVisible,
+            onKeyRowVisibleChange = viewModel::setKeyRowVisible,
             enterSends = state.workspace.settings.enterSends,
             autoScrollOnSend = state.workspace.settings.autoScrollOnSend,
             rawStream = state.workspace.settings.rawStream,
@@ -431,6 +431,8 @@ private fun BottomBar(
             onSearchNext = viewModel::nextSearchMatch,
             onExitSearch = viewModel::exitSearch,
             enterSends = state.workspace.settings.enterSends,
+            caret = state.composerCaret,
+            onCaretChange = viewModel::setComposerCaret,
             composerBackdrop = composerBackdrop,
         )
         if (state.workspace.settings.keyRowVisible && state.workspace.search == null) {
@@ -443,6 +445,7 @@ private fun BottomBar(
                 suggestionActive = suggestion != null,
                 onInsert = viewModel::insertIntoDraft,
                 onSendBytes = viewModel::sendDirectText,
+                onCursor = viewModel::pressCursorKey,
                 onAcceptSuggestion = viewModel::acceptSuggestion,
                 onToggleStickyCtrl = viewModel::toggleStickyCtrl,
                 onConsumeStickyCtrl = viewModel::consumeStickyCtrl,

@@ -1,5 +1,11 @@
 package com.athea.app.ui.common
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
+import androidx.compose.foundation.interaction.InteractionSource
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
@@ -10,8 +16,11 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.athea.app.ui.liquid.LocalLiquidBackdrop
@@ -63,7 +72,7 @@ fun AtheaPill(
     }
 }
 
-/** The one icon button for pills. */
+/** The one icon button for pills, with the press wash of glass controls. */
 @Composable
 fun AtheaPillIcon(
     icon: ImageVector,
@@ -71,11 +80,31 @@ fun AtheaPillIcon(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    IconButton(onClick = onClick, modifier = modifier) {
+    val source = remember { MutableInteractionSource() }
+    IconButton(
+        onClick = onClick,
+        interactionSource = source,
+        modifier = modifier.clip(CircleShape).background(pressWash(source)),
+    ) {
         Icon(
             icon,
             contentDescription = contentDescription,
             tint = MaterialTheme.colorScheme.onSurface,
         )
     }
+}
+
+/**
+ * Press feedback for the glass controls: a soft wash that fades in while the control is held
+ * and out again on release.
+ */
+@Composable
+fun pressWash(source: InteractionSource): Color {
+    val pressed by source.collectIsPressedAsState()
+    val alpha by animateFloatAsState(
+        targetValue = if (pressed) Ui.pressWashAlpha else 0f,
+        animationSpec = tween(durationMillis = 90),
+        label = "pressWash",
+    )
+    return MaterialTheme.colorScheme.onSurface.copy(alpha = alpha)
 }

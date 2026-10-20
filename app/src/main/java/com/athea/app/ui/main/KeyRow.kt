@@ -1,7 +1,10 @@
 package com.athea.app.ui.main
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -10,6 +13,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -22,6 +27,7 @@ import androidx.compose.ui.unit.sp
 import com.athea.app.data.CustomKey
 import com.athea.app.data.KeyKind
 import com.athea.app.ui.common.EqualCellStrip
+import com.athea.app.ui.common.pressWash
 import com.athea.app.ui.liquid.LocalLiquidBackdrop
 import com.athea.app.ui.liquid.liquidGlass
 import com.athea.app.ui.theme.Ui
@@ -39,6 +45,22 @@ enum class KeyActionKind {
     TOGGLE_STICKY_CTRL,
 }
 
+/**
+ * The four cursor keys. A running program gets their bytes; an idle prompt uses them to walk the
+ * sent commands and to move the caret in the composer.
+ */
+enum class CursorKey(val sequence: String) {
+    UP("\u001B[A"),
+    DOWN("\u001B[B"),
+    RIGHT("\u001B[C"),
+    LEFT("\u001B[D");
+
+    companion object {
+        /** The cursor key whose bytes are [payload], or null for any other key. */
+        fun of(payload: String): CursorKey? = entries.firstOrNull { it.sequence == payload }
+    }
+}
+
 data class TerminalKey(
     val label: String,
     val kind: KeyActionKind,
@@ -49,10 +71,10 @@ object DefaultKeys {
     val CTRL = TerminalKey("CTRL", KeyActionKind.TOGGLE_STICKY_CTRL)
     val ESC = TerminalKey("ESC", KeyActionKind.SEND_TO_TERMINAL, "\u001B")
     val TAB = TerminalKey("TAB", KeyActionKind.SEND_TO_TERMINAL, "\t")
-    val UP = TerminalKey("↑", KeyActionKind.SEND_TO_TERMINAL, "\u001B[A")
-    val DOWN = TerminalKey("↓", KeyActionKind.SEND_TO_TERMINAL, "\u001B[B")
-    val LEFT = TerminalKey("←", KeyActionKind.SEND_TO_TERMINAL, "\u001B[D")
-    val RIGHT = TerminalKey("→", KeyActionKind.SEND_TO_TERMINAL, "\u001B[C")
+    val UP = TerminalKey("↑", KeyActionKind.SEND_TO_TERMINAL, CursorKey.UP.sequence)
+    val DOWN = TerminalKey("↓", KeyActionKind.SEND_TO_TERMINAL, CursorKey.DOWN.sequence)
+    val LEFT = TerminalKey("←", KeyActionKind.SEND_TO_TERMINAL, CursorKey.LEFT.sequence)
+    val RIGHT = TerminalKey("→", KeyActionKind.SEND_TO_TERMINAL, CursorKey.RIGHT.sequence)
     val SLASH = TerminalKey("/", KeyActionKind.INSERT_INTO_DRAFT, "/")
     val PIPE = TerminalKey("|", KeyActionKind.INSERT_INTO_DRAFT, "|")
     val DASH = TerminalKey("-", KeyActionKind.INSERT_INTO_DRAFT, "-")
@@ -92,6 +114,7 @@ fun KeyRow(
     suggestionActive: Boolean,
     onInsert: (String) -> Unit,
     onSendBytes: (String) -> Unit,
+    onCursor: (CursorKey) -> Unit,
     onAcceptSuggestion: () -> Unit,
     onToggleStickyCtrl: () -> Unit,
     onConsumeStickyCtrl: () -> Unit,
@@ -134,6 +157,11 @@ fun KeyRow(
                                 onAcceptSuggestion()
                                 return@KeyCell
                             }
+                            val cursor = CursorKey.of(key.payload)
+                            if (cursor != null) {
+                                onCursor(cursor)
+                                return@KeyCell
+                            }
                             val ch = key.payload.singleOrNull()
                             val combinable = ch?.isCtrlCombinable() == true
                             if (stickyCtrl && combinable && ch != null) {
@@ -169,15 +197,21 @@ private fun KeyCell(
         4 -> 12.sp
         else -> 11.sp
     }
+    // Two layers, one per state: the armed wash fades with the sticky Ctrl state, the press wash
+    // with the finger. No material ripple, so a press never replays on top of the armed state.
+    val source = remember { MutableInteractionSource() }
+    val armed by animateFloatAsState(
+        targetValue = if (selected) 1f else 0f,
+        animationSpec = tween(durationMillis = 160),
+        label = "armed",
+    )
     Box(
         Modifier
             .fillMaxSize()
             .clip(Ui.smallShape)
-            .background(
-                if (selected) MaterialTheme.colorScheme.primaryContainer
-                else Color.Transparent,
-            )
-            .clickable(onClick = onClick)
+            .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = armed))
+            .background(pressWash(source))
+            .clickable(interactionSource = source, indication = null, onClick = onClick)
             .padding(horizontal = Ui.keyPaddingH),
         contentAlignment = Alignment.Center,
     ) {

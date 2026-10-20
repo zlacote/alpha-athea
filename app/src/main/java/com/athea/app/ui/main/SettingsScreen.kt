@@ -19,6 +19,7 @@ import com.athea.app.util.copyToClipboard
 
 @Composable
 fun SettingsScreen(
+    keyRowVisible: Boolean,
     enterSends: Boolean,
     autoScrollOnSend: Boolean,
     rawStream: Boolean,
@@ -28,6 +29,7 @@ fun SettingsScreen(
     outputFontSizeSp: Int,
     previewLines: Int,
     bubbleFontSizeSp: Int,
+    onKeyRowVisibleChange: (Boolean) -> Unit,
     onEnterSendsChange: (Boolean) -> Unit,
     onAutoScrollOnSendChange: (Boolean) -> Unit,
     onRawStreamChange: (Boolean) -> Unit,
@@ -113,6 +115,12 @@ fun SettingsScreen(
             }
 
             SettingsSection(title = stringResource(R.string.settings_keys_section)) {
+                SwitchRow(
+                    title = stringResource(R.string.settings_key_row),
+                    subtitle = stringResource(R.string.settings_key_row_desc),
+                    checked = keyRowVisible,
+                    onChange = onKeyRowVisibleChange,
+                )
                 ActionRow(
                     title = stringResource(R.string.keys_open),
                     onClick = onOpenKeys,

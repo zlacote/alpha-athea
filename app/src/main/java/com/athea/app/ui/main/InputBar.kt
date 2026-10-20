@@ -42,10 +42,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.athea.app.R
@@ -79,6 +81,8 @@ fun InputBar(
     onSearchNext: () -> Unit,
     onExitSearch: () -> Unit,
     enterSends: Boolean,
+    caret: Int,
+    onCaretChange: (Int) -> Unit,
     composerBackdrop: LiquidBackdrop? = null,
     modifier: Modifier = Modifier,
 ) {
@@ -93,6 +97,8 @@ fun InputBar(
             onAddClick = onAddClick,
             onRemoveAttachment = onRemoveAttachment,
             enterSends = enterSends,
+            caret = caret,
+            onCaretChange = onCaretChange,
             backdrop = composerBackdrop,
             modifier = modifier,
         )
@@ -134,6 +140,8 @@ private fun DraftPanel(
     onAddClick: () -> Unit,
     onRemoveAttachment: (Attachment) -> Unit,
     enterSends: Boolean,
+    caret: Int,
+    onCaretChange: (Int) -> Unit,
     backdrop: LiquidBackdrop?,
     modifier: Modifier = Modifier,
 ) {
@@ -151,7 +159,7 @@ private fun DraftPanel(
         modifier = modifier
             .fillMaxWidth()
             .barPadding()
-            .liquidGlass(backdrop, Ui.panelShape, Ui.panelRadius, clear = backdrop != null),
+            .liquidGlass(backdrop, Ui.panelShape, Ui.panelRadius, strong = true),
     ) {
         Column(Modifier.padding(horizontal = 4.dp, vertical = 4.dp)) {
             if (attachments.isNotEmpty()) {
@@ -173,8 +181,11 @@ private fun DraftPanel(
 
             Box {
                 BasicTextField(
-                    value = draft,
-                    onValueChange = onDraftChange,
+                    value = TextFieldValue(draft, TextRange(if (caret in 0..draft.length) caret else draft.length)),
+                    onValueChange = { value ->
+                        if (value.text != draft) onDraftChange(value.text)
+                        onCaretChange(value.selection.end)
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(
