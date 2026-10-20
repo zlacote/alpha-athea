@@ -14,6 +14,7 @@ import com.athea.app.data.SessionMeta
 import com.athea.app.data.SessionsIndex
 import com.athea.app.parse.StreamParser
 import com.athea.app.parse.applyTo
+import com.athea.app.screen.TerminalScreen
 import com.athea.app.transcript.TranscriptBuilder
 import com.athea.app.transcript.TranscriptSearch
 import com.athea.app.util.AtheaLog
@@ -160,6 +161,9 @@ class Workspace(
             return
         }
         backends[id] = engine
+        if (!engine.reportsCommandEnds) {
+            pipes[id]?.screen = TerminalScreen(INITIAL_ROWS, INITIAL_COLS)
+        }
         // The collector only forwards into an unbounded queue, which can never
         // drop. A batch worker drains everything queued per iteration: one lock
         // acquisition, one journal append and one refresh per burst.
@@ -200,10 +204,13 @@ class Workspace(
             }
         }
         val bytes = output.toByteArray().takeIf { it.isNotEmpty() }
-        // The journal and the parser are per-session with a single writer each.
-        val parsed = if (bytes == null) {
+        val screen = pipe.screen
+        bytes?.let { screen?.feed(it) }
+        // A full-screen program's output is shown as its screen, so it is not journaled as transcript text.
+        val parsed = if (bytes == null || screen?.altActive == true) {
             emptyList()
         } else {
+            // The journal and the parser are per-session with a single writer each.
             pipe.journal.append(JournalEvent.OutputArrived(bytes))
             pipe.parser.feed(bytes)
         }
@@ -289,12 +296,22 @@ class Workspace(
     fun sendDraft(): Boolean {
         val id = _state.value.currentSessionId ?: return false
         synchronized(lock) {
+            if (pipes[id]?.screen?.altActive == true) return sendToFullScreen(id)
             val draft = metas[id]?.draft.orEmpty().trimCommand()
             if (draft.isBlank()) return false
             submit(id, draft)
             mutateMeta(id) { it.copy(draft = "") }
         }
         persistTransientState()
+        return true
+    }
+
+    /** A full-screen program gets the typed text and Enter as raw input: no command bubble, no history. */
+    private fun sendToFullScreen(id: Long): Boolean {
+        val backend = backends[id] ?: return false
+        val text = metas[id]?.draft.orEmpty()
+        backend.write((text + "\r").toByteArray(Charsets.UTF_8))
+        mutateMeta(id) { it.copy(draft = "") }
         return true
     }
 
@@ -350,8 +367,11 @@ class Workspace(
 
     fun onAreaResized(rows: Int, cols: Int) {
         val id = _state.value.currentSessionId ?: return
-        val backend = synchronized(lock) { backends[id] } ?: return
-        backend.resize(rows.coerceAtLeast(1), cols.coerceAtLeast(1))
+        val safeRows = rows.coerceAtLeast(1)
+        val safeCols = cols.coerceAtLeast(1)
+        val (backend, screen) = synchronized(lock) { backends[id] to pipes[id]?.screen }
+        screen?.resize(safeRows, safeCols)
+        backend?.resize(safeRows, safeCols)
     }
 
     /**
@@ -615,6 +635,7 @@ class Workspace(
             blocks = snapshot.blocks,
             running = snapshot.running,
             rawText = snapshot.rawText,
+            fullScreen = pipe.screen?.takeIf { it.altActive }?.snapshot(),
         )
         _state.update { st ->
             val sessions = st.sessions.toMutableList()
@@ -633,7 +654,10 @@ class Workspace(
         val journal: SessionJournal,
         val parser: StreamParser,
         val builder: TranscriptBuilder,
-    )
+    ) {
+        /** Only for a shell that sends no command marks: it draws a full-screen program's output. */
+        var screen: TerminalScreen? = null
+    }
 
     private class RestoredSession(
         val meta: SessionMeta,

@@ -17,6 +17,8 @@ import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.flow.first
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -136,6 +138,34 @@ class WorkspaceTest {
             }
         }
         assertEquals(listOf("pkg", "first\n", "ls", "second\n"), texts)
+    }
+
+    @Test
+    fun `a full-screen program takes the session and gets typed text as raw input`() = runTest {
+        val ws = workspace(markless = true)
+        started.single().printOutput("\u001B[?1049h")
+        runCurrent()
+        advanceTimeBy(200)
+
+        assertNotNull(ws.state.value.sessions.single().fullScreen)
+        ws.updateDraft("ihi")
+        assertTrue(ws.sendDraft())
+
+        assertEquals(listOf("ihi\r"), started.single().written)
+        assertTrue(ws.state.value.sessions.single().blocks.isEmpty())
+    }
+
+    @Test
+    fun `the full screen ends when the program leaves the alternate screen`() = runTest {
+        val ws = workspace(markless = true)
+        started.single().printOutput("\u001B[?1049h")
+        runCurrent()
+        advanceTimeBy(200)
+        started.single().printOutput("\u001B[?1049l")
+        runCurrent()
+        advanceTimeBy(200)
+
+        assertNull(ws.state.value.sessions.single().fullScreen)
     }
 
     @Test

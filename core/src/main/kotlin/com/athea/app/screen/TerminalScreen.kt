@@ -38,6 +38,8 @@ class TerminalScreen(rows: Int, cols: Int) {
     var altActive = false
         private set
 
+    /** Called from the output worker; the UI reads the screen through [snapshot] on another thread. */
+    @Synchronized
     fun feed(bytes: ByteArray) {
         val input = if (carry.isEmpty()) bytes else carry + bytes
         val complete = completeLength(input)
@@ -45,6 +47,7 @@ class TerminalScreen(rows: Int, cols: Int) {
         for (ch in String(input, 0, complete, Charsets.UTF_8)) step(ch)
     }
 
+    @Synchronized
     fun resize(rows: Int, cols: Int) {
         rowCount = rows.coerceAtLeast(1)
         colCount = cols.coerceAtLeast(1)
@@ -55,6 +58,7 @@ class TerminalScreen(rows: Int, cols: Int) {
         moveTo(cursorRow, cursorCol)
     }
 
+    @Synchronized
     fun snapshot(): ScreenSnapshot = ScreenSnapshot(
         rows = grid.map { String(it).trimEnd() },
         cursorRow = cursorRow,

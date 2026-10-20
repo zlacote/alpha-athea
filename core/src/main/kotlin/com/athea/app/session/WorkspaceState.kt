@@ -4,6 +4,7 @@ import com.athea.app.core.model.FavoriteCommand
 import com.athea.app.core.terminal.TerminalEngine
 import com.athea.app.data.AtheaSettings
 import com.athea.app.data.CustomKey
+import com.athea.app.screen.ScreenSnapshot
 import com.athea.app.transcript.BlockView
 
 /** Everything one session shows. The draft lives in the session's metadata, not in the transcript. */
@@ -16,6 +17,8 @@ data class SessionView(
     val blocks: List<BlockView>,
     val running: Boolean,
     val rawText: String,
+    /** The screen of a full-screen program while it runs; null otherwise. */
+    val fullScreen: ScreenSnapshot? = null,
 )
 
 /** Search within one session transcript. */

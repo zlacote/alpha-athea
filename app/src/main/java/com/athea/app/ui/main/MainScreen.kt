@@ -352,33 +352,44 @@ private fun MainScreenBody(viewModel: MainViewModel, state: UiState, composerBac
                 if (current != null) {
                     Box(Modifier.fillMaxSize().liquidBackdrop(composerBackdrop, MaterialTheme.colorScheme.background)) {
                         val overlayBottom = bottomBarHeight + Ui.contentPaddingV
-                        TranscriptView(
-                            session = current,
-                            search = state.workspace.search,
-                            scrollRequests = viewModel.scrollRequests,
-                            jumpToBottom = viewModel.jumpToBottom,
-                            previewLines = state.workspace.settings.previewLines,
-                            contentTopPadding = statusBarTop + Ui.topBarContentTop,
-                            contentBottomPadding = overlayBottom,
-                            pinchZoomEnabled = state.workspace.settings.pinchZoomEnabled,
-                            virtualizeLargeOutput = state.workspace.settings.virtualizeLargeOutput,
-                            onOutputFontZoom = viewModel::onOutputFontZoom,
-                            onToggleBlock = viewModel::toggleBlockCollapsed,
-                            onRevealBlock = viewModel::revealBlock,
-                            onLocateBlock = { blockId ->
-                                current.blocks.indexOfFirst { it.block.id == blockId }
-                            },
-                            onCopyCommand = { text ->
-                                context.copyToClipboard(text, "athea-command")
-                            },
-                            onCopyOutput = { text ->
-                                context.copyToClipboard(text, "athea-output")
-                            },
-                            onSelectCommandText = viewModel::showSelectText,
-                            onAddToFavorites = viewModel::addFavorite,
-                            onAreaResized = viewModel::onTranscriptAreaResized,
-                            modifier = Modifier.fillMaxSize(),
-                        )
+                        val fullScreen = current.fullScreen
+                        if (fullScreen != null) {
+                            FullScreenView(
+                                screen = fullScreen,
+                                contentTopPadding = statusBarTop + Ui.topBarContentTop,
+                                contentBottomPadding = overlayBottom,
+                                onAreaResized = viewModel::onTranscriptAreaResized,
+                                modifier = Modifier.fillMaxSize(),
+                            )
+                        } else {
+                            TranscriptView(
+                                session = current,
+                                search = state.workspace.search,
+                                scrollRequests = viewModel.scrollRequests,
+                                jumpToBottom = viewModel.jumpToBottom,
+                                previewLines = state.workspace.settings.previewLines,
+                                contentTopPadding = statusBarTop + Ui.topBarContentTop,
+                                contentBottomPadding = overlayBottom,
+                                pinchZoomEnabled = state.workspace.settings.pinchZoomEnabled,
+                                virtualizeLargeOutput = state.workspace.settings.virtualizeLargeOutput,
+                                onOutputFontZoom = viewModel::onOutputFontZoom,
+                                onToggleBlock = viewModel::toggleBlockCollapsed,
+                                onRevealBlock = viewModel::revealBlock,
+                                onLocateBlock = { blockId ->
+                                    current.blocks.indexOfFirst { it.block.id == blockId }
+                                },
+                                onCopyCommand = { text ->
+                                    context.copyToClipboard(text, "athea-command")
+                                },
+                                onCopyOutput = { text ->
+                                    context.copyToClipboard(text, "athea-output")
+                                },
+                                onSelectCommandText = viewModel::showSelectText,
+                                onAddToFavorites = viewModel::addFavorite,
+                                onAreaResized = viewModel::onTranscriptAreaResized,
+                                modifier = Modifier.fillMaxSize(),
+                            )
+                        }
                     }
                 }
 
