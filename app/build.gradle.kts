@@ -1,6 +1,5 @@
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
 }
@@ -13,13 +12,13 @@ composeCompiler {
 
 android {
     namespace = "iatheiya.ayana"
-    compileSdk = 35
-    ndkVersion = "26.1.10909125"
+    compileSdk = 37
+    ndkVersion = "28.2.13676358"
 
     defaultConfig {
         applicationId = "iatheiya.ayana"
         minSdk = 29
-        targetSdk = 35
+        targetSdk = 37
         versionCode = 4
         versionName = "0.4.0"
 
@@ -61,10 +60,6 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-    kotlinOptions {
-        jvmTarget = "17"
-    }
-
     buildFeatures {
         compose = true
     }

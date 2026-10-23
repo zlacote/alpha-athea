@@ -17,10 +17,11 @@ concurrency:
 
 env:
   JAVA_VERSION: '21'
-  GRADLE_VERSION: '8.9'
-  NDK_VERSION: '26.1.10909125'
+  GRADLE_VERSION: '9.6.1'
+  NDK_VERSION: '28.2.13676358'
   CMAKE_VERSION: '3.22.1'
-  BUILD_TOOLS_VERSION: '35.0.0'
+  BUILD_TOOLS_VERSION: '36.0.0'
+  COMPILE_SDK: '37'
   API_LEVEL: '35'
   ANDROID_TARGET: 'google_apis'
   ANDROID_ARCH: 'x86_64'
@@ -51,7 +52,7 @@ jobs:
       - name: Install SDK components
         run: |
           sdkmanager --install \
-            "platforms;android-35" \
+            "platforms;android-${COMPILE_SDK}" \
             "build-tools;${BUILD_TOOLS_VERSION}" \
             "platform-tools" \
             "ndk;${NDK_VERSION}" \
