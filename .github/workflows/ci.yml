@@ -24,7 +24,7 @@ env:
   API_LEVEL: '35'
   ANDROID_TARGET: 'google_apis'
   ANDROID_ARCH: 'x86_64'
-  AVD_NAME: 'athea_ci'
+  AVD_NAME: 'ayana_ci'
   EMU_BOOT_TIMEOUT_SEC: '400'
   GRADLE_OPTS: "-Dorg.gradle.daemon=false"
 
@@ -84,17 +84,17 @@ jobs:
         run: |
           keytool -genkeypair -v \
             -keystore signing.keystore \
-            -alias athea \
-            -storepass athea123 -keypass athea123 \
+            -alias ayana \
+            -storepass ayana123 -keypass ayana123 \
             -keyalg RSA -keysize 2048 -validity 10000 \
-            -dname "CN=Athea,O=Athea,C=US"
+            -dname "CN=Ayana,O=Ayana,C=US"
           for APK in $(find app/build/outputs/apk -name "*.apk"); do
             echo "Signing: $APK"
             ${ANDROID_HOME}/build-tools/${BUILD_TOOLS_VERSION}/apksigner sign \
               --ks signing.keystore \
-              --ks-key-alias athea \
-              --ks-pass pass:athea123 \
-              --key-pass pass:athea123 \
+              --ks-key-alias ayana \
+              --ks-pass pass:ayana123 \
+              --key-pass pass:ayana123 \
               --out "$APK" \
               "$APK"
             ${ANDROID_HOME}/build-tools/${BUILD_TOOLS_VERSION}/apksigner verify --verbose "$APK" | head -10
@@ -105,28 +105,28 @@ jobs:
         run: |
           mkdir -p build_out/apk
           find app/build/outputs/apk/debug -name "*.apk" -print -quit \
-            | xargs -r -I{} cp {} build_out/apk/Athea-debug.apk
+            | xargs -r -I{} cp {} build_out/apk/Ayana-debug.apk
           find app/build/outputs/apk/release -name "*.apk" -print -quit \
-            | xargs -r -I{} cp {} build_out/apk/Athea-arm64.apk
+            | xargs -r -I{} cp {} build_out/apk/Ayana-arm64.apk
           echo "=== debug (x86_64 + arm64) ===" > build_out/native_libs.txt
-          unzip -l build_out/apk/Athea-debug.apk | awk '/lib\//{print $4}' >> build_out/native_libs.txt || true
+          unzip -l build_out/apk/Ayana-debug.apk | awk '/lib\//{print $4}' >> build_out/native_libs.txt || true
           echo "=== release arm64 (optimized) ===" >> build_out/native_libs.txt
-          unzip -l build_out/apk/Athea-arm64.apk | awk '/lib\//{print $4}' >> build_out/native_libs.txt || true
+          unzip -l build_out/apk/Ayana-arm64.apk | awk '/lib\//{print $4}' >> build_out/native_libs.txt || true
           ls -lh build_out/apk/
 
       - name: Upload debug APK
         uses: actions/upload-artifact@v7
         with:
-          name: Athea-debug-apk
-          path: build_out/apk/Athea-debug.apk
+          name: Ayana-debug-apk
+          path: build_out/apk/Ayana-debug.apk
           if-no-files-found: error
           compression-level: 0
 
       - name: Upload arm64 APK (release, optimized)
         uses: actions/upload-artifact@v7
         with:
-          name: Athea-arm64-apk
-          path: build_out/apk/Athea-arm64.apk
+          name: Ayana-arm64-apk
+          path: build_out/apk/Ayana-arm64.apk
           if-no-files-found: error
           compression-level: 0
 
@@ -173,7 +173,7 @@ jobs:
       - name: Download APK
         uses: actions/download-artifact@v8
         with:
-          name: Athea-debug-apk
+          name: Ayana-debug-apk
           path: downloaded_apk
 
       - name: Locate APK

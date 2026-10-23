@@ -16,6 +16,7 @@ import iatheiya.ayana.ui.common.AyanaScaffold
 import iatheiya.ayana.ui.common.AyanaScrollHeader
 import iatheiya.ayana.util.AyanaLog
 import iatheiya.ayana.util.copyToClipboard
+import java.io.File
 
 @Composable
 fun SettingsScreen(
@@ -143,7 +144,14 @@ fun SettingsScreen(
             }
             SettingsCard {
                 ActionRow(title = stringResource(R.string.settings_diag_copy)) {
-                    context.copyToClipboard(AyanaLog.dump(), "ayana-logs")
+                    val crash = File(context.filesDir, "crash.log").takeIf { it.exists() }?.readText()
+                    val logs = AyanaLog.dump()
+                    val text = if (crash != null) {
+                        "=== last crash ===\n$crash\n\n=== live log ===\n$logs"
+                    } else {
+                        logs
+                    }
+                    context.copyToClipboard(text, "ayana-logs")
                     android.widget.Toast.makeText(
                         context,
                         context.getString(R.string.settings_diag_copied),
