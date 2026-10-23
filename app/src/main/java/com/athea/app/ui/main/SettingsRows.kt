@@ -2,6 +2,7 @@ package com.athea.app.ui.main
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
@@ -32,6 +33,7 @@ import androidx.compose.ui.draw.alpha
 import com.athea.app.ui.theme.Ui
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.athea.app.R
@@ -63,6 +65,20 @@ internal fun SettingsSection(
         ) {
             Column(Modifier.padding(vertical = 6.dp), content = content)
         }
+    }
+}
+
+/** A card of its own, without a title: one entry or switch group drawn as one rounded block. */
+@Composable
+internal fun SettingsCard(content: @Composable ColumnScope.() -> Unit) {
+    Surface(
+        shape = RoundedCornerShape(20.dp),
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 6.dp),
+    ) {
+        Column(Modifier.padding(vertical = 4.dp), content = content)
     }
 }
 
@@ -136,22 +152,24 @@ internal fun SliderRow(
     }
 }
 
+/** A centred entry: it opens another room or runs one action. */
 @Composable
 internal fun ActionRow(
     title: String,
     onClick: () -> Unit,
 ) {
-    Row(
+    Box(
         Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 14.dp),
-        verticalAlignment = Alignment.CenterVertically,
+        contentAlignment = Alignment.Center,
     ) {
         Text(
             text = title,
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.primary,
+            textAlign = TextAlign.Center,
         )
     }
 }

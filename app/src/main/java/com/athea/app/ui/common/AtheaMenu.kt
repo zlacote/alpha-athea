@@ -1,8 +1,11 @@
 package com.athea.app.ui.common
 
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.matchParentSize
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.DropdownMenu
@@ -15,9 +18,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpOffset
+import androidx.compose.ui.unit.dp
 import com.athea.app.ui.theme.Ui
 
 /**
@@ -62,12 +70,14 @@ class AtheaMenuScope internal constructor(private val menu: AtheaMenu) {
         icon: ImageVector,
         text: String,
         tinted: Boolean = false,
+        crossed: Boolean = false,
         action: () -> Unit,
     ) {
         AtheaDropdownItem(
             icon = icon,
             text = text,
             tinted = tinted,
+            crossed = crossed,
             onClick = { menu.dispatch(action) },
         )
     }
@@ -135,11 +145,15 @@ fun AtheaDropdownMenu(
     }
 }
 
+private val CROSS_STROKE: Dp = 2.dp
+private const val CROSS_INSET = 0.15f
+
 @Composable
 fun AtheaDropdownItem(
     icon: ImageVector,
     text: String,
     tinted: Boolean = false,
+    crossed: Boolean = false,
     onClick: () -> Unit,
 ) {
     val color = if (tinted) {
@@ -149,7 +163,22 @@ fun AtheaDropdownItem(
     }
     DropdownMenuItem(
         leadingIcon = {
-            Icon(icon, contentDescription = null, tint = color, modifier = Modifier.heightIn(min = Ui.menuIconSize))
+            Box(Modifier.heightIn(min = Ui.menuIconSize), contentAlignment = Alignment.Center) {
+                Icon(icon, contentDescription = null, tint = color)
+                if (crossed) {
+                    // A diagonal stroke marks the item as switched off, like a crossed-out pin.
+                    Canvas(Modifier.matchParentSize()) {
+                        val inset = size.width * CROSS_INSET
+                        drawLine(
+                            color = color,
+                            start = Offset(inset, inset),
+                            end = Offset(size.width - inset, size.height - inset),
+                            strokeWidth = CROSS_STROKE.toPx(),
+                            cap = StrokeCap.Round,
+                        )
+                    }
+                }
+            }
         },
         text = {
             Text(

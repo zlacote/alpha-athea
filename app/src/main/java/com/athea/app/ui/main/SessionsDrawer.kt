@@ -227,6 +227,7 @@ private fun SessionRow(
                     text = stringResource(
                         if (session.pinned) R.string.menu_unpin else R.string.menu_pin
                     ),
+                    crossed = session.pinned,
                 ) { onTogglePin() }
                 item(
                     icon = Icons.Default.Delete,

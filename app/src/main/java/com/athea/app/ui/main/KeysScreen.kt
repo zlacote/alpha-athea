@@ -22,6 +22,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.input.pointer.awaitPointerEventScope
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.athea.app.R
@@ -30,14 +33,17 @@ import com.athea.app.data.KeyKind
 import com.athea.app.ui.common.AtheaScaffold
 import com.athea.app.ui.common.AtheaScrollHeader
 import com.athea.app.ui.liquid.LocalLiquidBackdrop
+import com.athea.app.ui.theme.Ui
 
 /**
- * The buttons of the key row, in their own room. The title, the live key row and the input stay
- * fixed at the top; only the list of buttons scrolls below them.
+ * The key row in its own room. The switch stays on top, so the row can always be turned back on.
+ * While the row is off, the live row, the input and the list below the switch cannot be used.
  */
 @Composable
 fun KeysScreen(
     keys: List<CustomKey>,
+    keyRowVisible: Boolean,
+    onKeyRowVisibleChange: (Boolean) -> Unit,
     onKeysChange: (List<CustomKey>) -> Unit,
     onResetKeys: () -> Unit,
     onOpenKeyBuilder: () -> Unit,
@@ -46,11 +52,28 @@ fun KeysScreen(
 ) {
     var draft by remember { mutableStateOf("") }
     var sendNow by remember { mutableStateOf(false) }
+    val locked = if (keyRowVisible) {
+        Modifier
+    } else {
+        Modifier.alpha(Ui.ghostAlpha).pointerInput(Unit) {
+            awaitPointerEventScope {
+                while (true) awaitPointerEvent().changes.forEach { it.consume() }
+            }
+        }
+    }
 
     AtheaScaffold(onBack = onBack, modifier = modifier) {
-        Column(Modifier.fillMaxWidth()) {
-            AtheaScrollHeader(stringResource(R.string.keys_title))
+        AtheaScrollHeader(stringResource(R.string.keys_title))
+        SettingsCard {
+            SwitchRow(
+                title = stringResource(R.string.settings_key_row),
+                subtitle = stringResource(R.string.settings_key_row_desc),
+                checked = keyRowVisible,
+                onChange = onKeyRowVisibleChange,
+            )
+        }
 
+        Column(Modifier.fillMaxWidth().then(locked)) {
             // The live row shows the glass as plain glass: it must not sample this screen.
             CompositionLocalProvider(LocalLiquidBackdrop provides null) {
                 KeyRow(
@@ -113,6 +136,7 @@ fun KeysScreen(
             Modifier
                 .weight(1f)
                 .fillMaxWidth()
+                .then(locked)
                 .verticalScroll(rememberScrollState()),
         ) {
             SettingsSection(title = stringResource(R.string.keys_list_title)) {

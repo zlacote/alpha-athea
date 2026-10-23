@@ -65,6 +65,7 @@ data class UiState(
     val showKeys: Boolean = false,
     val showKeyBuilder: Boolean = false,
     val showGlassTuning: Boolean = false,
+    val showGlow: Boolean = false,
     val renameTargetId: Long? = null,
     val deleteTargetId: Long? = null,
     val selectTextPayload: String? = null,
@@ -367,6 +368,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun setShowSettings(visible: Boolean) = _state.update { it.copy(showSettings = visible) }
 
     fun setShowGlassTuning(visible: Boolean) = _state.update { it.copy(showGlassTuning = visible) }
+
+    fun setShowGlow(visible: Boolean) = _state.update { it.copy(showGlow = visible) }
 
     // ------------------------------------------------------------------ setup
 

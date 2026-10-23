@@ -156,6 +156,7 @@
     <string name="welcome_tip_keys">The keys under the composer are set up in Settings.</string>
     <string name="settings_shell_section">Shell</string>
     <string name="shell_current">Shell: %1$s</string>
+    <string name="shell_entry">Where commands run: %1$s</string>
     <string name="shell_local">Built-in</string>
     <string name="shell_termux">Termux (SSH)</string>
     <string name="setup_welcome_title">Welcome to Athea</string>

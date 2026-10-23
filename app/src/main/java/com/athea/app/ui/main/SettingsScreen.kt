@@ -1,10 +1,10 @@
 package com.athea.app.ui.main
 
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -19,7 +19,6 @@ import com.athea.app.util.copyToClipboard
 
 @Composable
 fun SettingsScreen(
-    keyRowVisible: Boolean,
     enterSends: Boolean,
     autoScrollOnSend: Boolean,
     rawStream: Boolean,
@@ -29,19 +28,7 @@ fun SettingsScreen(
     outputFontSizeSp: Int,
     previewLines: Int,
     bubbleFontSizeSp: Int,
-    onKeyRowVisibleChange: (Boolean) -> Unit,
     attachSendsNow: Boolean,
-    onAttachSendsNowChange: (Boolean) -> Unit,
-    glowEnabled: Boolean,
-    glowStrengthPct: Int,
-    glowHeightDp: Int,
-    glowWidthPct: Int,
-    glowPeriodMs: Int,
-    onGlowEnabledChange: (Boolean) -> Unit,
-    onGlowStrengthChange: (Int) -> Unit,
-    onGlowHeightChange: (Int) -> Unit,
-    onGlowWidthChange: (Int) -> Unit,
-    onGlowPeriodChange: (Int) -> Unit,
     onEnterSendsChange: (Boolean) -> Unit,
     onAutoScrollOnSendChange: (Boolean) -> Unit,
     onRawStreamChange: (Boolean) -> Unit,
@@ -51,8 +38,10 @@ fun SettingsScreen(
     onOutputFontSizeChange: (Int) -> Unit,
     onPreviewLinesChange: (Int) -> Unit,
     onBubbleFontSizeChange: (Int) -> Unit,
+    onAttachSendsNowChange: (Boolean) -> Unit,
     shellLabel: String,
     onOpenShell: () -> Unit,
+    onOpenGlow: () -> Unit,
     onOpenKeys: () -> Unit,
     onOpenGlassTuning: () -> Unit,
     scrollState: ScrollState,
@@ -135,71 +124,32 @@ fun SettingsScreen(
                 )
             }
 
-            SettingsSection(title = stringResource(R.string.settings_glow_section)) {
-                SwitchRow(
-                    title = stringResource(R.string.settings_glow),
-                    subtitle = stringResource(R.string.settings_glow_desc),
-                    checked = glowEnabled,
-                    onChange = onGlowEnabledChange,
-                )
-                SliderRow(
-                    title = stringResource(R.string.settings_glow_strength),
-                    value = glowStrengthPct,
-                    range = 10f..100f,
-                    onChange = onGlowStrengthChange,
-                    enabled = glowEnabled,
-                )
-                SliderRow(
-                    title = stringResource(R.string.settings_glow_height),
-                    value = glowHeightDp,
-                    range = 12f..56f,
-                    onChange = onGlowHeightChange,
-                    enabled = glowEnabled,
-                )
-                SliderRow(
-                    title = stringResource(R.string.settings_glow_width),
-                    value = glowWidthPct,
-                    range = 40f..100f,
-                    onChange = onGlowWidthChange,
-                    enabled = glowEnabled,
-                )
-                SliderRow(
-                    title = stringResource(R.string.settings_glow_period),
-                    value = glowPeriodMs,
-                    range = 1000f..5000f,
-                    onChange = onGlowPeriodChange,
-                    enabled = glowEnabled,
+            // Each entry is one centred button that opens its own room; they carry no section title.
+            SettingsCard {
+                ActionRow(
+                    title = stringResource(R.string.settings_glow_section),
+                    onClick = onOpenGlow,
                 )
             }
-
-            SettingsSection(title = stringResource(R.string.settings_shell_section)) {
+            SettingsCard {
                 ActionRow(
-                    title = stringResource(R.string.shell_current, shellLabel),
+                    title = stringResource(R.string.shell_entry, shellLabel),
                     onClick = onOpenShell,
                 )
             }
-
-            SettingsSection(title = stringResource(R.string.settings_keys_section)) {
-                SwitchRow(
-                    title = stringResource(R.string.settings_key_row),
-                    subtitle = stringResource(R.string.settings_key_row_desc),
-                    checked = keyRowVisible,
-                    onChange = onKeyRowVisibleChange,
-                )
+            SettingsCard {
                 ActionRow(
-                    title = stringResource(R.string.keys_open),
+                    title = stringResource(R.string.settings_key_row),
                     onClick = onOpenKeys,
                 )
             }
-
-            SettingsSection(title = stringResource(R.string.glass_section)) {
+            SettingsCard {
                 ActionRow(
                     title = stringResource(R.string.glass_open),
                     onClick = onOpenGlassTuning,
                 )
             }
-
-            SettingsSection(title = stringResource(R.string.settings_diag_section)) {
+            SettingsCard {
                 ActionRow(title = stringResource(R.string.settings_diag_copy)) {
                     context.copyToClipboard(AtheaLog.dump(), "athea-logs")
                     android.widget.Toast.makeText(

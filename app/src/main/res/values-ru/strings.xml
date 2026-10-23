@@ -151,6 +151,7 @@
     <string name="welcome_tip_keys">Клавиши под полем ввода настраиваются в настройках.</string>
     <string name="settings_shell_section">Шелл</string>
     <string name="shell_current">Шелл: %1$s</string>
+    <string name="shell_entry">Где команды: %1$s</string>
     <string name="shell_local">Встроенный</string>
     <string name="shell_termux">Termux (SSH)</string>
     <string name="setup_welcome_title">Добро пожаловать в Athea</string>

@@ -119,10 +119,30 @@ fun MainScreen(viewModel: MainViewModel) {
         return
     }
 
+    if (state.showGlow) {
+        BackHandler { viewModel.setShowGlow(false) }
+        GlowScreen(
+            glowEnabled = state.workspace.settings.glowEnabled,
+            glowStrengthPct = state.workspace.settings.glowStrengthPct,
+            glowHeightDp = state.workspace.settings.glowHeightDp,
+            glowWidthPct = state.workspace.settings.glowWidthPct,
+            glowPeriodMs = state.workspace.settings.glowPeriodMs,
+            onGlowEnabledChange = viewModel::setGlowEnabled,
+            onGlowStrengthChange = viewModel::setGlowStrengthPct,
+            onGlowHeightChange = viewModel::setGlowHeightDp,
+            onGlowWidthChange = viewModel::setGlowWidthPct,
+            onGlowPeriodChange = viewModel::setGlowPeriodMs,
+            onBack = { viewModel.setShowGlow(false) },
+        )
+        return
+    }
+
     if (state.showKeys) {
         BackHandler { viewModel.setShowKeys(false) }
         KeysScreen(
             keys = effectiveKeyRow(state.workspace.customKeys),
+            keyRowVisible = state.workspace.settings.keyRowVisible,
+            onKeyRowVisibleChange = viewModel::setKeyRowVisible,
             onKeysChange = viewModel::setCustomKeys,
             onResetKeys = viewModel::resetKeysToDefaults,
             onOpenKeyBuilder = { viewModel.setShowKeyBuilder(true) },
@@ -135,8 +155,6 @@ fun MainScreen(viewModel: MainViewModel) {
         BackHandler { closeSettings() }
         SettingsScreen(
             scrollState = settingsScroll,
-            keyRowVisible = state.workspace.settings.keyRowVisible,
-            onKeyRowVisibleChange = viewModel::setKeyRowVisible,
             enterSends = state.workspace.settings.enterSends,
             autoScrollOnSend = state.workspace.settings.autoScrollOnSend,
             rawStream = state.workspace.settings.rawStream,
@@ -162,16 +180,7 @@ fun MainScreen(viewModel: MainViewModel) {
                 stringResource(R.string.shell_local)
             },
             onOpenShell = { viewModel.openSetup(SetupPage.SHELL, fromSettings = true) },
-            glowEnabled = state.workspace.settings.glowEnabled,
-            glowStrengthPct = state.workspace.settings.glowStrengthPct,
-            glowHeightDp = state.workspace.settings.glowHeightDp,
-            glowWidthPct = state.workspace.settings.glowWidthPct,
-            glowPeriodMs = state.workspace.settings.glowPeriodMs,
-            onGlowEnabledChange = viewModel::setGlowEnabled,
-            onGlowStrengthChange = viewModel::setGlowStrengthPct,
-            onGlowHeightChange = viewModel::setGlowHeightDp,
-            onGlowWidthChange = viewModel::setGlowWidthPct,
-            onGlowPeriodChange = viewModel::setGlowPeriodMs,
+            onOpenGlow = { viewModel.setShowGlow(true) },
             attachSendsNow = state.workspace.settings.attachSendsNow,
             onAttachSendsNowChange = viewModel::setAttachSendsNow,
             onOpenGlassTuning = { viewModel.setShowGlassTuning(true) },

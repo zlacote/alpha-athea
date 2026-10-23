@@ -114,6 +114,7 @@ fun TopBar(
                     text = stringResource(
                         if (pinned) R.string.menu_unpin else R.string.menu_pin
                     ),
+                    crossed = pinned,
                 ) { onTogglePin() }
                 if (hasMessages) {
                     item(

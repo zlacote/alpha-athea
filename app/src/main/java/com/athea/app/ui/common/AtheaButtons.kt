@@ -3,6 +3,7 @@ package com.athea.app.ui.common
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.InteractionSource
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -12,7 +13,6 @@ import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
@@ -23,6 +23,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.Role
 import com.athea.app.ui.liquid.LocalLiquidBackdrop
 import com.athea.app.ui.liquid.liquidGlass
 import com.athea.app.ui.theme.Ui
@@ -40,14 +41,21 @@ fun AtheaRoundButton(
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 ) {
+    val source = remember { MutableInteractionSource() }
     Surface(
-        onClick = onClick,
         shape = CircleShape,
         color = Color.Transparent,
         contentColor = MaterialTheme.colorScheme.onSurface,
         modifier = modifier.liquidGlass(LocalLiquidBackdrop.current, CircleShape, ROUND_RADIUS),
     ) {
-        Box(Modifier.size(Ui.topButtonSize), contentAlignment = Alignment.Center) {
+        Box(
+            Modifier
+                .size(Ui.topButtonSize)
+                .clip(CircleShape)
+                .background(pressWash(source))
+                .clickable(interactionSource = source, indication = null, role = Role.Button, onClick = onClick),
+            contentAlignment = Alignment.Center,
+        ) {
             content()
         }
     }
@@ -72,7 +80,10 @@ fun AtheaPill(
     }
 }
 
-/** The one icon button for pills, with the press wash of glass controls. */
+/**
+ * The one icon button for pills. Its only press feedback is the wash, on the same circle every
+ * time: no material ripple is drawn on top of it, so the press looks the same everywhere.
+ */
 @Composable
 fun AtheaPillIcon(
     icon: ImageVector,
@@ -81,10 +92,13 @@ fun AtheaPillIcon(
     modifier: Modifier = Modifier,
 ) {
     val source = remember { MutableInteractionSource() }
-    IconButton(
-        onClick = onClick,
-        interactionSource = source,
-        modifier = modifier.clip(CircleShape).background(pressWash(source)),
+    Box(
+        modifier
+            .size(Ui.topButtonSize)
+            .clip(CircleShape)
+            .background(pressWash(source))
+            .clickable(interactionSource = source, indication = null, role = Role.Button, onClick = onClick),
+        contentAlignment = Alignment.Center,
     ) {
         Icon(
             icon,

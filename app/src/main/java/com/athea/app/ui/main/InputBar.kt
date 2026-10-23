@@ -48,6 +48,11 @@ import androidx.compose.ui.unit.dp
 import com.athea.app.R
 import com.athea.app.session.SearchState
 import com.athea.app.ui.theme.Ui
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.ui.text.TextMeasurer
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.unit.sp
 import com.athea.app.ui.liquid.LiquidBackdrop
 import com.athea.app.ui.liquid.liquidGlass
 import com.athea.app.ui.theme.glass
@@ -100,6 +105,7 @@ fun InputBar(
             onQueryChange = onSearchQueryChange,
             onNext = onSearchNext,
             onExit = onExitSearch,
+            backdrop = composerBackdrop,
             modifier = modifier,
         )
     }
@@ -289,6 +295,7 @@ private fun SearchPanel(
     onQueryChange: (String) -> Unit,
     onNext: () -> Unit,
     onExit: () -> Unit,
+    backdrop: LiquidBackdrop?,
     modifier: Modifier = Modifier,
 ) {
     Surface(
@@ -297,45 +304,45 @@ private fun SearchPanel(
         modifier = modifier
             .fillMaxWidth()
             .barPadding()
-            .glass(Ui.panelShape),
+            .liquidGlass(backdrop, Ui.panelShape, Ui.panelRadius, strong = true),
     ) {
         Row(
-            Modifier.padding(horizontal = 6.dp, vertical = 6.dp),
+            Modifier.padding(horizontal = 6.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            TextField(
-                value = query,
-                onValueChange = onQueryChange,
-                modifier = Modifier.weight(1f),
-                placeholder = {
-                    Text(
-                        stringResource(R.string.search_in_session_hint),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                },
-                textStyle = messageStyle().copy(color = MaterialTheme.colorScheme.onSurface),
-                singleLine = true,
-                shape = Ui.panelShape,
-                leadingIcon = {
-                    Icon(
-                        Icons.Default.Search,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                },
-                colors = TextFieldDefaults.colors(
-                    focusedContainerColor = Color.Transparent,
-                    unfocusedContainerColor = Color.Transparent,
-                    focusedIndicatorColor = Color.Transparent,
-                    unfocusedIndicatorColor = Color.Transparent,
-                ),
-                keyboardOptions = KeyboardOptions(
-                    capitalization = KeyboardCapitalization.None,
-                    keyboardType = KeyboardType.Ascii,
-                    imeAction = ImeAction.Search,
-                ),
-                keyboardActions = KeyboardActions(onSearch = { onNext() }),
+            Icon(
+                Icons.Default.Search,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 6.dp),
             )
+            // Same height and type as the composer. A long hint shrinks; the field never widens.
+            Box(Modifier.weight(1f).heightIn(min = 40.dp), contentAlignment = Alignment.CenterStart) {
+                BasicTextField(
+                    value = query,
+                    onValueChange = onQueryChange,
+                    modifier = Modifier.fillMaxWidth(),
+                    textStyle = messageStyle().copy(color = MaterialTheme.colorScheme.onSurface),
+                    cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(
+                        capitalization = KeyboardCapitalization.None,
+                        keyboardType = KeyboardType.Ascii,
+                        imeAction = ImeAction.Search,
+                    ),
+                    keyboardActions = KeyboardActions(onSearch = { onNext() }),
+                    decorationBox = { inner ->
+                        if (query.isEmpty()) {
+                            FittingText(
+                                text = stringResource(R.string.search_in_session_hint),
+                                style = messageStyle(),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        inner()
+                    },
+                )
+            }
             Text(
                 text = "${matchIndex + 1}/$matchCount",
                 style = MaterialTheme.typography.labelMedium.copy(fontFamily = FontFamily.Monospace),
@@ -359,3 +366,30 @@ private fun SearchPanel(
         }
     }
 }
+
+/** One line of text that shrinks its font until it fits the width, so it never widens the field beside it. */
+@Composable
+private fun FittingText(text: String, style: TextStyle, color: Color) {
+    val measurer = rememberTextMeasurer()
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        Text(
+            text,
+            style = fittedStyle(measurer, text, style, constraints.maxWidth),
+            color = color,
+            maxLines = 1,
+            softWrap = false,
+        )
+    }
+}
+
+/** The largest font size, down to [MIN_FIT_SP], at which [text] fits [maxWidth] pixels on one line. */
+private fun fittedStyle(measurer: TextMeasurer, text: String, style: TextStyle, maxWidth: Int): TextStyle {
+    var size = if (style.fontSize.isSpecified) style.fontSize.value else MIN_FIT_SP
+    while (size > MIN_FIT_SP && measurer.measure(text, style.copy(fontSize = size.sp)).size.width > maxWidth) {
+        size -= FIT_STEP_SP
+    }
+    return style.copy(fontSize = size.sp)
+}
+
+private const val MIN_FIT_SP = 11f
+private const val FIT_STEP_SP = 0.5f
