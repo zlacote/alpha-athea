@@ -64,6 +64,14 @@ android {
         compose = true
     }
 
+    // AGP 9 no longer accepts android:extractNativeLibs in the manifest; the
+    // former extractNativeLibs="true" is expressed here instead.
+    packaging {
+        jniLibs {
+            useLegacyPackaging = true
+        }
+    }
+
     externalNativeBuild {
         cmake {
             path = file("src/main/cpp/CMakeLists.txt")
