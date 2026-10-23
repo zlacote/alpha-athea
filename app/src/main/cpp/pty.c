@@ -1,5 +1,5 @@
 /*
- * Minimal PTY bridge for Athea.
+ * Minimal PTY bridge for Ayana.
  *
  * Android exposes no public API for attaching a child process to a
  * pseudo-terminal, so every terminal emulator ships a tiny native shim.
@@ -30,7 +30,7 @@ static void throw_io_exception(JNIEnv *env, const char *message) {
 }
 
 JNIEXPORT jobjectArray JNICALL
-Java_com_athea_app_engine_PtyBridge_createPty(JNIEnv *env, jobject thiz,
+Java_iatheiya_ayana_engine_PtyBridge_createPty(JNIEnv *env, jobject thiz,
                                               jint rows, jint cols,
                                               jstring home_path,
                                               jstring rc_path,
@@ -132,7 +132,7 @@ Java_com_athea_app_engine_PtyBridge_createPty(JNIEnv *env, jobject thiz,
 }
 
 JNIEXPORT jboolean JNICALL
-Java_com_athea_app_engine_PtyBridge_writePty(JNIEnv *env, jobject thiz,
+Java_iatheiya_ayana_engine_PtyBridge_writePty(JNIEnv *env, jobject thiz,
                                              jint fd, jbyteArray data) {
     (void) thiz;
     jsize len = (*env)->GetArrayLength(env, data);
@@ -161,7 +161,7 @@ Java_com_athea_app_engine_PtyBridge_writePty(JNIEnv *env, jobject thiz,
 }
 
 JNIEXPORT jint JNICALL
-Java_com_athea_app_engine_PtyBridge_readPty(JNIEnv *env, jobject thiz,
+Java_iatheiya_ayana_engine_PtyBridge_readPty(JNIEnv *env, jobject thiz,
                                             jint fd, jbyteArray buffer) {
     (void) thiz;
     jsize cap = (*env)->GetArrayLength(env, buffer);
@@ -185,7 +185,7 @@ Java_com_athea_app_engine_PtyBridge_readPty(JNIEnv *env, jobject thiz,
 }
 
 JNIEXPORT void JNICALL
-Java_com_athea_app_engine_PtyBridge_resizePty(JNIEnv *env, jobject thiz,
+Java_iatheiya_ayana_engine_PtyBridge_resizePty(JNIEnv *env, jobject thiz,
                                               jint fd, jint pid,
                                               jint rows, jint cols) {
     (void) env;
@@ -199,7 +199,7 @@ Java_com_athea_app_engine_PtyBridge_resizePty(JNIEnv *env, jobject thiz,
 }
 
 JNIEXPORT void JNICALL
-Java_com_athea_app_engine_PtyBridge_closePty(JNIEnv *env, jobject thiz, jint fd) {
+Java_iatheiya_ayana_engine_PtyBridge_closePty(JNIEnv *env, jobject thiz, jint fd) {
     (void) env;
     (void) thiz;
     close((int) fd);
@@ -211,7 +211,7 @@ Java_com_athea_app_engine_PtyBridge_closePty(JNIEnv *env, jobject thiz, jint fd)
  * reaping a forked child, so this lives next to the fork itself.
  */
 JNIEXPORT jint JNICALL
-Java_com_athea_app_engine_PtyBridge_waitPid(JNIEnv *env, jobject thiz, jint pid) {
+Java_iatheiya_ayana_engine_PtyBridge_waitPid(JNIEnv *env, jobject thiz, jint pid) {
     (void) env;
     (void) thiz;
     int status = 0;

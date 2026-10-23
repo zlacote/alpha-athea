@@ -12,12 +12,12 @@ composeCompiler {
 }
 
 android {
-    namespace = "com.athea.app"
+    namespace = "iatheiya.ayana"
     compileSdk = 35
     ndkVersion = "26.1.10909125"
 
     defaultConfig {
-        applicationId = "com.athea.app"
+        applicationId = "iatheiya.ayana"
         minSdk = 29
         targetSdk = 35
         versionCode = 4
@@ -91,7 +91,6 @@ dependencies {
     implementation(libs.androidx.material3)
     implementation(libs.androidx.material.icons.extended)
     implementation(libs.kotlinx.serialization.json)
-    implementation(libs.jsch)
 
     testImplementation(libs.junit.junit)
     testImplementation(libs.kotlinx.coroutines.test)

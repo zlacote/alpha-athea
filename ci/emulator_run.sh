@@ -37,8 +37,8 @@ PKG="$(printf '%s' "$BADGING" | sed -n "s/^package: name='\([^']*\)'.*/\1/p")"
 MAINACT="$(printf '%s' "$BADGING" | sed -n "s/^launchable-activity: name='\([^']*\)'.*/\1/p")"
 
 # Fallbacks consistent with app/build.gradle.kts.
-PKG="${PKG:-com.athea.app}"
-MAINACT="${MAINACT:-com.athea.app.MainActivity}"
+PKG="${PKG:-iatheiya.ayana}"
+MAINACT="${MAINACT:-iatheiya.ayana.MainActivity}"
 
 printf 'PKG=%s\nMAINACT=%s\n' "$PKG" "$MAINACT" > "$LOG_DIR/pkg.txt"
 
@@ -69,7 +69,7 @@ if WmOut=$(timeout 5 adb shell wm size 2>/dev/null); then
 fi
 timeout 5 adb shell input tap "$((W / 2))" "$((H - 220))" || true
 sleep 1
-timeout 5 adb shell input text "echo%sathea-smoke" || true
+timeout 5 adb shell input text "echo%sayana-smoke" || true
 sleep 1
 timeout 5 adb shell input tap "$((W - 90))" "$((H - 220))" || true
 sleep 4
@@ -82,8 +82,8 @@ timeout 10 adb pull /sdcard/screen_after.png "$LOG_DIR/screen_after.png" || true
 # Print the app's and the renderer's view of the glass lens into the job log,
 # so it can be read without downloading the artifact.
 timeout 10 adb logcat -d > "$LOG_DIR/logcat.txt" 2>&1 || true
-echo "--- athea and renderer log lines ---"
-grep -E "Athea|AndroidRuntime|hwui|RuntimeShader|SKSL|Skia" "$LOG_DIR/logcat.txt" | tail -n 200 || true
+echo "--- ayana and renderer log lines ---"
+grep -E "Ayana|AndroidRuntime|hwui|RuntimeShader|SKSL|Skia" "$LOG_DIR/logcat.txt" | tail -n 200 || true
 
 for i in $(seq 1 10); do
   if ! timeout 5 adb shell pidof "$PKG" > /dev/null 2>&1; then

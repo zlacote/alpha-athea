@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Athea</string>
+    <string name="app_name">Ayana</string>
     <string name="default_session_name">Session %1$d</string>
 
     <!-- Content descriptions -->
@@ -14,7 +14,7 @@
     <string name="cd_expand_editor">Expand editor</string>
     <string name="cd_scroll_down">Scroll to bottom</string>
     <string name="cd_collapse">Collapse</string>
-    <string name="greeting_title">Athea</string>
+    <string name="greeting_title">Ayana</string>
     <string name="greeting_hint">Type a command — the answer appears as a message</string>
 
     <!-- Main screen -->
@@ -148,45 +148,9 @@
     <string name="glass_needs_bend">needs a bend above 0</string>
     <string name="glass_needs_highlight">needs highlight strength above 0</string>
     <string name="glass_sample_line">Sample line %1$d: the backdrop behind the glass</string>
-    <string name="welcome_title">Welcome to Athea!</string>
-    <string name="welcome_intro">Type a command below and tap the arrow to run it.</string>
-    <string name="welcome_tip_sessions">The menu button, top left, opens your sessions. + starts a new one.</string>
-    <string name="welcome_tip_search">⋮ → Search finds text in this session.</string>
-    <string name="welcome_tip_favorites">Long-press a command you sent to save it to favorites.</string>
-    <string name="welcome_tip_keys">The keys under the composer are set up in Settings.</string>
-    <string name="settings_shell_section">Shell</string>
-    <string name="shell_current">Shell: %1$s</string>
-    <string name="shell_entry">Where commands run: %1$s</string>
-    <string name="shell_local">Built-in</string>
-    <string name="shell_termux">Termux (SSH)</string>
-    <string name="setup_welcome_title">Welcome to Athea</string>
-    <string name="setup_welcome_text">Athea is a terminal that reads like a conversation: your commands on the right, their answers on the left. First, choose where the shell runs.</string>
-    <string name="setup_next">Next</string>
-    <string name="setup_shell_title">Shell</string>
-    <string name="setup_shell_text">Where should commands run? You can change this later in Settings.</string>
-    <string name="setup_shell_local">Built-in shell</string>
-    <string name="setup_shell_local_desc">The shell that comes with Athea. Nothing to install.</string>
-    <string name="setup_shell_termux">Termux</string>
-    <string name="setup_shell_termux_desc">Your Termux environment, with its packages. Termux has to be installed once.</string>
-    <string name="setup_termux_title">Termux</string>
-    <string name="setup_termux_step_install">1. Install Termux from F-Droid.</string>
-    <string name="setup_termux_open_store">Open F-Droid</string>
-    <string name="setup_termux_step_packages">2. In Termux, install the SSH server and start it:</string>
-    <string name="setup_termux_step_key">3. Let Termux accept the Athea key. Paste this in Termux:</string>
-    <string name="setup_termux_step_user">4. Type whoami in Termux, then enter the name it prints:</string>
-    <string name="setup_termux_user_label">User name</string>
-    <string name="setup_termux_port_label">Port</string>
-    <string name="setup_termux_check">Check connection</string>
-    <string name="setup_termux_checking">Connecting…</string>
-    <string name="setup_termux_ok">Connected.</string>
-    <string name="setup_termux_failed">Not connected: %1$s</string>
-    <string name="setup_termux_use">Use Termux</string>
-    <string name="setup_termux_key_loading">Creating the key…</string>
     <string name="attach_path">Insert path</string>
-    <string name="attach_termux_notice">Termux cannot read Athea files yet, so copying and linking do not work there.</string>
     <string name="settings_attach_sends_now">Send file commands at once</string>
     <string name="settings_attach_sends_now_desc">Off: the command goes into the input on a new line</string>
-    <string name="setup_termux_key_failed">Could not create the key: %1$s</string>
     <string name="settings_glow_section">Glow</string>
     <string name="settings_glow">Glow while a command runs</string>
     <string name="settings_glow_desc">A soft light rises from the bottom edge</string>

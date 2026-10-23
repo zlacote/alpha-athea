@@ -20,6 +20,6 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "Athea"
+rootProject.name = "Ayana"
 include(":core")
 include(":app")

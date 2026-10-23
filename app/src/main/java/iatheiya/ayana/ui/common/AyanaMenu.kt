@@ -1,0 +1,192 @@
+package iatheiya.ayana.ui.common
+
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.DpOffset
+import androidx.compose.ui.unit.dp
+import iatheiya.ayana.ui.theme.Ui
+
+/**
+ * The one menu connector for the whole app: owns the open/close state and
+ * the "close, then dispatch" ordering. Callers never write
+ * `menuOpen = false; onX()` by hand — that one-shape pattern lives here.
+ */
+class AyanaMenu {
+    var expanded by mutableStateOf(false)
+        private set
+
+    fun open() {
+        expanded = true
+    }
+
+    fun close() {
+        expanded = false
+    }
+
+    fun toggle() {
+        expanded = !expanded
+    }
+
+    /** Close the menu, then run the action — the single place this order lives. */
+    fun dispatch(action: () -> Unit) {
+        close()
+        action()
+    }
+}
+
+@Composable
+fun rememberAyanaMenu(): AyanaMenu = remember { AyanaMenu() }
+
+/**
+ * Receiver for menu content: every [item] closes the menu on its own,
+ * the caller only describes the action.
+ */
+class AyanaMenuScope internal constructor(private val menu: AyanaMenu) {
+
+    @Composable
+    fun item(
+        icon: ImageVector,
+        text: String,
+        tinted: Boolean = false,
+        crossed: Boolean = false,
+        action: () -> Unit,
+    ) {
+        AyanaDropdownItem(
+            icon = icon,
+            text = text,
+            tinted = tinted,
+            crossed = crossed,
+            onClick = { menu.dispatch(action) },
+        )
+    }
+}
+
+/**
+ * Renders [AyanaMenu]'s content: popup DropdownMenu (message/session menus)
+ * or inline Surface (TopBar) to avoid the Popup window offset.
+ */
+@Composable
+fun AyanaMenuHost(
+    menu: AyanaMenu,
+    isPopup: Boolean = true,
+    offset: DpOffset = DpOffset.Zero,
+    content: @Composable AyanaMenuScope.() -> Unit,
+) {
+    AyanaDropdownMenu(
+        expanded = menu.expanded,
+        onDismissRequest = menu::close,
+        offset = offset,
+        isPopup = isPopup,
+    ) {
+        with(AyanaMenuScope(menu)) { content() }
+    }
+}
+
+/**
+ * The one overflow menu style used everywhere (top bar, message
+ * long-press, session long-press): large, rounded, iconed - like chat
+ * apps render theirs.
+ * @param isPopup true=Popup DropdownMenu (message/session), false=inline Surface (TopBar) to avoid Popup window offset/rounded peek.
+ */
+@Composable
+fun AyanaDropdownMenu(
+    expanded: Boolean,
+    onDismissRequest: () -> Unit,
+    offset: DpOffset = DpOffset.Zero,
+    isPopup: Boolean = true,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    if (isPopup) {
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = onDismissRequest,
+            offset = offset,
+            shape = Ui.menuShape,
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+            modifier = Modifier.widthIn(min = Ui.menuMinWidth),
+            content = content,
+        )
+    } else {
+        if (expanded) {
+            // The same card as the popup menus: opaque, rounded, with the same tone and shadow.
+            androidx.compose.material3.Surface(
+                shape = Ui.menuShape,
+                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                contentColor = MaterialTheme.colorScheme.onSurface,
+                shadowElevation = Ui.menuElevation,
+                modifier = Modifier.widthIn(min = Ui.menuMinWidth),
+            ) {
+                // As wide as its widest item, so the menu hugs its content.
+                androidx.compose.foundation.layout.Column(Modifier.width(IntrinsicSize.Max), content = content)
+            }
+        }
+    }
+}
+
+private val CROSS_STROKE: Dp = 2.dp
+private const val CROSS_INSET = 0.15f
+
+@Composable
+fun AyanaDropdownItem(
+    icon: ImageVector,
+    text: String,
+    tinted: Boolean = false,
+    crossed: Boolean = false,
+    onClick: () -> Unit,
+) {
+    val color = if (tinted) {
+        MaterialTheme.colorScheme.error
+    } else {
+        MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    DropdownMenuItem(
+        leadingIcon = {
+            Box(Modifier.heightIn(min = Ui.menuIconSize), contentAlignment = Alignment.Center) {
+                Icon(icon, contentDescription = null, tint = color)
+                if (crossed) {
+                    // A diagonal stroke marks the item as switched off, like a crossed-out pin.
+                    Canvas(Modifier.matchParentSize()) {
+                        val inset = size.width * CROSS_INSET
+                        drawLine(
+                            color = color,
+                            start = Offset(inset, inset),
+                            end = Offset(size.width - inset, size.height - inset),
+                            strokeWidth = CROSS_STROKE.toPx(),
+                            cap = StrokeCap.Round,
+                        )
+                    }
+                }
+            }
+        },
+        text = {
+            Text(
+                text,
+                style = MaterialTheme.typography.bodyLarge,
+                color = if (tinted) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
+            )
+        },
+        modifier = Modifier.heightIn(min = Ui.menuItemMinHeight),
+        onClick = onClick,
+    )
+}

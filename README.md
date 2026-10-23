@@ -1,14 +1,14 @@
-# Athea
+# Ayana
 
 A terminal that reads like a messenger.
 
-Instead of a character grid, Athea turns a shell session into a conversation:
+Instead of a character grid, Ayana turns a shell session into a conversation:
 your commands appear as bubbles on the right, their output as blocks on the
 left. It is a real shell underneath — a PTY, a shell, your real `$PATH` — with a
 chat-shaped reading layer on top.
 
 The problem it solves is a phone one. A soft keyboard has no Ctrl, Esc, Tab or
-arrow keys, and a raw terminal is miserable on a small screen. Athea adds a key
+arrow keys, and a raw terminal is miserable on a small screen. Ayana adds a key
 row for exactly those keys, turns scrollback into collapsible messages, and
 replaces line editing with a composer.
 
@@ -18,7 +18,7 @@ The trick is shell integration. The app ships an rc file that makes the shell
 emit **OSC 133** markers into the output stream, and `StreamParser` recognises
 them:
 
-| Marker | Meaning | Athea does |
+| Marker | Meaning | Ayana does |
 | --- | --- | --- |
 | `OSC 133;A` | prompt about to be drawn | ignored |
 | `OSC 133;B` | prompt written | ignored |
@@ -36,7 +36,7 @@ sessions.
 
 ## Layers
 
-Athea is two Gradle modules. `:core` is plain Kotlin with no Android or Compose
+Ayana is two Gradle modules. `:core` is plain Kotlin with no Android or Compose
 dependency and carries the unit tests. `:app` is the Android shell around it.
 
 ```
@@ -47,7 +47,7 @@ core/            pure JVM, tested without a device
   session/       Workspace — sessions, drafts, history, favourites, settings
   core/journal/  SessionJournal — append-only binary log, replayed on start
 app/             Android
-  engine/        NativeShellEngine (PTY via JNI), SshShellEngine (PTY channel over SSH, JSch)
+  engine/        NativeShellEngine — a PTY shell via JNI
   ui/            MainViewModel adapts Workspace to Compose; ui/main renders it
 ```
 
@@ -75,9 +75,6 @@ core or the screens.
 - **`\r` overwrites are approximated.** Carriage return is treated as "discard
   the line" rather than "overwrite from column 0", so progress bars can lose
   their prefix.
-- **Termux over SSH:** commands are not split into bubbles yet, because the
-  remote shell does not load Athea's integration marks. Host keys are not
-  checked yet; the setup only targets the loopback address of this phone.
 
 ## Build
 

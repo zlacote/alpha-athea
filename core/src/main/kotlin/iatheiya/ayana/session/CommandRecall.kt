@@ -1,0 +1,35 @@
+package iatheiya.ayana.session
+
+/**
+ * Up and down through the commands sent in a session, newest first, the way a shell walks its
+ * history. The draft being typed is kept while the walk is on, and restored when the walk comes
+ * back down past the newest command.
+ */
+class CommandRecall {
+
+    /** How many commands back the walk is; 0 means the live draft is shown. */
+    private var steps = 0
+
+    private var liveDraft = ""
+
+    /**
+     * The draft to show after one step, or null when the walk cannot move that way.
+     * [history] is oldest first.
+     */
+    fun step(history: List<String>, draft: String, older: Boolean): String? {
+        if (older) {
+            if (steps == history.size) return null
+            if (steps == 0) liveDraft = draft
+            steps++
+        } else {
+            if (steps == 0) return null
+            steps--
+        }
+        return if (steps == 0) liveDraft else history[history.size - steps]
+    }
+
+    /** Ends the walk: the user is editing a draft again. */
+    fun reset() {
+        steps = 0
+    }
+}
