@@ -85,14 +85,25 @@ timeout 10 adb logcat -d > "$LOG_DIR/logcat.txt" 2>&1 || true
 echo "--- ayana and renderer log lines ---"
 grep -E "Ayana|AndroidRuntime|hwui|RuntimeShader|SKSL|Skia" "$LOG_DIR/logcat.txt" | tail -n 200 || true
 
+CRASHED=""
 for i in $(seq 1 10); do
   if ! timeout 5 adb shell pidof "$PKG" > /dev/null 2>&1; then
     echo "CRASH_DETECTED_AT_SECOND_${i}" >> "$LOG_DIR/crash_status.txt"
+    CRASHED=1
     break
   fi
   sleep 1
 done
 
 [ -f "$LOG_DIR/crash_status.txt" ] || echo "NO_CRASHES_DETECTED" > "$LOG_DIR/crash_status.txt"
+
+# A launch crash must fail the job, so a green run means the app actually runs,
+# not merely that it built. The process vanishing or a FATAL EXCEPTION both count.
+if [ -n "$CRASHED" ] || grep -q "FATAL EXCEPTION" "$LOG_DIR/logcat.txt" 2>/dev/null; then
+  echo "App crashed after launch:" >&2
+  grep -E "FATAL EXCEPTION|AndroidRuntime|UnsatisfiedLinkError|beginning of crash" \
+    "$LOG_DIR/logcat.txt" 2>/dev/null | tail -n 40 >&2 || true
+  exit 1
+fi
 
 exit 0
