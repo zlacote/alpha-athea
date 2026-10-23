@@ -45,7 +45,6 @@ jobs:
       # Licenses are accepted by setup-android below; no duplicate step.
       - uses: android-actions/setup-android@v4
         with:
-          cmdline-tools-version: 11076708
           accept-android-sdk-licenses: true
 
       # Runner images ship these components; the install is a fast no-op.
@@ -162,7 +161,6 @@ jobs:
 
       - uses: android-actions/setup-android@v4
         with:
-          cmdline-tools-version: 11076708
           accept-android-sdk-licenses: true
 
       - name: Install platform tools and build tools
