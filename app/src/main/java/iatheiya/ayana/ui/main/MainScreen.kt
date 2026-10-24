@@ -153,6 +153,10 @@ fun MainScreen(viewModel: MainViewModel) {
             onOpenGlow = { viewModel.setShowGlow(true) },
             attachSendsNow = state.workspace.settings.attachSendsNow,
             onAttachSendsNowChange = viewModel::setAttachSendsNow,
+            favoriteReturnsHome = state.workspace.settings.favoriteReturnsHome,
+            favoriteSendsImmediately = state.workspace.settings.favoriteSendsImmediately,
+            onFavoriteReturnsHomeChange = viewModel::setFavoriteReturnsHome,
+            onFavoriteSendsImmediatelyChange = viewModel::setFavoriteSendsImmediately,
             onOpenGlassTuning = { viewModel.setShowGlassTuning(true) },
             onBack = { closeSettings() },
         )
@@ -164,7 +168,16 @@ fun MainScreen(viewModel: MainViewModel) {
         FavoritesScreen(
             favorites = state.workspace.favorites,
             onBack = { viewModel.setShowFavorites(false) },
-            onInsert = viewModel::insertIntoDraft,
+            onInsert = { text ->
+                if (state.workspace.settings.favoriteSendsImmediately) {
+                    viewModel.executeDirectly(text)
+                } else {
+                    viewModel.insertIntoDraft(text)
+                }
+                if (state.workspace.settings.favoriteReturnsHome) {
+                    viewModel.setShowFavorites(false)
+                }
+            },
             onRun = viewModel::executeDirectly,
             onEdit = viewModel::updateFavorite,
             onDelete = viewModel::deleteFavorite,

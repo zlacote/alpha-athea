@@ -341,6 +341,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun setAttachSendsNow(value: Boolean) = workspace.updateSettings { it.copy(attachSendsNow = value) }
 
+    fun setFavoriteReturnsHome(value: Boolean) =
+        workspace.updateSettings { it.copy(favoriteReturnsHome = value) }
+
+    fun setFavoriteSendsImmediately(value: Boolean) =
+        workspace.updateSettings { it.copy(favoriteSendsImmediately = value) }
+
     fun setGlowEnabled(value: Boolean) = workspace.updateSettings { it.copy(glowEnabled = value) }
 
     fun setGlowStrengthPct(value: Int) = workspace.updateSettings { it.copy(glowStrengthPct = value) }

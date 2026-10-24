@@ -74,6 +74,10 @@
     <string name="settings_virtualize_desc">When large, scroll inside instead of full page; uses same lines as collapsed view ×4</string>
     <string name="settings_section_input">Input</string>
     <string name="settings_section_output">Output</string>
+    <string name="settings_fav_return">Return to chat on tap</string>
+    <string name="settings_fav_return_desc">Tapping a favorite places it and goes back to the chat</string>
+    <string name="settings_fav_send">Send immediately</string>
+    <string name="settings_fav_send_desc">Tapping a favorite runs it instead of inserting it</string>
     <string name="keys_open">Keys and buttons</string>
     <string name="keys_title">Keys</string>
     <string name="keys_add">Add</string>
