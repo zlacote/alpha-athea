@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.CircleShape
@@ -61,8 +62,8 @@ import iatheiya.ayana.ui.liquid.liquidGlass
 import iatheiya.ayana.ui.theme.glass
 import iatheiya.ayana.ui.theme.messageStyle
 
-
-
+/** The send circle sits well inside the field rather than filling its height. */
+private val SEND_BUTTON_SIZE = 32.dp
 
 /** Space the buttons occupy at the tail of the field, shared by every
  *  layout that reserves room for them. */
@@ -255,11 +256,12 @@ private fun DraftPanel(
                         }
                     }
                     val hasText = draft.isNotBlank()
-                    // No fill until a send is possible, then the accent fills in — both the
-                    // background and the icon tint cross-fade so the change is not abrupt.
+                    // No fill until a send is possible, then the accent eases in — background and
+                    // icon tint cross-fade slowly so it is gentle, not a pop. The circle is kept
+                    // well inside the field rather than filling it.
                     val sendBackground by animateColorAsState(
                         targetValue = if (hasText) MaterialTheme.colorScheme.primary else Color.Transparent,
-                        animationSpec = tween(durationMillis = 180),
+                        animationSpec = tween(durationMillis = 320, easing = FastOutSlowInEasing),
                         label = "sendBackground",
                     )
                     val sendTint by animateColorAsState(
@@ -268,14 +270,14 @@ private fun DraftPanel(
                         } else {
                             MaterialTheme.colorScheme.onSurfaceVariant
                         },
-                        animationSpec = tween(durationMillis = 180),
+                        animationSpec = tween(durationMillis = 320, easing = FastOutSlowInEasing),
                         label = "sendTint",
                     )
                     IconButton(
                         onClick = onSend,
                         enabled = hasText,
                         modifier = Modifier
-                            .size(Ui.composerButtonSize)
+                            .size(SEND_BUTTON_SIZE)
                             .clip(CircleShape)
                             .background(sendBackground),
                     ) {

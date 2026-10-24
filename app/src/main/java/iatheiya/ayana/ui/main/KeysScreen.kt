@@ -91,6 +91,7 @@ fun KeysScreen(
                     range = 1f..4f,
                     onChange = onKeyRowsChange,
                 )
+                SettingsDivider()
                 SliderRow(
                     title = stringResource(R.string.keys_cols),
                     value = keyCols,

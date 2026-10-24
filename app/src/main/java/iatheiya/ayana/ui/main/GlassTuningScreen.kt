@@ -31,7 +31,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -53,6 +53,9 @@ import iatheiya.ayana.ui.theme.Ui
 
 /** Height of the photo sample. */
 private val SAMPLE_HEIGHT = 240.dp
+
+/** Rounded top and bottom of the preview card; its sides stay flush with the screen. */
+private val SAMPLE_CORNER = 28.dp
 
 /** One full loop of the perpetual scene, in milliseconds. */
 private const val SCENE_PERIOD_MS = 16000
@@ -90,16 +93,6 @@ fun GlassTuningScreen(
                         onChange = { GlassTuning.enabled = it },
                     )
                 }
-                Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 8.dp),
-                    horizontalArrangement = Arrangement.End,
-                ) {
-                    TextButton(onClick = { GlassTuning.reset() }) {
-                        Text(stringResource(R.string.glass_reset))
-                    }
-                }
             }
 
             // The photo: pinned to the top once the switch scrolls past, and always on top
@@ -112,7 +105,7 @@ fun GlassTuningScreen(
                     }
                     .fillMaxWidth()
                     .height(SAMPLE_HEIGHT)
-                    .clipToBounds(),
+                    .clip(RoundedCornerShape(SAMPLE_CORNER)),
             ) {
                 // The scene the sample glass refracts; recorded on its own. It animates forever on
                 // its own clock — the frame moves with the scroll, the scene inside it does not.
@@ -218,6 +211,18 @@ fun GlassTuningScreen(
                 reason = offReason ?: noHighlight,
                 onChange = { GlassTuning.lightAngleDeg = it },
             )
+
+            // The default button sits at the very end, centred and bare, like the title.
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                TextButton(onClick = { GlassTuning.reset() }) {
+                    Text(stringResource(R.string.glass_reset))
+                }
+            }
 
             Spacer(Modifier.height(24.dp))
         }
@@ -328,38 +333,39 @@ private fun GradientScene(modifier: Modifier) {
         blob(Color(0xFF7A5CFF), 0.26f, 0.78f, 0.60f, 0.75f)
         blob(Color(0xFF34FFB0), 0.55f, 0.50f, 0.40f, 0.15f)
 
-        // Constellation: nodes rise and fade in near the bottom fifth, thread to their neighbours,
-        // flow up and fade out at the top — then wrap seamlessly because every node runs whole cycles.
+        // Constellation: nodes rise in clusters, each cluster born at its own time and height, and
+        // thread to their neighbours. Near nodes are larger and brighter, far ones small and dim, so
+        // the field has depth. Every node runs whole cycles, so the loop wraps without a seam.
         val nodes = SCENE_NODES.map { n ->
             val life = frac(t * n.rise + n.phase)
             val x = size.width * (n.baseX + n.wobbleAmp * sin(TWO_PI * (t * n.wobbleFreq + n.phase)))
             val y = size.height * (1f - life)
-            NodePoint(Offset(x, y), nodeFade(life))
+            NodePoint(Offset(x, y), nodeFade(life, n.fadeIn) * (0.35f + 0.65f * n.depth), n.depth)
         }
         val reach = size.minDimension * 0.5f
-        val strokePx = 1.2.dp.toPx()
         for (i in nodes.indices) {
             for (j in i + 1 until nodes.size) {
                 val a = nodes[i]
                 val b = nodes[j]
                 val dist = (a.position - b.position).getDistance()
                 if (dist < reach) {
-                    // Threads brighten as nodes close and fade as they part, so none is a fixed line.
-                    val strength = (1f - dist / reach) * minOf(a.alpha, b.alpha) * 0.5f
+                    // Threads brighten as nodes close and fade as they part, so none is a fixed line;
+                    // nearer pairs draw thicker and brighter than far ones.
+                    val depthAvg = (a.depth + b.depth) * 0.5f
+                    val strength = (1f - dist / reach) * minOf(a.alpha, b.alpha) * (0.28f + 0.42f * depthAvg)
                     drawLine(
                         color = Color.White.copy(alpha = strength),
                         start = a.position,
                         end = b.position,
-                        strokeWidth = strokePx,
+                        strokeWidth = (0.7f + depthAvg * 0.9f).dp.toPx(),
                     )
                 }
             }
         }
-        val dotRadius = 2.4.dp.toPx()
         nodes.forEach { node ->
             drawCircle(
-                color = Color.White.copy(alpha = node.alpha * 0.9f),
-                radius = dotRadius,
+                color = Color.White.copy(alpha = node.alpha * (0.6f + 0.4f * node.depth)),
+                radius = (1.2f + node.depth * 2.0f).dp.toPx(),
                 center = node.position,
             )
         }
@@ -370,14 +376,14 @@ private const val TWO_PI = (2.0 * Math.PI).toFloat()
 
 private fun frac(v: Float): Float = v - kotlin.math.floor(v)
 
-/** Fades a node in over the bottom fifth of its rise and out over the top fifth, for a seamless wrap. */
-private fun nodeFade(life: Float): Float = when {
-    life < 0.2f -> life / 0.2f
-    life > 0.8f -> (1f - life) / 0.2f
+/** Fades a node in over its own birth band (so births are not on one line) and out at the very top. */
+private fun nodeFade(life: Float, fadeIn: Float): Float = when {
+    life < fadeIn -> life / fadeIn
+    life > 0.82f -> (1f - life) / 0.18f
     else -> 1f
 }.coerceIn(0f, 1f)
 
-private class NodePoint(val position: Offset, val alpha: Float)
+private class NodePoint(val position: Offset, val alpha: Float, val depth: Float)
 
 private class SceneNode(
     val baseX: Float,
@@ -385,17 +391,37 @@ private class SceneNode(
     val rise: Int,
     val wobbleAmp: Float,
     val wobbleFreq: Int,
+    val depth: Float,
+    val fadeIn: Float,
 )
 
-/** Fixed, seeded node field: whole-cycle rise/wobble keeps the loop seamless; the spread looks organic. */
-private val SCENE_NODES: List<SceneNode> = java.util.Random(7).let { rnd ->
-    List(16) {
-        SceneNode(
-            baseX = 0.06f + rnd.nextFloat() * 0.88f,
-            phase = rnd.nextFloat(),
-            rise = 1 + rnd.nextInt(3),
-            wobbleAmp = 0.03f + rnd.nextFloat() * 0.07f,
-            wobbleFreq = 1 + rnd.nextInt(2),
-        )
+/**
+ * Fixed, seeded node field grouped into clusters spread evenly across the width, so the points are
+ * not all on the right and each cluster is born in its own place and at its own height. Whole-cycle
+ * rise and wobble keep the loop seamless.
+ */
+private val SCENE_NODES: List<SceneNode> = run {
+    val rnd = java.util.Random(11)
+    val clusters = 5
+    buildList {
+        for (c in 0 until clusters) {
+            val centreX = (c + 0.5f) / clusters
+            val clusterPhase = rnd.nextFloat()
+            val clusterRise = 1 + rnd.nextInt(2)
+            val count = 3 + rnd.nextInt(2)
+            repeat(count) {
+                add(
+                    SceneNode(
+                        baseX = (centreX + (rnd.nextFloat() - 0.5f) * 0.22f).coerceIn(0.04f, 0.96f),
+                        phase = frac(clusterPhase + (rnd.nextFloat() - 0.5f) * 0.12f),
+                        rise = clusterRise,
+                        wobbleAmp = 0.025f + rnd.nextFloat() * 0.06f,
+                        wobbleFreq = 1 + rnd.nextInt(2),
+                        depth = rnd.nextFloat(),
+                        fadeIn = 0.12f + rnd.nextFloat() * 0.3f,
+                    ),
+                )
+            }
+        }
     }
 }

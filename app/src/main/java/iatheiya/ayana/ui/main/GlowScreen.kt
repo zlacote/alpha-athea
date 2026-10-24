@@ -54,6 +54,7 @@ fun GlowScreen(
                         onChange = onGlowStrengthChange,
                         enabled = glowEnabled,
                     )
+                    SettingsDivider()
                     SliderRow(
                         title = stringResource(R.string.settings_glow_height),
                         value = glowHeightDp,
@@ -61,6 +62,7 @@ fun GlowScreen(
                         onChange = onGlowHeightChange,
                         enabled = glowEnabled,
                     )
+                    SettingsDivider()
                     SliderRow(
                         title = stringResource(R.string.settings_glow_width),
                         value = glowWidthPct,
@@ -68,6 +70,7 @@ fun GlowScreen(
                         onChange = onGlowWidthChange,
                         enabled = glowEnabled,
                     )
+                    SettingsDivider()
                     SliderRow(
                         title = stringResource(R.string.settings_glow_period),
                         value = glowPeriodMs,

@@ -18,7 +18,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.foundation.background
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -72,10 +71,6 @@ fun rememberAyanaMenu(): AyanaMenu = remember { AyanaMenu() }
  */
 class AyanaMenuScope internal constructor(private val menu: AyanaMenu) {
 
-    // Items compose in order within one (re)composition of the menu; this counts them so a
-    // cut sits between neighbours but not above the first.
-    private var shown = 0
-
     @Composable
     fun item(
         icon: ImageVector,
@@ -84,8 +79,6 @@ class AyanaMenuScope internal constructor(private val menu: AyanaMenu) {
         crossed: Boolean = false,
         action: () -> Unit,
     ) {
-        if (shown > 0) AyanaMenuDivider()
-        shown++
         AyanaDropdownItem(
             icon = icon,
             text = text,
@@ -94,15 +87,6 @@ class AyanaMenuScope internal constructor(private val menu: AyanaMenu) {
             onClick = { menu.dispatch(action) },
         )
     }
-}
-
-/** The full-width background cut between two menu entries, matching the settings list. */
-@Composable
-private fun AyanaMenuDivider() {
-    HorizontalDivider(
-        thickness = 2.dp,
-        color = MaterialTheme.colorScheme.background,
-    )
 }
 
 /**

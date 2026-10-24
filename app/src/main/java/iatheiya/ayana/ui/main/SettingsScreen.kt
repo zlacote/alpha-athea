@@ -163,18 +163,21 @@ fun SettingsScreen(
                         checked = enterSends,
                         onChange = onEnterSendsChange,
                     )
+                    SettingsDivider()
                     SwitchRow(
                         title = stringResource(R.string.settings_autocomplete),
                         subtitle = stringResource(R.string.settings_autocomplete_desc),
                         checked = autocompleteEnabled,
                         onChange = onAutocompleteEnabledChange,
                     )
+                    SettingsDivider()
                     SwitchRow(
                         title = stringResource(R.string.settings_attach_sends_now),
                         subtitle = stringResource(R.string.settings_attach_sends_now_desc),
                         checked = attachSendsNow,
                         onChange = onAttachSendsNowChange,
                     )
+                    SettingsDivider()
                     SwitchRow(
                         title = stringResource(R.string.settings_auto_scroll),
                         subtitle = stringResource(R.string.settings_auto_scroll_desc),
@@ -198,30 +201,35 @@ fun SettingsScreen(
                         checked = rawStream,
                         onChange = onRawStreamChange,
                     )
+                    SettingsDivider()
                     SwitchRow(
                         title = stringResource(R.string.settings_pinch_zoom),
                         subtitle = stringResource(R.string.settings_pinch_zoom_desc),
                         checked = pinchZoomEnabled,
                         onChange = onPinchZoomEnabledChange,
                     )
+                    SettingsDivider()
                     SwitchRow(
                         title = stringResource(R.string.settings_virtualize),
                         subtitle = stringResource(R.string.settings_virtualize_desc),
                         checked = virtualizeLargeOutput,
                         onChange = onVirtualizeLargeOutputChange,
                     )
+                    SettingsDivider()
                     SliderRow(
                         title = stringResource(R.string.settings_font_size),
                         value = outputFontSizeSp,
                         range = 10f..22f,
                         onChange = onOutputFontSizeChange,
                     )
+                    SettingsDivider()
                     SliderRow(
                         title = stringResource(R.string.settings_preview_lines),
                         value = previewLines,
                         range = 1f..10f,
                         onChange = onPreviewLinesChange,
                     )
+                    SettingsDivider()
                     SliderRow(
                         title = stringResource(R.string.settings_bubble_size),
                         value = bubbleFontSizeSp,
@@ -245,6 +253,7 @@ fun SettingsScreen(
                         checked = favoriteReturnsHome,
                         onChange = onFavoriteReturnsHomeChange,
                     )
+                    SettingsDivider()
                     SwitchRow(
                         title = stringResource(R.string.settings_fav_send),
                         subtitle = stringResource(R.string.settings_fav_send_desc),
