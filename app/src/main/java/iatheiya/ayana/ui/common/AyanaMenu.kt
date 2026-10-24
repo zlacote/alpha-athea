@@ -25,6 +25,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
+import iatheiya.ayana.ui.liquid.LocalLiquidBackdrop
+import iatheiya.ayana.ui.liquid.liquidGlass
 import iatheiya.ayana.ui.theme.Ui
 
 /**
@@ -139,13 +141,18 @@ fun AyanaDropdownMenu(
                 transformOrigin = androidx.compose.ui.graphics.TransformOrigin(1f, 0f),
             ) + androidx.compose.animation.fadeOut(),
         ) {
-            // The same card as the popup menus: opaque, rounded, with the same tone and shadow.
+            // The same chrome material as the buttons: liquid glass when glass is
+            // on, the one solid tone when it is off. The card itself stays
+            // transparent so [liquidGlass] paints the surface; the shadow keeps it
+            // lifted off the content behind it.
             androidx.compose.material3.Surface(
                 shape = Ui.menuShape,
-                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                color = androidx.compose.ui.graphics.Color.Transparent,
                 contentColor = MaterialTheme.colorScheme.onSurface,
                 shadowElevation = Ui.menuElevation,
-                modifier = Modifier.widthIn(min = Ui.menuMinWidth),
+                modifier = Modifier
+                    .widthIn(min = Ui.menuMinWidth)
+                    .liquidGlass(LocalLiquidBackdrop.current, Ui.menuShape, Ui.menuRadius, strong = true),
             ) {
                 // As wide as its widest item, so the menu hugs its content.
                 androidx.compose.foundation.layout.Column(Modifier.width(IntrinsicSize.Max), content = content)

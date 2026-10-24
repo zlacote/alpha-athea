@@ -1,5 +1,6 @@
 package iatheiya.ayana.ui.liquid
 
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.remember
@@ -25,6 +26,7 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import iatheiya.ayana.ui.theme.glass
 import iatheiya.ayana.ui.theme.glassFill
+import iatheiya.ayana.ui.theme.solidChrome
 import iatheiya.ayana.ui.theme.toPath
 import iatheiya.ayana.util.AyanaLog
 import kotlin.math.roundToInt
@@ -110,7 +112,13 @@ fun Modifier.liquidGlass(
     }
     val lensEffect = rememberLensEffect()
     val placement = remember { GlassPlacement() }
-    if (backdrop == null || GlassTuning.mode == GlassMode.OFF) return glass(shape, lit, strong, clear)
+    // Glass switched off: the whole interface falls back to one solid, opaque
+    // tone (the tone the menus use) rather than going translucent.
+    if (GlassTuning.mode == GlassMode.OFF) {
+        return solidChrome(shape, MaterialTheme.colorScheme.surfaceContainerHigh, lit)
+    }
+    // Glass on, but this surface has no backdrop to sample: non-refracting glass.
+    if (backdrop == null) return glass(shape, lit, strong, clear)
     val fill = glassFill(strong, clear)
     // The fill under the lens is a white sheen over the lensed backdrop; it exists only with the lens on.
     val sheen = if (GlassTuning.mode == GlassMode.LENS) Color.White.copy(alpha = GlassTuning.fillAlpha) else Color.Transparent

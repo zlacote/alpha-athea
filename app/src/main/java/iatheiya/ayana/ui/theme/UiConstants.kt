@@ -10,7 +10,8 @@ import androidx.compose.ui.unit.dp
  */
 object Ui {
     // ---- Shapes -----------------------------------------------------------
-    val menuShape = RoundedCornerShape(24.dp)
+    val menuRadius = 24.dp
+    val menuShape = RoundedCornerShape(menuRadius)
     val bubbleShape = RoundedCornerShape(22.dp)
     val panelRadius = 28.dp
     val panelShape = RoundedCornerShape(panelRadius)

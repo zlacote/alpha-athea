@@ -65,6 +65,27 @@ fun Modifier.glass(
     }
 }
 
+/**
+ * Opaque chrome fill, drawn when glass is switched off. Instead of going
+ * translucent, every chrome surface falls back to this one solid tone — the
+ * same [color] the menus already use — so turning glass off reads as a flat,
+ * ordinary interface rather than a see-through one.
+ *
+ * @param lit false drops the rim, for full-width bars.
+ */
+fun Modifier.solidChrome(
+    shape: Shape,
+    color: Color,
+    lit: Boolean = true,
+): Modifier = drawWithCache {
+    val path = shape.createOutline(size, layoutDirection, this).toPath()
+    val rimWidth = 1.dp.toPx()
+    onDrawBehind {
+        drawPath(path, color = color)
+        if (lit) drawPath(path, color = Glass.RIM, style = Stroke(width = rimWidth))
+    }
+}
+
 internal fun Outline.toPath(): Path = when (this) {
     is Outline.Rectangle -> Path().apply { addRect(rect) }
     is Outline.Rounded -> Path().apply { addRoundRect(roundRect) }
