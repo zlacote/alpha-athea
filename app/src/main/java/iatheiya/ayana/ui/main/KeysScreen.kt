@@ -186,6 +186,10 @@ fun KeysScreen(
                     editIndex = null
                     onKeysChange(keys.mapIndexed { i, existing -> if (i == index) edited else existing })
                 },
+                onDelete = {
+                    editIndex = null
+                    onKeysChange(keys.filterIndexed { i, _ -> i != index })
+                },
             )
         }
     }

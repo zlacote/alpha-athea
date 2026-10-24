@@ -79,7 +79,6 @@ import iatheiya.ayana.ui.common.rememberAyanaMenu
 import iatheiya.ayana.ui.theme.CodeStyle
 import iatheiya.ayana.ui.theme.HighlightColor
 import iatheiya.ayana.ui.theme.OnHighlightColor
-import iatheiya.ayana.ui.theme.Glass
 import iatheiya.ayana.ui.theme.Ui
 import iatheiya.ayana.ui.theme.codeStyle
 import iatheiya.ayana.ui.theme.glass
@@ -474,7 +473,9 @@ private fun CommandBubble(
                             style = bubbleStyle,
                             color = MaterialTheme.colorScheme.onSecondaryContainer,
                         )
-                        // Fade hugs the tail only: the first lines stay fully readable.
+                        // Fade hugs the tail only: the first lines stay fully readable. It darkens
+                        // toward the chevron (into the canvas), like the output fade — fading to the
+                        // lighter canvas tint made the tail brighten instead.
                         Box(
                             Modifier
                                 .align(Alignment.BottomCenter)
@@ -484,7 +485,7 @@ private fun CommandBubble(
                                     Brush.verticalGradient(
                                         listOf(
                                             androidx.compose.ui.graphics.Color.Transparent,
-                                            Glass.CANVAS_TINT,
+                                            MaterialTheme.colorScheme.background,
                                         ),
                                     ),
                                 ),

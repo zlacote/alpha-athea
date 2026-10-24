@@ -196,6 +196,7 @@ internal fun KeyEditorDialog(
     initial: CustomKey,
     onDismiss: () -> Unit,
     onSave: (CustomKey) -> Unit,
+    onDelete: (() -> Unit)? = null,
 ) {
     var label by remember { mutableStateOf(initial.label) }
     var payload by remember { mutableStateOf(initial.payload) }
@@ -226,11 +227,11 @@ internal fun KeyEditorDialog(
                     modifier = Modifier.padding(top = 10.dp, bottom = 4.dp),
                 )
                 Row {
+                    // Just the two meaningful actions: a modifier like Ctrl belongs in the sequence
+                    // itself (built from the keyboard), not as an opaque key "kind".
                     listOf(
                         KeyKind.SEND to stringResource(R.string.settings_keys_kind_send),
                         KeyKind.INSERT to stringResource(R.string.settings_keys_kind_insert),
-                        KeyKind.CTRL to stringResource(R.string.settings_keys_kind_ctrl),
-                        KeyKind.ALT to stringResource(R.string.settings_keys_kind_alt),
                     ).forEach { (candidate, text) ->
                         FilterChip(
                             selected = kind == candidate,
@@ -249,16 +250,26 @@ internal fun KeyEditorDialog(
             }
         },
         confirm = {
-            TextButton(onClick = {
-                onSave(
-                    initial.copy(
-                        label = label.trim(),
-                        payload = payload,
-                        kind = kind,
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (onDelete != null) {
+                    TextButton(onClick = onDelete) {
+                        Text(
+                            stringResource(R.string.menu_delete),
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                }
+                TextButton(onClick = {
+                    onSave(
+                        initial.copy(
+                            label = label.trim(),
+                            payload = payload,
+                            kind = kind,
+                        )
                     )
-                )
-            }) {
-                Text(stringResource(R.string.dialog_save))
+                }) {
+                    Text(stringResource(R.string.dialog_save))
+                }
             }
         },
     )

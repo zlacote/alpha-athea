@@ -3,7 +3,10 @@ package iatheiya.ayana.ui.liquid
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.draw.drawWithContent
@@ -41,8 +44,13 @@ import kotlin.math.roundToInt
  */
 class LiquidBackdrop internal constructor(internal val layer: GraphicsLayer) {
 
-    /** Window-root position of the recorded content. Glass surfaces subtract it to align. */
-    internal var rootOrigin: Offset = Offset.Zero
+    /**
+     * Window-root position of the recorded content. Glass surfaces subtract it to align. It is
+     * snapshot state so a glass surface redraws the moment its position is known — without it the
+     * first draw used a stale zero offset (sampling empty pixels) and nothing short of an unrelated
+     * redraw, such as leaving and re-entering the app, ever corrected it.
+     */
+    internal var rootOrigin: Offset by mutableStateOf(Offset.Zero)
 }
 
 /** The backdrop that glass surfaces below this point refract. Null means plain glass. */
@@ -85,9 +93,10 @@ private fun DrawScope.drawContentInto(content: ContentDrawScope) {
     }
 }
 
-/** Where a glass surface sits in window coordinates, updated during layout. */
+/** Where a glass surface sits in window coordinates, updated during layout. Snapshot state so the
+ *  draw re-runs with the right offset as soon as layout reports the position. */
 private class GlassPlacement {
-    var rootOrigin: Offset = Offset.Zero
+    var rootOrigin: Offset by mutableStateOf(Offset.Zero)
 }
 
 /**

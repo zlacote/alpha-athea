@@ -1,8 +1,10 @@
 package iatheiya.ayana.ui.main
 
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateOffsetAsState
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
@@ -15,13 +17,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -52,8 +49,8 @@ import kotlin.math.roundToInt
 /**
  * The key grid as an editable preview: it lays the keys out exactly as the live row
  * shows them (column-major, [rows] per column) and scrolls horizontally. Hold a key
- * and drag to reorder it — the other keys slide to make room — tap to rename, and
- * double-tap to arm a red cross, then tap the cross to remove.
+ * and drag to reorder it — the other keys slide to make room — and tap a key to open
+ * its editor (where it can also be removed).
  */
 @Composable
 fun KeyGridEditor(
@@ -72,7 +69,6 @@ fun KeyGridEditor(
     var draggedIndex by remember { mutableStateOf<Int?>(null) }
     var dragOffset by remember { mutableStateOf(Offset.Zero) }
     var targetIndex by remember { mutableStateOf<Int?>(null) }
-    var armedDelete by remember { mutableStateOf<Int?>(null) }
 
     val sep = Ui.keySeparatorWidth
     val cellH = Ui.keyMinHeight
@@ -108,35 +104,35 @@ fun KeyGridEditor(
                         ) {
                             if (key != null) {
                                 val dragging = draggedIndex == index
-                                // Non-dragged keys slide to the slot they take while the drag is live.
+                                // Non-dragged keys slide to the slot they take while a drag is live.
                                 val slide = if (draggedIndex != null && targetIndex != null && !dragging) {
                                     val display = displayPosition(index, draggedIndex!!, targetIndex!!)
                                     slotOffset(display) - slotOffset(index)
                                 } else {
                                     Offset.Zero
                                 }
-                                val animatedSlide by animateOffsetAsState(slide, label = "slot")
+                                // While dragging, the make-room shift springs; on release the list has
+                                // already reordered into these exact slots, so the slide snaps to zero
+                                // instead of replaying the animation on top of the reorder (the jitter).
+                                val animatedSlide by animateOffsetAsState(
+                                    targetValue = slide,
+                                    animationSpec = if (draggedIndex != null) {
+                                        spring(stiffness = Spring.StiffnessMediumLow)
+                                    } else {
+                                        snap()
+                                    },
+                                    label = "slot",
+                                )
                                 EditableKeyCell(
                                     key = key,
                                     dragging = dragging,
                                     translation = if (dragging) dragOffset else animatedSlide,
-                                    armed = armedDelete == index,
-                                    onTap = {
-                                        if (armedDelete == index) armedDelete = null else onRename(index)
-                                    },
-                                    onDoubleTap = {
-                                        armedDelete = if (armedDelete == index) null else index
-                                    },
-                                    onConfirmDelete = {
-                                        armedDelete = null
-                                        onKeysChange(keys.filterIndexed { i, _ -> i != index })
-                                    },
+                                    onTap = { onRename(index) },
                                     onDragStart = {
                                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                         draggedIndex = index
                                         dragOffset = Offset.Zero
                                         targetIndex = index
-                                        armedDelete = null
                                     },
                                     onDrag = { delta ->
                                         dragOffset += delta
@@ -198,10 +194,7 @@ private fun EditableKeyCell(
     key: CustomKey,
     dragging: Boolean,
     translation: Offset,
-    armed: Boolean,
     onTap: () -> Unit,
-    onDoubleTap: () -> Unit,
-    onConfirmDelete: () -> Unit,
     onDragStart: () -> Unit,
     onDrag: (Offset) -> Unit,
     onDragEnd: () -> Unit,
@@ -225,7 +218,8 @@ private fun EditableKeyCell(
                     MaterialTheme.colorScheme.surfaceContainerHigh
                 },
             )
-            // Long-press to pick up and drag; a quick tap or double-tap is handled below.
+            // Long-press to pick up and drag; a single tap opens the editor at once (no
+            // double-tap, so the tap never waits to see whether a second one is coming).
             .pointerInput(key) {
                 detectDragGesturesAfterLongPress(
                     onDragStart = { onDragStart() },
@@ -238,10 +232,7 @@ private fun EditableKeyCell(
                 )
             }
             .pointerInput(key) {
-                detectTapGestures(
-                    onTap = { onTap() },
-                    onDoubleTap = { onDoubleTap() },
-                )
+                detectTapGestures(onTap = { onTap() })
             },
         contentAlignment = Alignment.Center,
     ) {
@@ -256,25 +247,5 @@ private fun EditableKeyCell(
             softWrap = false,
             overflow = TextOverflow.Clip,
         )
-        if (armed) {
-            // The red cross: tap it to confirm removal; tapping the cell body disarms.
-            Box(
-                Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(2.dp)
-                    .size(20.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.error)
-                    .clickable { onConfirmDelete() },
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    Icons.Default.Close,
-                    contentDescription = stringResource(R.string.keys_remove),
-                    tint = MaterialTheme.colorScheme.onError,
-                    modifier = Modifier.size(14.dp),
-                )
-            }
-        }
     }
 }
