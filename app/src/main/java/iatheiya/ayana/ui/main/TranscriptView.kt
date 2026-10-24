@@ -273,6 +273,7 @@ fun TranscriptView(
         val currentMatchId = search?.matchBlockIds?.getOrNull(search.index)
 
         if (views.isEmpty()) {
+            EmptyGreeting(Modifier.align(Alignment.Center))
             return@BoxWithConstraints
         }
 
@@ -400,6 +401,26 @@ fun TranscriptView(
                     }
             }
         }
+    }
+}
+
+@Composable
+private fun EmptyGreeting(modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier.padding(horizontal = 32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(
+            text = stringResource(R.string.greeting_title),
+            style = MaterialTheme.typography.headlineSmall,
+            color = MaterialTheme.colorScheme.onBackground,
+        )
+        Spacer(Modifier.height(8.dp))
+        Text(
+            text = stringResource(R.string.greeting_hint),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 
