@@ -78,17 +78,6 @@ fun MainScreen(viewModel: MainViewModel) {
         viewModel.setShowSettings(false)
     }
 
-    if (state.showKeyBuilder) {
-        BackHandler { viewModel.setShowKeyBuilder(false) }
-        KeyBuilderScreen(
-            onAdd = { key ->
-                viewModel.addCustomKey(key)
-            },
-            onBack = { viewModel.setShowKeyBuilder(false) },
-        )
-        return
-    }
-
     if (state.showGlassTuning) {
         BackHandler { viewModel.setShowGlassTuning(false) }
         GlassTuningScreen(onBack = { viewModel.setShowGlassTuning(false) })
@@ -125,7 +114,6 @@ fun MainScreen(viewModel: MainViewModel) {
             onKeyColsChange = viewModel::setKeyCols,
             onKeysChange = viewModel::setCustomKeys,
             onResetKeys = viewModel::resetKeysToDefaults,
-            onOpenKeyBuilder = { viewModel.setShowKeyBuilder(true) },
             onBack = { viewModel.setShowKeys(false) },
         )
         return

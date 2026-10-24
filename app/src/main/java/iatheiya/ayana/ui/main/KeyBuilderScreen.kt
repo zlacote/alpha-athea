@@ -1,7 +1,6 @@
 package iatheiya.ayana.ui.main
 
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
@@ -9,14 +8,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -24,17 +19,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import iatheiya.ayana.R
-import iatheiya.ayana.data.CustomKey
-import iatheiya.ayana.data.KeyKind
-import iatheiya.ayana.ui.common.AyanaScaffold
-import iatheiya.ayana.ui.common.AyanaScrollHeader
 import iatheiya.ayana.util.isCtrlCombinable
 import iatheiya.ayana.util.toControlChar
 
@@ -98,17 +87,16 @@ private val BUILDER_ROWS: List<List<BuilderKey>> = listOf(
 )
 
 /**
- * Visual key builder: tap keys on a keyboard to build a sequence. CTRL arms a
- * control combination for the next letter, ⏎ puts a real Enter into the sequence.
- * Save turns the sequence into a button of the key row.
+ * The visual keyboard as an inline pad: tap keys to append to the sequence being built.
+ * CTRL arms a control combination for the next letter, ALT prefixes ESC, ⏎ appends a real
+ * Enter, ⌫ appends a backspace. It owns only its two modifier latches; the sequence itself
+ * lives in the caller, so the same buffer can also be typed by hand.
  */
 @Composable
-fun KeyBuilderScreen(
-    onAdd: (CustomKey) -> Unit,
-    onBack: () -> Unit,
+fun KeyBuilderPad(
+    onAppend: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var buffer by remember { mutableStateOf("") }
     var ctrlArmed by remember { mutableStateOf(false) }
     var altArmed by remember { mutableStateOf(false) }
 
@@ -124,70 +112,24 @@ fun KeyBuilderScreen(
                 } else {
                     raw
                 }
-                buffer += if (altArmed) {
+                onAppend(if (altArmed) {
                     altArmed = false
                     "\u001B" + core
                 } else {
                     core
-                }
+                })
             }
         }
     }
 
-    AyanaScaffold(onBack = onBack, modifier = modifier) {
-        Column(
-            Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 8.dp),
-        ) {
-            AyanaScrollHeader(stringResource(R.string.builder_title))
-
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 8.dp),
-            ) {
-                Text(
-                    text = if (buffer.isEmpty()) stringResource(R.string.builder_hint) else visible(buffer),
-                    style = MaterialTheme.typography.bodyLarge.copy(fontFamily = FontFamily.Monospace),
-                    color = if (buffer.isEmpty()) {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    } else {
-                        MaterialTheme.colorScheme.onSurface
-                    },
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f),
-                )
-                TextButton(onClick = { buffer = "" }, enabled = buffer.isNotEmpty()) {
-                    Text(stringResource(R.string.builder_clear))
-                }
-            }
-
-            BUILDER_ROWS.forEach { keys ->
-                KeyLine(
-                    keys = keys,
-                    ctrlArmed = ctrlArmed,
-                    altArmed = altArmed,
-                    onPress = { press(it) },
-                )
-            }
-
-            Spacer(Modifier.height(16.dp))
-
-            Button(
-                onClick = {
-                    onAdd(CustomKey(label = visible(buffer).take(12), payload = buffer, kind = KeyKind.SEND))
-                    onBack()
-                },
-                enabled = buffer.isNotEmpty(),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 24.dp),
-            ) {
-                Text(stringResource(R.string.builder_save))
-            }
+    androidx.compose.foundation.layout.Column(modifier.fillMaxWidth()) {
+        BUILDER_ROWS.forEach { keys ->
+            KeyLine(
+                keys = keys,
+                ctrlArmed = ctrlArmed,
+                altArmed = altArmed,
+                onPress = { press(it) },
+            )
         }
     }
 }
@@ -260,7 +202,7 @@ private fun RowScope.KeyCap(
 }
 
 /** The sequence with control characters drawn as symbols, so it reads as typed. */
-private fun visible(text: String): String = text
+internal fun visibleSequence(text: String): String = text
     .replace("\u001B", "␛")
     .replace("\t", "⇥")
     .replace("\r", "⏎")

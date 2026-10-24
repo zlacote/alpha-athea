@@ -1,9 +1,11 @@
 package iatheiya.ayana.ui.main
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -34,9 +36,9 @@ import iatheiya.ayana.ui.common.AyanaScrollHeader
 import iatheiya.ayana.ui.theme.Ui
 
 /**
- * The key grid in its own room. The switch stays on top, so the grid can always be
- * turned back on. While the grid is off, the controls, the input and the preview
- * below the switch cannot be used.
+ * The key grid in its own room. Everything scrolls, so the on/off switch at the top
+ * moves out of the way when the keyboard is up. While the grid is off, the controls,
+ * the input and the preview below the switch are greyed out and inert.
  */
 @Composable
 fun KeysScreen(
@@ -49,11 +51,10 @@ fun KeysScreen(
     onKeyColsChange: (Int) -> Unit,
     onKeysChange: (List<CustomKey>) -> Unit,
     onResetKeys: () -> Unit,
-    onOpenKeyBuilder: () -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var draft by remember { mutableStateOf("") }
+    var buffer by remember { mutableStateOf("") }
     var sendNow by remember { mutableStateOf(false) }
     var editIndex by remember { mutableStateOf<Int?>(null) }
     val locked = if (keyRowVisible) {
@@ -67,105 +68,104 @@ fun KeysScreen(
     }
 
     AyanaScaffold(onBack = onBack, modifier = modifier) {
-        AyanaScrollHeader(stringResource(R.string.keys_title))
-        SettingsCard {
-            SwitchRow(
-                title = stringResource(R.string.settings_key_row),
-                subtitle = stringResource(R.string.settings_key_row_desc),
-                checked = keyRowVisible,
-                onChange = onKeyRowVisibleChange,
-            )
-        }
-
         Column(
             Modifier
-                .weight(1f)
-                .fillMaxWidth()
-                .then(locked)
+                .fillMaxSize()
                 .verticalScroll(rememberScrollState()),
         ) {
+            AyanaScrollHeader(stringResource(R.string.keys_title))
             SettingsCard {
-                SliderRow(
-                    title = stringResource(R.string.keys_rows),
-                    value = keyRows,
-                    range = 1f..4f,
-                    onChange = onKeyRowsChange,
-                )
-                SettingsDivider()
-                SliderRow(
-                    title = stringResource(R.string.keys_cols),
-                    value = keyCols,
-                    range = 3f..10f,
-                    onChange = onKeyColsChange,
+                SwitchRow(
+                    title = stringResource(R.string.settings_key_row),
+                    subtitle = stringResource(R.string.settings_key_row_desc),
+                    checked = keyRowVisible,
+                    onChange = onKeyRowVisibleChange,
                 )
             }
 
-            // The editable preview: the grid exactly as the composer shows it.
-            Text(
-                text = stringResource(R.string.keys_edit_hint),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp),
-            )
-            KeyGridEditor(
-                keys = keys,
-                rows = keyRows,
-                cols = keyCols,
-                onKeysChange = onKeysChange,
-                onRename = { editIndex = it },
-            )
+            Column(Modifier.fillMaxWidth().then(locked)) {
+                SettingsCard {
+                    SliderRow(
+                        title = stringResource(R.string.keys_rows),
+                        value = keyRows,
+                        range = 1f..4f,
+                        onChange = onKeyRowsChange,
+                    )
+                    SettingsDivider()
+                    SliderRow(
+                        title = stringResource(R.string.keys_cols),
+                        value = keyCols,
+                        range = 3f..10f,
+                        onChange = onKeyColsChange,
+                    )
+                }
 
-            // Add a key: without "send now" the text lands in the composer, where it is visible.
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
+                // The editable preview: the grid exactly as the composer shows it.
+                Text(
+                    text = stringResource(R.string.keys_edit_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp),
+                )
+                KeyGridEditor(
+                    keys = keys,
+                    rows = keyRows,
+                    cols = keyCols,
+                    onKeysChange = onKeysChange,
+                    onRename = { editIndex = it },
+                )
+
+                // One add area: type the sequence by hand or tap the keyboard below it. Without
+                // "send now" the key drops its text into the composer; with it, it runs at once.
                 OutlinedTextField(
-                    value = draft,
-                    onValueChange = { draft = it },
-                    singleLine = true,
+                    value = buffer,
+                    onValueChange = { buffer = it },
                     label = { Text(stringResource(R.string.settings_keys_payload)) },
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
                 )
-                Button(
-                    onClick = {
-                        val key = if (sendNow) {
-                            CustomKey(label = draft.take(12), payload = draft + "\r", kind = KeyKind.SEND)
-                        } else {
-                            CustomKey(label = draft.take(12), payload = draft, kind = KeyKind.INSERT)
-                        }
-                        onKeysChange(keys + key)
-                        draft = ""
-                    },
-                    enabled = draft.isNotEmpty(),
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    Text(stringResource(R.string.keys_add))
+                    FilterChip(
+                        selected = sendNow,
+                        onClick = { sendNow = !sendNow },
+                        label = { Text(stringResource(R.string.keys_send_now)) },
+                    )
+                    Spacer(Modifier.weight(1f))
+                    Button(
+                        onClick = {
+                            val key = if (sendNow) {
+                                CustomKey(label = visibleSequence(buffer).take(12), payload = buffer + "\r", kind = KeyKind.SEND)
+                            } else {
+                                CustomKey(label = visibleSequence(buffer).take(12), payload = buffer, kind = KeyKind.INSERT)
+                            }
+                            onKeysChange(keys + key)
+                            buffer = ""
+                        },
+                        enabled = buffer.isNotEmpty(),
+                    ) {
+                        Text(stringResource(R.string.keys_add))
+                    }
                 }
-            }
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
-            ) {
-                FilterChip(
-                    selected = sendNow,
-                    onClick = { sendNow = !sendNow },
-                    label = { Text(stringResource(R.string.keys_send_now)) },
+                KeyBuilderPad(
+                    onAppend = { buffer += it },
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
                 )
             }
 
-            Row(
+            // Default button at the very end, centred and bare, like the Glass screen.
+            Box(
                 Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                    .padding(top = 8.dp),
+                contentAlignment = Alignment.Center,
             ) {
-                TextButton(onClick = onOpenKeyBuilder) {
-                    Text(stringResource(R.string.builder_open))
-                }
                 TextButton(onClick = onResetKeys) {
                     Text(stringResource(R.string.settings_keys_reset))
                 }

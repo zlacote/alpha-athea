@@ -23,7 +23,6 @@ import iatheiya.ayana.util.toControlChar
 import iatheiya.ayana.session.WorkspaceState
 import iatheiya.ayana.ui.main.CursorKey
 import iatheiya.ayana.ui.main.FORM_FEED
-import iatheiya.ayana.ui.main.effectiveKeyRow
 import iatheiya.ayana.util.AyanaLog
 import iatheiya.ayana.util.dropOldestSharedFlow
 import iatheiya.ayana.util.shellQuote
@@ -53,7 +52,6 @@ data class UiState(
     val showFavorites: Boolean = false,
     val showAttachChooser: Boolean = false,
     val showKeys: Boolean = false,
-    val showKeyBuilder: Boolean = false,
     val showGlassTuning: Boolean = false,
     val showGlow: Boolean = false,
     val renameTargetId: Long? = null,
@@ -337,10 +335,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun setShowAttachChooser(visible: Boolean) = _state.update { it.copy(showAttachChooser = visible) }
 
     fun setShowKeys(visible: Boolean) = _state.update { it.copy(showKeys = visible) }
-
-    fun setShowKeyBuilder(visible: Boolean) = _state.update { it.copy(showKeyBuilder = visible) }
-
-    fun addCustomKey(key: CustomKey) = workspace.setCustomKeys(effectiveKeyRow(workspace.state.value.customKeys) + key)
 
     /** Replaces the whole key row (used by the settings editor). */
     fun setCustomKeys(keys: List<CustomKey>) = workspace.setCustomKeys(keys)
