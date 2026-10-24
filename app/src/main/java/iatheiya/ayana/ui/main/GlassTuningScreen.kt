@@ -21,11 +21,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -34,13 +35,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import iatheiya.ayana.R
 import iatheiya.ayana.ui.common.AyanaRoundButton
-import iatheiya.ayana.ui.liquid.GlassMode
 import iatheiya.ayana.ui.liquid.GlassTuning
 import iatheiya.ayana.ui.liquid.LocalLiquidBackdrop
 import iatheiya.ayana.ui.liquid.liquidBackdrop
@@ -50,12 +52,17 @@ import iatheiya.ayana.ui.theme.Ui
 
 /** Height of the pinned sample, measured below the status bar. */
 private val SAMPLE_HEIGHT = 260.dp
-private const val SAMPLE_LINES = 12
+
+/** Extra scene drawn below the sample so it can drift up as the controls scroll. */
+private val PARALLAX_EXTRA = 140.dp
+private const val PARALLAX_FACTOR = 0.35f
 
 /**
- * Live tuning of the glass. The sample stays pinned at the top of the screen and every
- * parameter of [GlassTuning] is a slider below it, grouped so each setting sits next to the
- * one it depends on. A slider whose setting is off is greyed out and says what it needs.
+ * Live tuning of the glass. A generated colour scene stays pinned at the top and
+ * drifts under the glass as the controls scroll (parallax); every [GlassTuning]
+ * parameter is a slider below it, grouped so each setting sits next to the one it
+ * depends on. Glass is one master switch — on is the refracting lens, off is a solid
+ * surface — and a slider whose setting is off is greyed out with the reason.
  */
 @Composable
 fun GlassTuningScreen(
@@ -65,6 +72,8 @@ fun GlassTuningScreen(
     val sampleBackdrop = rememberLiquidBackdrop()
     val background = MaterialTheme.colorScheme.background
     val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+    val scroll = rememberScrollState()
+    val extraPx = with(LocalDensity.current) { PARALLAX_EXTRA.toPx() }
 
     Surface(color = background, modifier = modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
@@ -82,7 +91,16 @@ fun GlassTuningScreen(
                         .clipToBounds()
                         .liquidBackdrop(sampleBackdrop, background),
                 ) {
-                    SamplePattern()
+                    GradientScene(
+                        Modifier
+                            .fillMaxWidth()
+                            .height(statusBarTop + SAMPLE_HEIGHT + PARALLAX_EXTRA)
+                            // The scene drifts up as the controls scroll, but never past its extra.
+                            .graphicsLayer {
+                                translationY = -(scroll.value.toFloat() * PARALLAX_FACTOR)
+                                    .coerceIn(0f, extraPx)
+                            },
+                    )
                 }
                 // The sample glass sits outside any recorded node, centred below the status bar.
                 Box(
@@ -115,88 +133,114 @@ fun GlassTuningScreen(
                 }
             }
 
-            // The controls scroll below the pinned sample, title first, so nothing shows above it.
+            // The controls scroll below the pinned sample.
             Column(
                 Modifier
                     .weight(1f)
                     .fillMaxWidth()
-                    .verticalScroll(rememberScrollState())
+                    .verticalScroll(scroll)
                     .navigationBarsPadding(),
             ) {
-                Text(
-                    text = stringResource(R.string.glass_tuning_title),
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onBackground,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier
+                // Title and the master switch on one line; no description below it.
+                Row(
+                    Modifier
                         .fillMaxWidth()
-                        .padding(top = 12.dp),
-                )
-                Text(
-                    text = stringResource(R.string.glass_hint),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                )
-                ModeRow()
+                        .padding(start = 16.dp, end = 16.dp, top = 14.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = stringResource(R.string.glass_tuning_title),
+                        style = MaterialTheme.typography.titleLarge,
+                        color = MaterialTheme.colorScheme.onBackground,
+                    )
+                    Switch(
+                        checked = GlassTuning.enabled,
+                        onCheckedChange = { GlassTuning.enabled = it },
+                        colors = SwitchDefaults.colors(
+                            uncheckedThumbColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            uncheckedTrackColor = MaterialTheme.colorScheme.outline,
+                            uncheckedBorderColor = Color.Transparent,
+                        ),
+                    )
+                }
+                // The default button rides just under the title, not buried at the bottom.
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp),
+                    horizontalArrangement = Arrangement.End,
+                ) {
+                    TextButton(onClick = { GlassTuning.reset() }) {
+                        Text(stringResource(R.string.glass_reset))
+                    }
+                }
 
-                val mode = GlassTuning.mode
-                val lens = mode == GlassMode.LENS
-                val lensReason = if (lens) null else stringResource(R.string.glass_needs_lens)
+                val offReason = if (!GlassTuning.enabled) {
+                    stringResource(R.string.glass_needs_glass)
+                } else {
+                    null
+                }
 
-                SectionTitle(stringResource(R.string.glass_group_blur))
+                // The standalone knobs: each one changes the look on its own.
+                SectionTitle(stringResource(R.string.glass_group_surface))
                 TuningSlider(
                     label = stringResource(R.string.glass_blur),
                     value = GlassTuning.blurDp,
                     range = 0f..24f,
-                    reason = if (mode == GlassMode.OFF) stringResource(R.string.glass_needs_glass) else null,
+                    reason = offReason,
                     onChange = { GlassTuning.blurDp = it },
-                )
-
-                SectionTitle(stringResource(R.string.glass_group_lens))
-                TuningSlider(
-                    label = stringResource(R.string.glass_bezel),
-                    value = GlassTuning.bezelDp,
-                    range = 0f..80f,
-                    reason = lensReason,
-                    onChange = { GlassTuning.bezelDp = it },
-                )
-                TuningSlider(
-                    label = stringResource(R.string.glass_bend),
-                    value = GlassTuning.bendDp,
-                    range = 0f..60f,
-                    reason = lensReason ?: if (GlassTuning.bezelDp <= 0f) {
-                        stringResource(R.string.glass_needs_bezel)
-                    } else {
-                        null
-                    },
-                    onChange = { GlassTuning.bendDp = it },
                 )
                 TuningSlider(
                     label = stringResource(R.string.glass_chroma),
                     value = GlassTuning.chroma,
                     range = 0f..1f,
-                    reason = lensReason ?: if (GlassTuning.bendDp <= 0f) {
-                        stringResource(R.string.glass_needs_bend)
-                    } else {
-                        null
-                    },
+                    reason = offReason,
                     onChange = { GlassTuning.chroma = it },
                 )
                 TuningSlider(
                     label = stringResource(R.string.glass_fill),
                     value = GlassTuning.fillAlpha,
                     range = 0f..0.4f,
-                    reason = lensReason,
+                    reason = offReason,
                     onChange = { GlassTuning.fillAlpha = it },
                 )
+                TuningSlider(
+                    label = stringResource(R.string.glass_rim),
+                    value = GlassTuning.rimAlpha,
+                    range = 0f..0.6f,
+                    reason = offReason,
+                    onChange = { GlassTuning.rimAlpha = it },
+                )
 
+                // The lens shape: the bend grows out of the bezel.
+                SectionTitle(stringResource(R.string.glass_group_lens))
+                TuningSlider(
+                    label = stringResource(R.string.glass_bezel),
+                    value = GlassTuning.bezelDp,
+                    range = 0f..80f,
+                    reason = offReason,
+                    onChange = { GlassTuning.bezelDp = it },
+                )
+                TuningSlider(
+                    label = stringResource(R.string.glass_bend),
+                    value = GlassTuning.bendDp,
+                    range = 0f..60f,
+                    reason = offReason ?: if (GlassTuning.bezelDp <= 0f) {
+                        stringResource(R.string.glass_needs_bezel)
+                    } else {
+                        null
+                    },
+                    onChange = { GlassTuning.bendDp = it },
+                )
+
+                // The rim light: its width and angle only matter once it has strength.
                 SectionTitle(stringResource(R.string.glass_group_highlight))
                 TuningSlider(
                     label = stringResource(R.string.glass_highlight),
                     value = GlassTuning.highlightStrength,
                     range = 0f..1f,
-                    reason = lensReason,
+                    reason = offReason,
                     onChange = { GlassTuning.highlightStrength = it },
                 )
                 val noHighlight = if (GlassTuning.highlightStrength <= 0f) {
@@ -208,54 +252,19 @@ fun GlassTuningScreen(
                     label = stringResource(R.string.glass_highlight_width),
                     value = GlassTuning.highlightWidthDp,
                     range = 0f..12f,
-                    reason = lensReason ?: noHighlight,
+                    reason = offReason ?: noHighlight,
                     onChange = { GlassTuning.highlightWidthDp = it },
                 )
                 TuningSlider(
                     label = stringResource(R.string.glass_light_angle),
                     value = GlassTuning.lightAngleDeg,
                     range = 0f..360f,
-                    reason = lensReason ?: noHighlight,
+                    reason = offReason ?: noHighlight,
                     onChange = { GlassTuning.lightAngleDeg = it },
                 )
-                TuningSlider(
-                    label = stringResource(R.string.glass_rim),
-                    value = GlassTuning.rimAlpha,
-                    range = 0f..0.6f,
-                    reason = if (mode == GlassMode.OFF) stringResource(R.string.glass_needs_glass) else null,
-                    onChange = { GlassTuning.rimAlpha = it },
-                )
 
-                TextButton(
-                    onClick = { GlassTuning.reset() },
-                    modifier = Modifier.padding(horizontal = 16.dp),
-                ) {
-                    Text(stringResource(R.string.glass_reset))
-                }
                 Spacer(Modifier.height(24.dp))
             }
-        }
-    }
-}
-
-@Composable
-private fun ModeRow() {
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        listOf(
-            GlassMode.OFF to R.string.glass_mode_off,
-            GlassMode.BLUR to R.string.glass_mode_blur,
-            GlassMode.LENS to R.string.glass_mode_lens,
-        ).forEach { (mode, label) ->
-            FilterChip(
-                selected = GlassTuning.mode == mode,
-                onClick = { GlassTuning.mode = mode },
-                label = { Text(stringResource(label)) },
-            )
         }
     }
 }
@@ -320,29 +329,50 @@ private fun TuningSlider(
     }
 }
 
-/** Coloured discs and text lines: what the sample glass refracts, so the bend shows. */
+/**
+ * A generated colour scene — overlapping saturated blobs over a deep base, crossed by
+ * fine diagonal lines. The smooth blobs show the bend; the crisp lines show the
+ * chromatic fringe along their edges. No image file is bundled.
+ */
 @Composable
-private fun SamplePattern() {
-    Box(Modifier.fillMaxSize()) {
-        Canvas(Modifier.fillMaxSize()) {
-            // Centres are kept inside the area, so no disc spills past the sample's edge.
-            val radius = size.minDimension * 0.2f
-            fun centre(fx: Float, fy: Float) = Offset(
-                (size.width * fx).coerceIn(radius, size.width - radius),
-                (size.height * fy).coerceIn(radius, size.height - radius),
+private fun GradientScene(modifier: Modifier) {
+    Canvas(modifier) {
+        drawRect(
+            Brush.verticalGradient(
+                listOf(Color(0xFF1A1030), Color(0xFF05070E)),
+            ),
+        )
+        fun blob(color: Color, fx: Float, fy: Float, fr: Float) {
+            val centre = Offset(size.width * fx, size.height * fy)
+            val radius = size.minDimension * fr
+            drawCircle(
+                brush = Brush.radialGradient(
+                    colors = listOf(color.copy(alpha = 0.9f), color.copy(alpha = 0f)),
+                    center = centre,
+                    radius = radius,
+                ),
+                radius = radius,
+                center = centre,
             )
-            drawCircle(Color(0xFFFF4D4D), radius, centre(0.2f, 0.45f))
-            drawCircle(Color(0xFF4DFF88), radius, centre(0.75f, 0.3f))
-            drawCircle(Color(0xFF4D8BFF), radius, centre(0.55f, 0.85f))
         }
-        Column(Modifier.fillMaxSize().padding(16.dp)) {
-            repeat(SAMPLE_LINES) { index ->
-                Text(
-                    text = stringResource(R.string.glass_sample_line, index + 1),
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onBackground,
-                )
-            }
+        blob(Color(0xFFFF3D7F), 0.20f, 0.22f, 0.55f)
+        blob(Color(0xFF00E0FF), 0.82f, 0.18f, 0.50f)
+        blob(Color(0xFFFFC24D), 0.72f, 0.66f, 0.52f)
+        blob(Color(0xFF7A5CFF), 0.28f, 0.80f, 0.60f)
+        blob(Color(0xFF34FFB0), 0.55f, 0.48f, 0.38f)
+
+        // Fine diagonals give the lens crisp edges to bend and fringe.
+        val step = size.width / 7f
+        val stroke = 1.dp.toPx()
+        var x = -size.height
+        while (x < size.width + size.height) {
+            drawLine(
+                color = Color.White.copy(alpha = 0.10f),
+                start = Offset(x, 0f),
+                end = Offset(x + size.height, size.height),
+                strokeWidth = stroke,
+            )
+            x += step
         }
     }
 }

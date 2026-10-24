@@ -4,15 +4,16 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 
-/** What a glass surface draws: a plain fill, a blur only, or a blur with the refracting lens. */
-enum class GlassMode { OFF, BLUR, LENS }
-
 /**
  * Live parameters of every glass surface, edited on the glass tuning screen. They
  * live in memory only and start from the values the lens ships with.
+ *
+ * Glass is one master switch, not a set of modes: on, surfaces are the refracting
+ * lens (a blur-only look is just the lens with its bezel and bend zeroed); off,
+ * surfaces fall back to one solid opaque tone.
  */
 object GlassTuning {
-    var mode by mutableStateOf(GlassMode.LENS)
+    var enabled by mutableStateOf(true)
     var blurDp by mutableStateOf(DEFAULT_BLUR_DP)
     var bezelDp by mutableStateOf(DEFAULT_BEZEL_DP)
     var bendDp by mutableStateOf(DEFAULT_BEND_DP)
@@ -24,7 +25,7 @@ object GlassTuning {
     var rimAlpha by mutableStateOf(DEFAULT_RIM_ALPHA)
 
     fun reset() {
-        mode = GlassMode.LENS
+        enabled = true
         blurDp = DEFAULT_BLUR_DP
         bezelDp = DEFAULT_BEZEL_DP
         bendDp = DEFAULT_BEND_DP

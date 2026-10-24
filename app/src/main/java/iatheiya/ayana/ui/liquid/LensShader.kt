@@ -35,7 +35,7 @@ internal class LensEffect(
      * nor lit: along a straight edge the bend and the highlight read as a bright line.
      */
     fun effectFor(size: Size, cornerRadiusPx: Float, flat: Boolean = false): androidx.compose.ui.graphics.RenderEffect {
-        val bent = GlassTuning.mode == GlassMode.LENS && !flat
+        val bent = GlassTuning.enabled && !flat
         val angle = GlassTuning.lightAngleDeg * DEGREES_TO_RADIANS
         val values = floatArrayOf(
             size.width,

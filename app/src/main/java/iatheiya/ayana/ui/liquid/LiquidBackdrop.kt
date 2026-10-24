@@ -114,14 +114,14 @@ fun Modifier.liquidGlass(
     val placement = remember { GlassPlacement() }
     // Glass switched off: the whole interface falls back to one solid, opaque
     // tone (the tone the menus use) rather than going translucent.
-    if (GlassTuning.mode == GlassMode.OFF) {
+    if (!GlassTuning.enabled) {
         return solidChrome(shape, MaterialTheme.colorScheme.surfaceContainerHigh, lit)
     }
     // Glass on, but this surface has no backdrop to sample: non-refracting glass.
     if (backdrop == null) return glass(shape, lit, strong, clear)
     val fill = glassFill(strong, clear)
-    // The fill under the lens is a white sheen over the lensed backdrop; it exists only with the lens on.
-    val sheen = if (GlassTuning.mode == GlassMode.LENS) Color.White.copy(alpha = GlassTuning.fillAlpha) else Color.Transparent
+    // The fill under the lens is a white sheen over the lensed backdrop.
+    val sheen = Color.White.copy(alpha = GlassTuning.fillAlpha)
     val rim = Color.White.copy(alpha = GlassTuning.rimAlpha)
     return this
         .onGloballyPositioned { placement.rootOrigin = it.positionInRoot() }
