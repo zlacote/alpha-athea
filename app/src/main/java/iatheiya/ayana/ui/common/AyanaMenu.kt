@@ -128,7 +128,17 @@ fun AyanaDropdownMenu(
             content = content,
         )
     } else {
-        if (expanded) {
+        // Grows out of the top-right corner (the overflow button sits there),
+        // so the menu reads as flowing from the button instead of appearing flat.
+        androidx.compose.animation.AnimatedVisibility(
+            visible = expanded,
+            enter = androidx.compose.animation.scaleIn(
+                transformOrigin = androidx.compose.ui.graphics.TransformOrigin(1f, 0f),
+            ) + androidx.compose.animation.fadeIn(),
+            exit = androidx.compose.animation.scaleOut(
+                transformOrigin = androidx.compose.ui.graphics.TransformOrigin(1f, 0f),
+            ) + androidx.compose.animation.fadeOut(),
+        ) {
             // The same card as the popup menus: opaque, rounded, with the same tone and shadow.
             androidx.compose.material3.Surface(
                 shape = Ui.menuShape,
