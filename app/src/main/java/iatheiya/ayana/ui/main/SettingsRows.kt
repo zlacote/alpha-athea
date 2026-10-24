@@ -10,11 +10,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
@@ -35,7 +33,6 @@ import iatheiya.ayana.ui.theme.Ui
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import iatheiya.ayana.R
 import iatheiya.ayana.data.CustomKey
@@ -215,55 +212,6 @@ internal fun SettingsDivider() {
         modifier = Modifier.padding(start = 56.dp),
         color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
     )
-}
-
-@Composable
-internal fun KeyEditRow(
-    key: CustomKey,
-    onEdit: (CustomKey) -> Unit,
-    onDelete: () -> Unit,
-) {
-    var editing by remember { mutableStateOf(false) }
-
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .clickable { editing = true }
-            .padding(start = 16.dp, end = 4.dp, top = 10.dp, bottom = 10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Column(Modifier.weight(1f)) {
-            Text(
-                text = key.label.ifEmpty { stringResource(R.string.settings_keys_unnamed) },
-                style = MaterialTheme.typography.bodyLarge,
-            )
-            Text(
-                text = key.payload,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
-        IconButton(onClick = onDelete) {
-            Icon(
-                Icons.Default.Delete,
-                contentDescription = stringResource(R.string.menu_delete),
-                tint = MaterialTheme.colorScheme.error,
-            )
-        }
-    }
-
-    if (editing) {
-        KeyEditorDialog(
-            initial = key,
-            onDismiss = { editing = false },
-            onSave = {
-                editing = false
-                onEdit(it)
-            },
-        )
-    }
 }
 
 @Composable

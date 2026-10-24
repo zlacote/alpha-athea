@@ -49,7 +49,6 @@ object Ui {
     val keyPaddingH = 8.dp
     val keyVisibleCount = 7
     val keySeparatorWidth = 1.dp
-    val keySeparatorHeight = 22.dp
     val keyRowPaddingH = 2.dp
     val keyRowPaddingV = 2.dp
 
