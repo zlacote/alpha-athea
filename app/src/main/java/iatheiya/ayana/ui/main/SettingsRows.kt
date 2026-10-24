@@ -267,7 +267,7 @@ internal fun KeyEditRow(
 }
 
 @Composable
-private fun KeyEditorDialog(
+internal fun KeyEditorDialog(
     initial: CustomKey,
     onDismiss: () -> Unit,
     onSave: (CustomKey) -> Unit,

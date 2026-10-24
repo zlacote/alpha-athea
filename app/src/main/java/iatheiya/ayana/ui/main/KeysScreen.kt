@@ -11,11 +11,11 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -31,18 +31,22 @@ import iatheiya.ayana.data.CustomKey
 import iatheiya.ayana.data.KeyKind
 import iatheiya.ayana.ui.common.AyanaScaffold
 import iatheiya.ayana.ui.common.AyanaScrollHeader
-import iatheiya.ayana.ui.liquid.LocalLiquidBackdrop
 import iatheiya.ayana.ui.theme.Ui
 
 /**
- * The key row in its own room. The switch stays on top, so the row can always be turned back on.
- * While the row is off, the live row, the input and the list below the switch cannot be used.
+ * The key grid in its own room. The switch stays on top, so the grid can always be
+ * turned back on. While the grid is off, the controls, the input and the preview
+ * below the switch cannot be used.
  */
 @Composable
 fun KeysScreen(
     keys: List<CustomKey>,
     keyRowVisible: Boolean,
+    keyRows: Int,
+    keyCols: Int,
     onKeyRowVisibleChange: (Boolean) -> Unit,
+    onKeyRowsChange: (Int) -> Unit,
+    onKeyColsChange: (Int) -> Unit,
     onKeysChange: (List<CustomKey>) -> Unit,
     onResetKeys: () -> Unit,
     onOpenKeyBuilder: () -> Unit,
@@ -51,6 +55,7 @@ fun KeysScreen(
 ) {
     var draft by remember { mutableStateOf("") }
     var sendNow by remember { mutableStateOf(false) }
+    var editIndex by remember { mutableStateOf<Int?>(null) }
     val locked = if (keyRowVisible) {
         Modifier
     } else {
@@ -72,22 +77,44 @@ fun KeysScreen(
             )
         }
 
-        Column(Modifier.fillMaxWidth().then(locked)) {
-            // The live row shows the glass as plain glass: it must not sample this screen.
-            CompositionLocalProvider(LocalLiquidBackdrop provides null) {
-                KeyRow(
-                    keys = keys.map { it.toTerminalKey() },
-                    stickyCtrl = false,
-                    suggestionActive = false,
-                    onInsert = {},
-                    onSendBytes = {},
-                    onCursor = {},
-                    onAcceptSuggestion = {},
-                    onToggleStickyCtrl = {},
-                    onConsumeStickyCtrl = {},
+        Column(
+            Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                .then(locked)
+                .verticalScroll(rememberScrollState()),
+        ) {
+            SettingsSection(title = stringResource(R.string.keys_grid)) {
+                SliderRow(
+                    title = stringResource(R.string.keys_rows),
+                    value = keyRows,
+                    range = 1f..4f,
+                    onChange = onKeyRowsChange,
+                )
+                SliderRow(
+                    title = stringResource(R.string.keys_cols),
+                    value = keyCols,
+                    range = 3f..10f,
+                    onChange = onKeyColsChange,
                 )
             }
 
+            // The editable preview: the grid exactly as the composer shows it.
+            Text(
+                text = stringResource(R.string.keys_edit_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp),
+            )
+            KeyGridEditor(
+                keys = keys,
+                rows = keyRows,
+                cols = keyCols,
+                onKeysChange = onKeysChange,
+                onRename = { editIndex = it },
+            )
+
+            // Add a key: without "send now" the text lands in the composer, where it is visible.
             Row(
                 Modifier
                     .fillMaxWidth()
@@ -104,7 +131,6 @@ fun KeysScreen(
                 )
                 Button(
                     onClick = {
-                        // Without "send now" the text lands in the composer, where it is visible.
                         val key = if (sendNow) {
                             CustomKey(label = draft.take(12), payload = draft + "\r", kind = KeyKind.SEND)
                         } else {
@@ -129,28 +155,7 @@ fun KeysScreen(
                     label = { Text(stringResource(R.string.keys_send_now)) },
                 )
             }
-        }
 
-        Column(
-            Modifier
-                .weight(1f)
-                .fillMaxWidth()
-                .then(locked)
-                .verticalScroll(rememberScrollState()),
-        ) {
-            SettingsSection(title = stringResource(R.string.keys_list_title)) {
-                keys.forEach { key ->
-                    KeyEditRow(
-                        key = key,
-                        onEdit = { edited ->
-                            onKeysChange(keys.map { if (it == key) edited else it })
-                        },
-                        onDelete = {
-                            onKeysChange(keys.filterNot { it == key })
-                        },
-                    )
-                }
-            }
             Row(
                 Modifier
                     .fillMaxWidth()
@@ -165,6 +170,22 @@ fun KeysScreen(
                 }
             }
             Spacer(Modifier.height(24.dp))
+        }
+    }
+
+    editIndex?.let { index ->
+        val key = keys.getOrNull(index)
+        if (key == null) {
+            editIndex = null
+        } else {
+            KeyEditorDialog(
+                initial = key,
+                onDismiss = { editIndex = null },
+                onSave = { edited ->
+                    editIndex = null
+                    onKeysChange(keys.mapIndexed { i, existing -> if (i == index) edited else existing })
+                },
+            )
         }
     }
 }

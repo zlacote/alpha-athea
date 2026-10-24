@@ -118,7 +118,11 @@ fun MainScreen(viewModel: MainViewModel) {
         KeysScreen(
             keys = effectiveKeyRow(state.workspace.customKeys),
             keyRowVisible = state.workspace.settings.keyRowVisible,
+            keyRows = state.workspace.settings.keyRows,
+            keyCols = state.workspace.settings.keyCols,
             onKeyRowVisibleChange = viewModel::setKeyRowVisible,
+            onKeyRowsChange = viewModel::setKeyRows,
+            onKeyColsChange = viewModel::setKeyCols,
             onKeysChange = viewModel::setCustomKeys,
             onResetKeys = viewModel::resetKeysToDefaults,
             onOpenKeyBuilder = { viewModel.setShowKeyBuilder(true) },

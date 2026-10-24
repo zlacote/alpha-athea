@@ -83,6 +83,11 @@
     <string name="keys_add">Add</string>
     <string name="keys_send_now">Send now</string>
     <string name="keys_list_title">Buttons</string>
+    <string name="keys_grid">Grid</string>
+    <string name="keys_rows">Rows</string>
+    <string name="keys_cols">Columns</string>
+    <string name="keys_edit_hint">Tap to rename, double-tap to remove, hold to drag</string>
+    <string name="keys_remove">Remove</string>
     <string name="settings_keys_section">Keys</string>
     <string name="settings_keys_add">Add key</string>
     <string name="settings_keys_reset">Reset to defaults</string>
