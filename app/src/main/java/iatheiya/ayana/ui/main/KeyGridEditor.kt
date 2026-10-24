@@ -1,5 +1,6 @@
 package iatheiya.ayana.ui.main
 
+import androidx.compose.animation.core.animateOffsetAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
@@ -8,6 +9,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -50,8 +52,8 @@ import kotlin.math.roundToInt
 /**
  * The key grid as an editable preview: it lays the keys out exactly as the live row
  * shows them (column-major, [rows] per column) and scrolls horizontally. Hold a key
- * and drag to reorder it; tap to rename; double-tap to arm a red cross, then tap the
- * cross to remove.
+ * and drag to reorder it — the other keys slide to make room — tap to rename, and
+ * double-tap to arm a red cross, then tap the cross to remove.
  */
 @Composable
 fun KeyGridEditor(
@@ -69,6 +71,7 @@ fun KeyGridEditor(
 
     var draggedIndex by remember { mutableStateOf<Int?>(null) }
     var dragOffset by remember { mutableStateOf(Offset.Zero) }
+    var targetIndex by remember { mutableStateOf<Int?>(null) }
     var armedDelete by remember { mutableStateOf<Int?>(null) }
 
     val sep = Ui.keySeparatorWidth
@@ -86,9 +89,11 @@ fun KeyGridEditor(
         val pitchXpx = with(density) { (cellW + sep).toPx() }
         val pitchYpx = with(density) { cellH.toPx() }
 
-        // Column-major, exactly as the live row fills.
+        // The pixel position of slot [k] in the column-major grid.
+        fun slotOffset(k: Int) = Offset((k / rowCount) * pitchXpx, (k % rowCount) * pitchYpx)
+
         val columns = keys.chunked(rowCount)
-        androidx.compose.foundation.layout.Row(Modifier.horizontalScroll(rememberScrollState())) {
+        Row(Modifier.horizontalScroll(rememberScrollState())) {
             columns.forEachIndexed { columnIndex, columnKeys ->
                 if (columnIndex > 0) Spacer(Modifier.width(sep))
                 Column(Modifier.width(cellW)) {
@@ -102,10 +107,19 @@ fun KeyGridEditor(
                                 .padding(2.dp),
                         ) {
                             if (key != null) {
+                                val dragging = draggedIndex == index
+                                // Non-dragged keys slide to the slot they take while the drag is live.
+                                val slide = if (draggedIndex != null && targetIndex != null && !dragging) {
+                                    val display = displayPosition(index, draggedIndex!!, targetIndex!!)
+                                    slotOffset(display) - slotOffset(index)
+                                } else {
+                                    Offset.Zero
+                                }
+                                val animatedSlide by animateOffsetAsState(slide, label = "slot")
                                 EditableKeyCell(
                                     key = key,
-                                    dragging = draggedIndex == index,
-                                    dragOffset = if (draggedIndex == index) dragOffset else Offset.Zero,
+                                    dragging = dragging,
+                                    translation = if (dragging) dragOffset else animatedSlide,
                                     armed = armedDelete == index,
                                     onTap = {
                                         if (armedDelete == index) armedDelete = null else onRename(index)
@@ -121,17 +135,21 @@ fun KeyGridEditor(
                                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                         draggedIndex = index
                                         dragOffset = Offset.Zero
+                                        targetIndex = index
                                         armedDelete = null
                                     },
-                                    onDrag = { delta -> dragOffset += delta },
+                                    onDrag = { delta ->
+                                        dragOffset += delta
+                                        targetIndex = targetFor(index, dragOffset, pitchXpx, pitchYpx, rowCount, keys.size)
+                                    },
                                     onDragEnd = {
-                                        draggedIndex?.let { from ->
-                                            val target = targetIndex(
-                                                from, dragOffset, pitchXpx, pitchYpx, rowCount, keys.size,
-                                            )
-                                            if (target != from) onKeysChange(moveItem(keys, from, target))
+                                        val from = draggedIndex
+                                        val to = targetIndex
+                                        if (from != null && to != null && to != from) {
+                                            onKeysChange(moveItem(keys, from, to))
                                         }
                                         draggedIndex = null
+                                        targetIndex = null
                                         dragOffset = Offset.Zero
                                     },
                                 )
@@ -145,7 +163,7 @@ fun KeyGridEditor(
 }
 
 /** Where a key dragged from [from] by [offset] lands, in the column-major grid. */
-private fun targetIndex(
+private fun targetFor(
     from: Int,
     offset: Offset,
     pitchX: Float,
@@ -162,6 +180,12 @@ private fun targetIndex(
     return (newColumn * rows + newRow).coerceIn(0, size - 1)
 }
 
+/** The display slot a key at [index] takes while [from] is being dragged to [to]. */
+private fun displayPosition(index: Int, from: Int, to: Int): Int {
+    val withoutDragged = if (index < from) index else index - 1
+    return if (withoutDragged >= to) withoutDragged + 1 else withoutDragged
+}
+
 private fun <T> moveItem(list: List<T>, from: Int, to: Int): List<T> {
     val mutable = list.toMutableList()
     val item = mutable.removeAt(from)
@@ -173,7 +197,7 @@ private fun <T> moveItem(list: List<T>, from: Int, to: Int): List<T> {
 private fun EditableKeyCell(
     key: CustomKey,
     dragging: Boolean,
-    dragOffset: Offset,
+    translation: Offset,
     armed: Boolean,
     onTap: () -> Unit,
     onDoubleTap: () -> Unit,
@@ -187,8 +211,8 @@ private fun EditableKeyCell(
             .fillMaxSize()
             .zIndex(if (dragging) 1f else 0f)
             .graphicsLayer {
-                translationX = dragOffset.x
-                translationY = dragOffset.y
+                translationX = translation.x
+                translationY = translation.y
                 val s = if (dragging) 1.06f else 1f
                 scaleX = s
                 scaleY = s

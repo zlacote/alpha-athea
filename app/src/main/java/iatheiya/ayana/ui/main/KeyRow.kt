@@ -43,8 +43,11 @@ enum class KeyActionKind {
     /** Bytes sent straight to the terminal, bypassing the editor entirely. */
     SEND_TO_TERMINAL,
 
-    /** Arms the sticky modifier for the next combinable key. */
+    /** Arms the sticky Ctrl modifier for the next combinable key. */
     TOGGLE_STICKY_CTRL,
+
+    /** Arms the sticky Alt modifier (ESC prefix) for the next key. */
+    TOGGLE_STICKY_ALT,
 }
 
 /**
@@ -76,6 +79,7 @@ data class TerminalKey(
 
 object DefaultKeys {
     val CTRL = TerminalKey("CTRL", KeyActionKind.TOGGLE_STICKY_CTRL)
+    val ALT = TerminalKey("ALT", KeyActionKind.TOGGLE_STICKY_ALT)
     val ESC = TerminalKey("ESC", KeyActionKind.SEND_TO_TERMINAL, "\u001B")
     val TAB = TerminalKey("TAB", KeyActionKind.SEND_TO_TERMINAL, "\t")
     val UP = TerminalKey("↑", KeyActionKind.SEND_TO_TERMINAL, CursorKey.UP.sequence)
@@ -85,10 +89,10 @@ object DefaultKeys {
     val SLASH = TerminalKey("/", KeyActionKind.INSERT_INTO_DRAFT, "/")
     val PIPE = TerminalKey("|", KeyActionKind.INSERT_INTO_DRAFT, "|")
     val DASH = TerminalKey("-", KeyActionKind.INSERT_INTO_DRAFT, "-")
-    val KILL = TerminalKey("^C", KeyActionKind.SEND_TO_TERMINAL, "\u0003")
-    val CLEAR = TerminalKey("^L", KeyActionKind.SEND_TO_TERMINAL, FORM_FEED)
 
-    val row = listOf(CTRL, ESC, TAB, UP, DOWN, LEFT, RIGHT, SLASH, PIPE, DASH, KILL, CLEAR)
+    // Ctrl and Alt are modifiers, not dedicated ^C/^L caps: hold Ctrl (or Alt), then
+    // the next key — from the row or the keyboard — combines (e.g. Ctrl then c = ^C).
+    val row = listOf(CTRL, ALT, ESC, TAB, UP, DOWN, LEFT, RIGHT, SLASH, PIPE, DASH)
 }
 
 /** The key row as the user sees it: their stored keys, or the built-in row until they change it. */
@@ -101,6 +105,7 @@ fun CustomKey.toTerminalKey(): TerminalKey = TerminalKey(
         KeyKind.INSERT -> KeyActionKind.INSERT_INTO_DRAFT
         KeyKind.SEND -> KeyActionKind.SEND_TO_TERMINAL
         KeyKind.CTRL -> KeyActionKind.TOGGLE_STICKY_CTRL
+        KeyKind.ALT -> KeyActionKind.TOGGLE_STICKY_ALT
     },
     payload = payload,
 )
@@ -119,6 +124,7 @@ private fun TerminalKey.toCustomKey(): CustomKey = CustomKey(
 fun KeyRow(
     keys: List<TerminalKey>,
     stickyCtrl: Boolean,
+    stickyAlt: Boolean,
     suggestionActive: Boolean,
     onInsert: (String) -> Unit,
     onSendBytes: (String) -> Unit,
@@ -126,6 +132,8 @@ fun KeyRow(
     onAcceptSuggestion: () -> Unit,
     onToggleStickyCtrl: () -> Unit,
     onConsumeStickyCtrl: () -> Unit,
+    onToggleStickyAlt: () -> Unit,
+    onConsumeStickyAlt: () -> Unit,
     modifier: Modifier = Modifier,
     rows: Int = 1,
     cols: Int = Ui.keyVisibleCount,
@@ -157,7 +165,8 @@ fun KeyRow(
                 )
             },
             cell = { key ->
-                val selected = key.kind == KeyActionKind.TOGGLE_STICKY_CTRL && stickyCtrl
+                val selected = (key.kind == KeyActionKind.TOGGLE_STICKY_CTRL && stickyCtrl) ||
+                    (key.kind == KeyActionKind.TOGGLE_STICKY_ALT && stickyAlt)
                 KeyCell(key = key, selected = selected) {
                     when (key.kind) {
                         KeyActionKind.INSERT_INTO_DRAFT -> onInsert(key.payload)
@@ -172,18 +181,23 @@ fun KeyRow(
                                 onCursor(cursor)
                                 return@KeyCell
                             }
+                            // Ctrl folds a letter to its control char; Alt prefixes ESC. Both
+                            // modifiers are consumed once they have combined with this key.
                             val ch = key.payload.singleOrNull()
                             val combinable = ch?.isCtrlCombinable() == true
-                            if (stickyCtrl && combinable && ch != null) {
-                                val control = ch.toControlChar()
-                                onSendBytes(control.toString())
-                                onConsumeStickyCtrl()
+                            val base = if (stickyCtrl && combinable && ch != null) {
+                                ch.toControlChar().toString()
                             } else {
-                                onSendBytes(key.payload)
+                                key.payload
                             }
+                            onSendBytes(if (stickyAlt) "\u001B" + base else base)
+                            if (stickyCtrl && combinable && ch != null) onConsumeStickyCtrl()
+                            if (stickyAlt) onConsumeStickyAlt()
                         }
 
                         KeyActionKind.TOGGLE_STICKY_CTRL -> onToggleStickyCtrl()
+
+                        KeyActionKind.TOGGLE_STICKY_ALT -> onToggleStickyAlt()
                     }
                 }
             },

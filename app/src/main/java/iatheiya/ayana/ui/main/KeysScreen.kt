@@ -84,7 +84,7 @@ fun KeysScreen(
                 .then(locked)
                 .verticalScroll(rememberScrollState()),
         ) {
-            SettingsSection(title = stringResource(R.string.keys_grid)) {
+            SettingsCard {
                 SliderRow(
                     title = stringResource(R.string.keys_rows),
                     value = keyRows,

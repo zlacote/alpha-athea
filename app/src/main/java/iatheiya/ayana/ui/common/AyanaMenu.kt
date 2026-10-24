@@ -19,6 +19,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -141,16 +143,14 @@ fun AyanaDropdownMenu(
                 transformOrigin = androidx.compose.ui.graphics.TransformOrigin(1f, 0f),
             ) + androidx.compose.animation.fadeOut(),
         ) {
-            // The same chrome material as the buttons: liquid glass when glass is
-            // on, the one solid tone when it is off. The card itself stays
-            // transparent so [liquidGlass] paints the surface; the shadow keeps it
-            // lifted off the content behind it.
-            androidx.compose.material3.Surface(
-                shape = Ui.menuShape,
-                color = androidx.compose.ui.graphics.Color.Transparent,
-                contentColor = MaterialTheme.colorScheme.onSurface,
-                shadowElevation = Ui.menuElevation,
-                modifier = Modifier
+            // The same chrome material as the buttons: liquid glass when glass is on,
+            // the one solid tone when it is off. Drawn straight onto a clipped Box (no
+            // wrapping Surface, which left a square under the rounded corners), with a
+            // shadow to lift it off the content behind.
+            androidx.compose.foundation.layout.Box(
+                Modifier
+                    .shadow(Ui.menuElevation, Ui.menuShape)
+                    .clip(Ui.menuShape)
                     .widthIn(min = Ui.menuMinWidth)
                     .liquidGlass(LocalLiquidBackdrop.current, Ui.menuShape, Ui.menuRadius, strong = true),
             ) {

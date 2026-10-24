@@ -18,6 +18,8 @@ import iatheiya.ayana.session.CommandRecall
 import iatheiya.ayana.session.EngineFactory
 import iatheiya.ayana.session.Workspace
 import iatheiya.ayana.session.WorkspaceEvent
+import iatheiya.ayana.util.isCtrlCombinable
+import iatheiya.ayana.util.toControlChar
 import iatheiya.ayana.session.WorkspaceState
 import iatheiya.ayana.ui.main.CursorKey
 import iatheiya.ayana.ui.main.FORM_FEED
@@ -44,6 +46,7 @@ data class UiState(
     val workspace: WorkspaceState = WorkspaceState(),
     val editorExpanded: Boolean = false,
     val stickyCtrl: Boolean = false,
+    val stickyAlt: Boolean = false,
     /** Selection in the composer; null means a caret at the end of the draft. */
     val composerSelection: TextRange? = null,
     val showSettings: Boolean = false,
@@ -235,6 +238,46 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun toggleStickyCtrl() = _state.update { it.copy(stickyCtrl = !it.stickyCtrl) }
 
     fun consumeStickyCtrl() = _state.update { it.copy(stickyCtrl = false) }
+
+    fun toggleStickyAlt() = _state.update { it.copy(stickyAlt = !it.stickyAlt) }
+
+    fun consumeStickyAlt() = _state.update { it.copy(stickyAlt = false) }
+
+    /**
+     * The composer's text changed. With Ctrl or Alt armed, a single new character is
+     * taken as a modifier combination and sent to the terminal instead of entering the
+     * draft: Ctrl folds a letter to its control char, Alt prefixes ESC. Otherwise the
+     * change is an ordinary draft edit.
+     */
+    fun onComposerTextChange(new: String) {
+        val st = _state.value
+        val old = currentDraft()
+        if ((st.stickyCtrl || st.stickyAlt) && new.length == old.length + 1) {
+            val at = old.commonPrefixWith(new).length
+            val ch = new[at]
+            val combinable = ch.isCtrlCombinable()
+            val bytes = when {
+                st.stickyCtrl && combinable -> {
+                    val control = ch.toControlChar().toString()
+                    if (st.stickyAlt) "\u001B" + control else control
+                }
+                st.stickyAlt -> "\u001B" + ch
+                else -> null
+            }
+            if (bytes != null) {
+                sendDirectText(bytes)
+                if (st.stickyCtrl && combinable) consumeStickyCtrl()
+                if (st.stickyAlt) consumeStickyAlt()
+                return
+            }
+        }
+        updateDraft(new)
+    }
+
+    private fun currentDraft(): String {
+        val ws = _state.value.workspace
+        return ws.sessions.firstOrNull { it.id == ws.currentSessionId }?.draft.orEmpty()
+    }
 
     // ------------------------------------------------------------ attachments
 

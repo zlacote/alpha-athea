@@ -40,12 +40,12 @@ import iatheiya.ayana.util.toControlChar
 
 /** What a key of the builder does when pressed. */
 private sealed interface BuilderAction {
-    /** Types [raw]; with CTRL armed, a single letter becomes its control character. */
+    /** Types [raw]; with CTRL armed a letter becomes its control char, with ALT it gets an ESC prefix. */
     data class Type(val raw: String) : BuilderAction
 
     data object Ctrl : BuilderAction
 
-    data object Backspace : BuilderAction
+    data object Alt : BuilderAction
 }
 
 /** One key cap. [weight] is its width in units of a row of [GRID_UNITS]. */
@@ -80,8 +80,8 @@ private val BUILDER_ROWS: List<List<BuilderKey>> = listOf(
     chars("1234567890"),
     chars("qwertyuiop"),
     chars("asdfghjkl"),
-    listOf(BuilderKey("CTRL", BuilderAction.Ctrl)) + chars("zxcvbnm") +
-        listOf(BuilderKey("⌫", BuilderAction.Backspace)),
+    listOf(BuilderKey("CTRL", BuilderAction.Ctrl), BuilderKey("ALT", BuilderAction.Alt)) +
+        chars("zxcvbnm") + listOf(typed("⌫", "\u007F")),
     chars("-=[]\\;:'\"/"),
     chars("`~|\$&*()!?"),
     chars("@#%^+_{}<>"),
@@ -110,18 +110,25 @@ fun KeyBuilderScreen(
 ) {
     var buffer by remember { mutableStateOf("") }
     var ctrlArmed by remember { mutableStateOf(false) }
+    var altArmed by remember { mutableStateOf(false) }
 
     fun press(action: BuilderAction) {
         when (action) {
             BuilderAction.Ctrl -> ctrlArmed = !ctrlArmed
-            BuilderAction.Backspace -> buffer = buffer.dropLast(1)
+            BuilderAction.Alt -> altArmed = !altArmed
             is BuilderAction.Type -> {
                 val raw = action.raw
-                buffer += if (ctrlArmed && raw.length == 1 && raw[0].isCtrlCombinable()) {
+                val core = if (ctrlArmed && raw.length == 1 && raw[0].isCtrlCombinable()) {
                     ctrlArmed = false
                     raw[0].toControlChar().toString()
                 } else {
                     raw
+                }
+                buffer += if (altArmed) {
+                    altArmed = false
+                    "\u001B" + core
+                } else {
+                    core
                 }
             }
         }
@@ -149,7 +156,7 @@ fun KeyBuilderScreen(
                     } else {
                         MaterialTheme.colorScheme.onSurface
                     },
-                    maxLines = 1,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f),
                 )
@@ -162,6 +169,7 @@ fun KeyBuilderScreen(
                 KeyLine(
                     keys = keys,
                     ctrlArmed = ctrlArmed,
+                    altArmed = altArmed,
                     onPress = { press(it) },
                 )
             }
@@ -189,6 +197,7 @@ fun KeyBuilderScreen(
 private fun KeyLine(
     keys: List<BuilderKey>,
     ctrlArmed: Boolean,
+    altArmed: Boolean,
     onPress: (BuilderAction) -> Unit,
 ) {
     val used = keys.fold(0f) { sum, key -> sum + key.weight }
@@ -202,7 +211,8 @@ private fun KeyLine(
         keys.forEach { key ->
             KeyCap(
                 key = key,
-                selected = key.action == BuilderAction.Ctrl && ctrlArmed,
+                selected = (key.action == BuilderAction.Ctrl && ctrlArmed) ||
+                    (key.action == BuilderAction.Alt && altArmed),
                 onClick = { onPress(key.action) },
             )
         }
@@ -226,8 +236,8 @@ private fun RowScope.KeyCap(
         },
         modifier = Modifier
             .weight(key.weight)
-            .padding(horizontal = 2.dp)
-            .height(44.dp),
+            .padding(horizontal = 3.dp, vertical = 2.dp)
+            .height(48.dp),
     ) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Text(
@@ -254,3 +264,4 @@ private fun visible(text: String): String = text
     .replace("\u001B", "␛")
     .replace("\t", "⇥")
     .replace("\r", "⏎")
+    .replace("\u007F", "⌫")

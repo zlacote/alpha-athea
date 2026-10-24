@@ -91,12 +91,13 @@ fun TopBar(
         AyanaScrim(menu.expanded, menu::close)
 
         // Menu panel: inline (not Popup) so it exactly covers the pill — Popup has own window + 8dp offset.
-        // Above the scrim, so its items stay tappable while the scrim is live.
+        // Anchored at the pill's own top so it opens OVER the pill (covering the +/⋮ buttons),
+        // not below it. Above the scrim, so its items stay tappable while the scrim is live.
         Box(
             Modifier
                 .align(Alignment.TopEnd)
                 .statusBarsPadding()
-                .padding(top = Ui.menuTopOffset, end = Ui.topBarHorizontalPadding),
+                .padding(top = Ui.topBarTopPadding, end = Ui.topBarHorizontalPadding),
         ) {
             AyanaMenuHost(menu, isPopup = false) {
                 if (hasMessages) {

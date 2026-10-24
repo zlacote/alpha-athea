@@ -39,33 +39,6 @@ import iatheiya.ayana.data.CustomKey
 import iatheiya.ayana.data.KeyKind
 import iatheiya.ayana.ui.common.AyanaDialogContainer
 
-/** A titled group of rows, drawn as one rounded card. */
-@Composable
-internal fun SettingsSection(
-    title: String,
-    content: @Composable ColumnScope.() -> Unit,
-) {
-    Column(
-        Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-    ) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.titleSmall,
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.padding(start = 4.dp, bottom = 8.dp),
-        )
-        Surface(
-            shape = RoundedCornerShape(20.dp),
-            color = MaterialTheme.colorScheme.surfaceContainer,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Column(Modifier.padding(vertical = 6.dp), content = content)
-        }
-    }
-}
-
 /** A card of its own, without a title: one entry or switch group drawn as one rounded block. */
 @Composable
 internal fun SettingsCard(content: @Composable ColumnScope.() -> Unit) {
@@ -205,12 +178,16 @@ internal fun SettingsEntryRow(
     }
 }
 
-/** The hairline between two entries in the same group, inset past the icon. */
+/**
+ * The split between two entries in the same group: a full-width band of the page
+ * background, so the card reads as cut through to what is behind it rather than
+ * drawn with a line.
+ */
 @Composable
 internal fun SettingsDivider() {
     HorizontalDivider(
-        modifier = Modifier.padding(start = 56.dp),
-        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
+        thickness = 2.dp,
+        color = MaterialTheme.colorScheme.background,
     )
 }
 

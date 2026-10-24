@@ -186,7 +186,7 @@ private fun DraftPanel(
                     onTextLayout = { lineCount = it.lineCount },
                     keyboardOptions = KeyboardOptions(
                         capitalization = KeyboardCapitalization.None,
-                        keyboardType = KeyboardType.Ascii,
+                        keyboardType = KeyboardType.Text,
                         // None keeps the IME newline key: multi-line drafts stay possible.
                         imeAction = if (enterSends) ImeAction.Send else ImeAction.None,
                     ),
@@ -336,7 +336,7 @@ private fun SearchPanel(
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(
                         capitalization = KeyboardCapitalization.None,
-                        keyboardType = KeyboardType.Ascii,
+                        keyboardType = KeyboardType.Text,
                         imeAction = ImeAction.Search,
                     ),
                     keyboardActions = KeyboardActions(onSearch = { onNext() }),

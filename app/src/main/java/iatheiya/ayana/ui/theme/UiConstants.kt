@@ -35,7 +35,6 @@ object Ui {
     val topBarContentTop = 62.dp
 
     /** Top of the menu under the top-right pill: the pill's bottom edge plus a gap. */
-    val menuTopOffset = topBarTopPadding + topButtonSize + 8.dp
 
     // ---- Composer ---------------------------------------------------------
     val composerButtonSize = 38.dp

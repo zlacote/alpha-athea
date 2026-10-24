@@ -150,9 +150,13 @@ half4 main(float2 xy) {
     float2 n = outwardNormal(p, halfSize, r);
 
     float depth = clamp(-sdf / bezelWidth, 0.0, 1.0);
-    float shift = bend * circleMap(1.0 - depth);
+    float edge = circleMap(1.0 - depth);
+    float shift = bend * edge;
 
-    float spread = shift * chroma * 0.2;
+    // The chromatic fringe splits the channels along the normal near the rim. It is
+    // scaled to real pixels and keyed to the edge, not to the bend, so it stays visible
+    // even with little or no bend. 14px at full strength reads clearly at the rim.
+    float spread = chroma * edge * 14.0;
     half rChannel = content.eval(xy - n * (shift + spread)).r;
     half gChannel = content.eval(xy - n * shift).g;
     half bChannel = content.eval(xy - n * (shift - spread)).b;

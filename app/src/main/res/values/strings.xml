@@ -83,7 +83,6 @@
     <string name="keys_add">Add</string>
     <string name="keys_send_now">Send now</string>
     <string name="keys_list_title">Buttons</string>
-    <string name="keys_grid">Grid</string>
     <string name="keys_rows">Rows</string>
     <string name="keys_cols">Columns</string>
     <string name="keys_edit_hint">Tap to rename, double-tap to remove, hold to drag</string>
@@ -134,6 +133,8 @@
     <string name="glass_section">Glass</string>
     <string name="glass_open">Glass tuning</string>
     <string name="glass_tuning_title">Glass</string>
+    <string name="glass_toggle">Glass</string>
+    <string name="glass_toggle_desc">Frosted, refracting surfaces</string>
     <string name="glass_blur">Blur radius</string>
     <string name="glass_bezel">Bezel width</string>
     <string name="glass_bend">Bend</string>

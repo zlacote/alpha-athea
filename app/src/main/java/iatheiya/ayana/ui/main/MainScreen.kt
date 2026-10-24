@@ -433,7 +433,7 @@ private fun MainScreenBody(viewModel: MainViewModel, state: UiState, composerBac
     if (state.editorExpanded && current != null) {
         EditorOverlay(
             draft = current.draft,
-            onDraftChange = viewModel::updateDraft,
+            onDraftChange = viewModel::onComposerTextChange,
             onSend = viewModel::sendFromExpandedEditor,
             onClose = { viewModel.setEditorExpanded(false) },
         )
@@ -490,7 +490,7 @@ private fun BottomBar(
         InputBar(
             draft = draft,
             suggestion = suggestion,
-            onDraftChange = viewModel::updateDraft,
+            onDraftChange = viewModel::onComposerTextChange,
             onSend = viewModel::sendDraft,
             onExpandEditor = { viewModel.setEditorExpanded(true) },
             onAddClick = { viewModel.setShowAttachChooser(true) },
@@ -510,6 +510,7 @@ private fun BottomBar(
             KeyRow(
                 keys = keys,
                 stickyCtrl = state.stickyCtrl,
+                stickyAlt = state.stickyAlt,
                 suggestionActive = suggestion != null,
                 onInsert = viewModel::insertIntoDraft,
                 onSendBytes = viewModel::sendDirectText,
@@ -517,6 +518,8 @@ private fun BottomBar(
                 onAcceptSuggestion = viewModel::acceptSuggestion,
                 onToggleStickyCtrl = viewModel::toggleStickyCtrl,
                 onConsumeStickyCtrl = viewModel::consumeStickyCtrl,
+                onToggleStickyAlt = viewModel::toggleStickyAlt,
+                onConsumeStickyAlt = viewModel::consumeStickyAlt,
                 modifier = Modifier.navigationBarsPadding(),
                 rows = state.workspace.settings.keyRows,
                 cols = state.workspace.settings.keyCols,
