@@ -28,7 +28,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import iatheiya.ayana.data.CustomKey
 import iatheiya.ayana.data.KeyKind
-import iatheiya.ayana.ui.common.EqualCellStrip
+import iatheiya.ayana.ui.common.EqualCellGrid
 import iatheiya.ayana.ui.common.pressWash
 import iatheiya.ayana.ui.liquid.LocalLiquidBackdrop
 import iatheiya.ayana.ui.liquid.liquidGlass
@@ -127,10 +127,12 @@ fun KeyRow(
     onToggleStickyCtrl: () -> Unit,
     onConsumeStickyCtrl: () -> Unit,
     modifier: Modifier = Modifier,
+    rows: Int = 1,
+    cols: Int = Ui.keyVisibleCount,
 ) {
     // Fixed bar with thin equal-width cells — not floating chips. The cell
-    // width is owned by EqualCellStrip, so KeyRow carries no viewport logic
-    // itself. One strip, one scroll state, one place to reason about.
+    // width is owned by EqualCellGrid, so KeyRow carries no viewport logic
+    // itself. One grid, one scroll state, one place to reason about.
     Surface(
         color = Color.Transparent,
         contentColor = MaterialTheme.colorScheme.onSurface,
@@ -138,12 +140,12 @@ fun KeyRow(
             .fillMaxWidth()
             .liquidGlass(LocalLiquidBackdrop.current, RectangleShape, 0.dp, lit = false, flat = true),
     ) {
-        EqualCellStrip(
+        EqualCellGrid(
             items = keys,
-            visibleCount = Ui.keyVisibleCount,
+            rows = rows,
+            columnsVisible = cols,
             cellHeight = Ui.keyMinHeight,
             separatorWidth = Ui.keySeparatorWidth,
-            separatorHeight = Ui.keySeparatorHeight,
             contentPaddingH = Ui.keyRowPaddingH,
             contentPaddingV = Ui.keyRowPaddingV,
             modifier = Modifier.fillMaxWidth(),
@@ -190,7 +192,7 @@ fun KeyRow(
 }
 
 /**
- * One off-canvas key cell (rendered inside [EqualCellStrip]): autoshrinks to
+ * One off-canvas key cell (rendered inside [EqualCellGrid]): autoshrinks to
  * fit 4-5 chars on a line, never wraps.
  */
 @Composable

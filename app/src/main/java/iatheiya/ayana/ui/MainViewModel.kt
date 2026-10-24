@@ -339,6 +339,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun setKeyRowVisible(visible: Boolean) = workspace.updateSettings { it.copy(keyRowVisible = visible) }
 
+    fun setKeyRows(rows: Int) = workspace.updateSettings { it.copy(keyRows = rows.coerceIn(1, 4)) }
+
+    fun setKeyCols(cols: Int) = workspace.updateSettings { it.copy(keyCols = cols.coerceIn(3, 10)) }
+
     fun setAttachSendsNow(value: Boolean) = workspace.updateSettings { it.copy(attachSendsNow = value) }
 
     fun setFavoriteReturnsHome(value: Boolean) =

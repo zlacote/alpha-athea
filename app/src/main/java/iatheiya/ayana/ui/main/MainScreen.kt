@@ -514,6 +514,8 @@ private fun BottomBar(
                 onToggleStickyCtrl = viewModel::toggleStickyCtrl,
                 onConsumeStickyCtrl = viewModel::consumeStickyCtrl,
                 modifier = Modifier.navigationBarsPadding(),
+                rows = state.workspace.settings.keyRows,
+                cols = state.workspace.settings.keyCols,
             )
         }
     }

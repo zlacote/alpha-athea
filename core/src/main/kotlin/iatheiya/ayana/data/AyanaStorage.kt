@@ -42,9 +42,17 @@ internal data class FavoritesIndex(
 )
 
 /** User-facing application preferences. */
+/** Default rows and columns of the key grid above the composer. */
+const val DEFAULT_KEY_ROWS = 2
+const val DEFAULT_KEY_COLS = 7
+
 @Serializable
 data class AyanaSettings(
     val keyRowVisible: Boolean = true,
+    /** Rows of the key grid shown above the composer. */
+    val keyRows: Int = DEFAULT_KEY_ROWS,
+    /** Columns of the key grid visible before it scrolls. */
+    val keyCols: Int = DEFAULT_KEY_COLS,
     val enterSends: Boolean = true,
     val autoScrollOnSend: Boolean = true,
     val rawStream: Boolean = false,

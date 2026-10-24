@@ -3,6 +3,7 @@ package iatheiya.ayana.ui.common
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -16,24 +17,26 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 /**
- * A horizontal strip of equal-width cells with thin separators.
+ * A horizontally scrolling grid of equal-width cells with thin separators between
+ * columns.
  *
- * The one "one-shape" place for equal-cell strips (the key row today):
- * the cell width is derived from the measured viewport, so exactly
- * [visibleCount] cells fill it and extra cells scroll.
+ * The one "one-shape" place for the key grid: the cell width is derived from the
+ * measured viewport, so exactly [columnsVisible] columns fill it and extra columns
+ * scroll. Cells fill column-major — each column holds [rows] items top to bottom —
+ * so adding keys grows the grid to the right. With [rows] = 1 it is a plain strip.
  *
- * The viewport division is guarded: while the viewport is unknown or
- * unbounded (first layout pass, Infinity constraint) the strip degrades
- * to zero-width cells instead of propagating Infinity into the scroll
- * state — that is what made the old unguarded variant hang.
+ * The viewport division is guarded: while the viewport is unknown or unbounded
+ * (first layout pass, Infinity constraint) the grid degrades to zero-width cells
+ * instead of propagating Infinity into the scroll state — that is what made the old
+ * unguarded variant hang.
  */
 @Composable
-fun <T> EqualCellStrip(
+fun <T> EqualCellGrid(
     items: List<T>,
-    visibleCount: Int,
+    rows: Int,
+    columnsVisible: Int,
     cellHeight: Dp,
     separatorWidth: Dp,
-    separatorHeight: Dp,
     contentPaddingH: Dp,
     contentPaddingV: Dp,
     modifier: Modifier = Modifier,
@@ -41,6 +44,8 @@ fun <T> EqualCellStrip(
     cell: @Composable (T) -> Unit,
 ) {
     val scrollState = rememberScrollState()
+    val rowCount = rows.coerceAtLeast(1)
+    val cols = columnsVisible.coerceAtLeast(1)
     BoxWithConstraints(modifier.fillMaxWidth()) {
         // maxWidth.value is a plain Float member, and Float.isFinite() is a
         // stdlib function. Compose's Dp.isFinite is a top-level extension
@@ -48,8 +53,10 @@ fun <T> EqualCellStrip(
         // nothing and says exactly what is being checked.
         val width = maxWidth.value
         val viewport = if (width.isFinite() && width > 0f) maxWidth else 0.dp
-        val fixed = contentPaddingH * 2 + separatorWidth * (visibleCount - 1).coerceAtLeast(0)
-        val cellWidth = if (visibleCount <= 0 || viewport <= fixed) 0.dp else (viewport - fixed) / visibleCount
+        val fixed = contentPaddingH * 2 + separatorWidth * (cols - 1).coerceAtLeast(0)
+        val cellWidth = if (viewport <= fixed) 0.dp else (viewport - fixed) / cols
+        // Column-major: each column is a stack of [rowCount] cells.
+        val columns = items.chunked(rowCount)
         Row(
             Modifier
                 .fillMaxWidth()
@@ -57,26 +64,30 @@ fun <T> EqualCellStrip(
                 .padding(horizontal = contentPaddingH, vertical = contentPaddingV),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            items.forEachIndexed { index, item ->
-                if (index > 0) {
-                    // The strip owns separator geometry so callers only
-                    // describe the separator's appearance.
+            columns.forEachIndexed { columnIndex, columnItems ->
+                if (columnIndex > 0) {
+                    // The grid owns separator geometry so callers only describe its
+                    // appearance; it spans the full height of the column.
                     Box(
                         Modifier
                             .width(separatorWidth)
-                            .height(separatorHeight),
+                            .height(cellHeight * rowCount),
                         contentAlignment = Alignment.Center,
                     ) {
                         separator()
                     }
                 }
-                Box(
-                    Modifier
-                        .width(cellWidth)
-                        .height(cellHeight),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    cell(item)
+                Column(Modifier.width(cellWidth)) {
+                    for (rowIndex in 0 until rowCount) {
+                        Box(
+                            Modifier
+                                .width(cellWidth)
+                                .height(cellHeight),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            columnItems.getOrNull(rowIndex)?.let { cell(it) }
+                        }
+                    }
                 }
             }
         }
