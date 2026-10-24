@@ -12,13 +12,13 @@ composeCompiler {
 
 android {
     namespace = "iatheiya.ayana"
-    compileSdk = 36
+    compileSdk = 37
     ndkVersion = "28.2.13676358"
 
     defaultConfig {
         applicationId = "iatheiya.ayana"
         minSdk = 29
-        targetSdk = 36
+        targetSdk = 37
         versionCode = 4
         versionName = "0.4.0"
 
