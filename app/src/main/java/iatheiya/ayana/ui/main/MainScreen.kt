@@ -482,8 +482,8 @@ private fun BottomBar(
             onSearchNext = viewModel::nextSearchMatch,
             onExitSearch = viewModel::exitSearch,
             enterSends = state.workspace.settings.enterSends,
-            caret = state.composerCaret,
-            onCaretChange = viewModel::setComposerCaret,
+            selection = state.composerSelection,
+            onSelectionChange = viewModel::setComposerSelection,
             composerBackdrop = composerBackdrop,
         )
         if (state.workspace.settings.keyRowVisible && state.workspace.search == null) {

@@ -7,6 +7,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import androidx.compose.ui.text.TextRange
 import iatheiya.ayana.R
 import iatheiya.ayana.core.terminal.TerminalEngine
 import iatheiya.ayana.data.AyanaStorage
@@ -43,8 +44,8 @@ data class UiState(
     val workspace: WorkspaceState = WorkspaceState(),
     val editorExpanded: Boolean = false,
     val stickyCtrl: Boolean = false,
-    /** Caret in the composer; -1 means the end of the draft. */
-    val composerCaret: Int = -1,
+    /** Selection in the composer; null means a caret at the end of the draft. */
+    val composerSelection: TextRange? = null,
     val showSettings: Boolean = false,
     val showFavorites: Boolean = false,
     val showAttachChooser: Boolean = false,
@@ -178,12 +179,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun insertIntoDraft(text: String) {
         workspace.insertIntoDraft(text)
-        _state.update { it.copy(composerCaret = -1) }
+        _state.update { it.copy(composerSelection = null) }
     }
 
     fun acceptSuggestion() {
         workspace.acceptSuggestion()
-        _state.update { it.copy(composerCaret = -1) }
+        _state.update { it.copy(composerSelection = null) }
     }
 
     /** Raw bytes to the shell. Ctrl+L clears the screen while no command runs. */
@@ -212,21 +213,21 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun setComposerCaret(caret: Int) = _state.update { it.copy(composerCaret = caret) }
+    fun setComposerSelection(selection: TextRange) = _state.update { it.copy(composerSelection = selection) }
 
     private fun recallCommand(older: Boolean) {
         val state = _state.value.workspace
         val session = state.sessions.firstOrNull { it.id == state.currentSessionId } ?: return
         val text = recall.step(workspace.commandHistory(), session.draft.orEmpty(), older) ?: return
         workspace.updateDraft(text)
-        _state.update { it.copy(composerCaret = -1) }
+        _state.update { it.copy(composerSelection = null) }
     }
 
     private fun moveCaret(delta: Int) {
         val state = _state.value.workspace
         val draft = state.sessions.firstOrNull { it.id == state.currentSessionId }?.draft.orEmpty()
-        val caret = _state.value.composerCaret.takeIf { it >= 0 } ?: draft.length
-        _state.update { it.copy(composerCaret = (caret + delta).coerceIn(0, draft.length)) }
+        val caret = _state.value.composerSelection?.end ?: draft.length
+        _state.update { it.copy(composerSelection = TextRange((caret + delta).coerceIn(0, draft.length))) }
     }
 
     fun onTranscriptAreaResized(rows: Int, cols: Int) = workspace.onAreaResized(rows, cols)

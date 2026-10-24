@@ -79,8 +79,8 @@ fun InputBar(
     onSearchNext: () -> Unit,
     onExitSearch: () -> Unit,
     enterSends: Boolean,
-    caret: Int,
-    onCaretChange: (Int) -> Unit,
+    selection: TextRange?,
+    onSelectionChange: (TextRange) -> Unit,
     composerBackdrop: LiquidBackdrop? = null,
     modifier: Modifier = Modifier,
 ) {
@@ -93,8 +93,8 @@ fun InputBar(
             onExpandEditor = onExpandEditor,
             onAddClick = onAddClick,
             enterSends = enterSends,
-            caret = caret,
-            onCaretChange = onCaretChange,
+            selection = selection,
+            onSelectionChange = onSelectionChange,
             backdrop = composerBackdrop,
             modifier = modifier,
         )
@@ -135,8 +135,8 @@ private fun DraftPanel(
     onExpandEditor: () -> Unit,
     onAddClick: () -> Unit,
     enterSends: Boolean,
-    caret: Int,
-    onCaretChange: (Int) -> Unit,
+    selection: TextRange?,
+    onSelectionChange: (TextRange) -> Unit,
     backdrop: LiquidBackdrop?,
     modifier: Modifier = Modifier,
 ) {
@@ -159,10 +159,18 @@ private fun DraftPanel(
         Column(Modifier.padding(horizontal = 4.dp, vertical = 4.dp)) {
             Box {
                 BasicTextField(
-                    value = TextFieldValue(draft, TextRange(if (caret in 0..draft.length) caret else draft.length)),
+                    value = TextFieldValue(
+                        text = draft,
+                        selection = selection?.let {
+                            TextRange(
+                                it.start.coerceIn(0, draft.length),
+                                it.end.coerceIn(0, draft.length),
+                            )
+                        } ?: TextRange(draft.length),
+                    ),
                     onValueChange = { value ->
                         if (value.text != draft) onDraftChange(value.text)
-                        onCaretChange(value.selection.end)
+                        onSelectionChange(value.selection)
                     },
                     modifier = Modifier
                         .fillMaxWidth()
