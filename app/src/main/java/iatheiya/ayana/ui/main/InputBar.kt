@@ -8,6 +8,9 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
@@ -19,10 +22,8 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.OpenInFull
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -35,6 +36,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.res.stringResource
@@ -253,29 +255,34 @@ private fun DraftPanel(
                         }
                     }
                     val hasText = draft.isNotBlank()
-                    FilledIconButton(
+                    // No fill until a send is possible, then the accent fills in — both the
+                    // background and the icon tint cross-fade so the change is not abrupt.
+                    val sendBackground by animateColorAsState(
+                        targetValue = if (hasText) MaterialTheme.colorScheme.primary else Color.Transparent,
+                        animationSpec = tween(durationMillis = 180),
+                        label = "sendBackground",
+                    )
+                    val sendTint by animateColorAsState(
+                        targetValue = if (hasText) {
+                            MaterialTheme.colorScheme.onPrimary
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
+                        animationSpec = tween(durationMillis = 180),
+                        label = "sendTint",
+                    )
+                    IconButton(
                         onClick = onSend,
                         enabled = hasText,
-                        shape = CircleShape,
-                        colors = IconButtonDefaults.filledIconButtonColors(
-                            containerColor = if (hasText) {
-                                MaterialTheme.colorScheme.primary
-                            } else {
-                                MaterialTheme.colorScheme.surfaceContainer
-                            },
-                            contentColor = if (hasText) {
-                                MaterialTheme.colorScheme.onPrimary
-                            } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant
-                            },
-                            disabledContainerColor = MaterialTheme.colorScheme.surfaceContainer,
-                            disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                        ),
-                        modifier = Modifier.size(Ui.composerButtonSize),
+                        modifier = Modifier
+                            .size(Ui.composerButtonSize)
+                            .clip(CircleShape)
+                            .background(sendBackground),
                     ) {
                         Icon(
                             Icons.Default.ArrowUpward,
                             contentDescription = stringResource(R.string.cd_send),
+                            tint = sendTint,
                         )
                     }
                 }

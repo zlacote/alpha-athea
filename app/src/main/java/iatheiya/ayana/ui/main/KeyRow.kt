@@ -235,7 +235,9 @@ private fun KeyCell(
         Modifier
             .fillMaxSize()
             .clip(Ui.smallShape)
-            .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = armed))
+            // The armed fill is the bright accent, not the container tone: the container tone is
+            // the same grey the solid key row uses with glass off, so it would vanish there.
+            .background(MaterialTheme.colorScheme.primary.copy(alpha = armed))
             .background(pressWash(source))
             .clickable(
                 interactionSource = source,
@@ -255,7 +257,7 @@ private fun KeyCell(
                 fontSize = fontSize,
                 lineHeight = 16.sp,
             ),
-            color = if (selected) MaterialTheme.colorScheme.onPrimaryContainer
+            color = if (selected) MaterialTheme.colorScheme.onPrimary
             else MaterialTheme.colorScheme.onSurface,
             textAlign = TextAlign.Center,
             maxLines = 1,
