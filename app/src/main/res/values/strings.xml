@@ -82,6 +82,7 @@
     <string name="keys_title">Keys</string>
     <string name="keys_add">Add</string>
     <string name="keys_send_now">Send now</string>
+    <string name="keys_sticky">Sticky</string>
     <string name="keys_list_title">Buttons</string>
     <string name="keys_rows">Rows</string>
     <string name="keys_cols">Columns</string>

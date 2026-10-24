@@ -56,6 +56,7 @@ fun KeysScreen(
 ) {
     var buffer by remember { mutableStateOf("") }
     var sendNow by remember { mutableStateOf(false) }
+    var sticky by remember { mutableStateOf(false) }
     var editIndex by remember { mutableStateOf<Int?>(null) }
     val locked = if (keyRowVisible) {
         Modifier
@@ -137,13 +138,18 @@ fun KeysScreen(
                         onClick = { sendNow = !sendNow },
                         label = { Text(stringResource(R.string.keys_send_now)) },
                     )
+                    FilterChip(
+                        selected = sticky,
+                        onClick = { sticky = !sticky },
+                        label = { Text(stringResource(R.string.keys_sticky)) },
+                    )
                     Spacer(Modifier.weight(1f))
                     Button(
                         onClick = {
                             val key = if (sendNow) {
-                                CustomKey(label = visibleSequence(buffer).take(12), payload = buffer + "\r", kind = KeyKind.SEND)
+                                CustomKey(label = visibleSequence(buffer).take(12), payload = buffer + "\r", kind = KeyKind.SEND, sticky = sticky)
                             } else {
-                                CustomKey(label = visibleSequence(buffer).take(12), payload = buffer, kind = KeyKind.INSERT)
+                                CustomKey(label = visibleSequence(buffer).take(12), payload = buffer, kind = KeyKind.INSERT, sticky = sticky)
                             }
                             onKeysChange(keys + key)
                             buffer = ""

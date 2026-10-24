@@ -201,6 +201,7 @@ internal fun KeyEditorDialog(
     var label by remember { mutableStateOf(initial.label) }
     var payload by remember { mutableStateOf(initial.payload) }
     var kind by remember { mutableStateOf(initial.kind) }
+    var sticky by remember { mutableStateOf(initial.sticky) }
 
     AyanaDialogContainer(
         title = stringResource(R.string.settings_keys_edit_title),
@@ -240,6 +241,12 @@ internal fun KeyEditorDialog(
                             modifier = Modifier.padding(end = 6.dp),
                         )
                     }
+                    // A sticky key latches and prefixes the next key, like a modifier.
+                    FilterChip(
+                        selected = sticky,
+                        onClick = { sticky = !sticky },
+                        label = { Text(stringResource(R.string.keys_sticky)) },
+                    )
                 }
                 Text(
                     text = stringResource(R.string.settings_keys_esc_hint),
@@ -265,6 +272,7 @@ internal fun KeyEditorDialog(
                             label = label.trim(),
                             payload = payload,
                             kind = kind,
+                            sticky = sticky,
                         )
                     )
                 }) {

@@ -46,6 +46,8 @@ data class UiState(
     val editorExpanded: Boolean = false,
     val stickyCtrl: Boolean = false,
     val stickyAlt: Boolean = false,
+    /** Payload latched by a sticky key, to prefix the next key; null when none is armed. */
+    val stickyPrefix: String? = null,
     /** Selection in the composer; null means a caret at the end of the draft. */
     val composerSelection: TextRange? = null,
     val showSettings: Boolean = false,
@@ -241,31 +243,35 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun consumeStickyAlt() = _state.update { it.copy(stickyAlt = false) }
 
+    /** A sticky key latched [payload] as the prefix for the next key; pressing it again clears it. */
+    fun toggleStickyPrefix(payload: String) =
+        _state.update { it.copy(stickyPrefix = if (it.stickyPrefix == payload) null else payload) }
+
+    fun consumeStickyPrefix() = _state.update { it.copy(stickyPrefix = null) }
+
     /**
-     * The composer's text changed. With Ctrl or Alt armed, a single new character is
-     * taken as a modifier combination and sent to the terminal instead of entering the
-     * draft: Ctrl folds a letter to its control char, Alt prefixes ESC. Otherwise the
+     * The composer's text changed. With a modifier armed, a single new character is taken as a
+     * combination and sent to the terminal instead of entering the draft: Ctrl folds a letter to
+     * its control char, Alt prefixes ESC, and a sticky key leads with its payload. Otherwise the
      * change is an ordinary draft edit.
      */
     fun onComposerTextChange(new: String) {
         val st = _state.value
         val old = currentDraft()
-        if ((st.stickyCtrl || st.stickyAlt) && new.length == old.length + 1) {
+        val prefix = st.stickyPrefix
+        if ((st.stickyCtrl || st.stickyAlt || prefix != null) && new.length == old.length + 1) {
             val at = old.commonPrefixWith(new).length
             val ch = new[at]
             val combinable = ch.isCtrlCombinable()
-            val bytes = when {
-                st.stickyCtrl && combinable -> {
-                    val control = ch.toControlChar().toString()
-                    if (st.stickyAlt) "\u001B" + control else control
-                }
-                st.stickyAlt -> "\u001B" + ch
-                else -> null
-            }
-            if (bytes != null) {
-                sendDirectText(bytes)
-                if (st.stickyCtrl && combinable) consumeStickyCtrl()
+            val ctrlApplies = st.stickyCtrl && combinable
+            // Intercept when a modifier actually bites: Ctrl on a letter, any Alt, or a sticky prefix.
+            if (ctrlApplies || st.stickyAlt || prefix != null) {
+                val base = if (ctrlApplies) ch.toControlChar().toString() else ch.toString()
+                val withAlt = if (st.stickyAlt) "\u001B" + base else base
+                sendDirectText(if (prefix != null) prefix + withAlt else withAlt)
+                if (ctrlApplies) consumeStickyCtrl()
                 if (st.stickyAlt) consumeStickyAlt()
+                if (prefix != null) consumeStickyPrefix()
                 return
             }
         }

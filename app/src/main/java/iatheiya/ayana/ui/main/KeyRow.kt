@@ -75,6 +75,8 @@ data class TerminalKey(
     val label: String,
     val kind: KeyActionKind,
     val payload: String = "",
+    /** A sticky key latches when pressed and prefixes its payload onto the next key. */
+    val sticky: Boolean = false,
 )
 
 object DefaultKeys {
@@ -108,6 +110,7 @@ fun CustomKey.toTerminalKey(): TerminalKey = TerminalKey(
         KeyKind.ALT -> KeyActionKind.TOGGLE_STICKY_ALT
     },
     payload = payload,
+    sticky = sticky,
 )
 
 private fun TerminalKey.toCustomKey(): CustomKey = CustomKey(
@@ -126,6 +129,7 @@ fun KeyRow(
     keys: List<TerminalKey>,
     stickyCtrl: Boolean,
     stickyAlt: Boolean,
+    stickyPrefix: String?,
     suggestionActive: Boolean,
     onInsert: (String) -> Unit,
     onSendBytes: (String) -> Unit,
@@ -135,6 +139,8 @@ fun KeyRow(
     onConsumeStickyCtrl: () -> Unit,
     onToggleStickyAlt: () -> Unit,
     onConsumeStickyAlt: () -> Unit,
+    onToggleStickyPrefix: (String) -> Unit,
+    onConsumeStickyPrefix: () -> Unit,
     modifier: Modifier = Modifier,
     rows: Int = 1,
     cols: Int = Ui.keyVisibleCount,
@@ -167,10 +173,20 @@ fun KeyRow(
             },
             cell = { key ->
                 val selected = (key.kind == KeyActionKind.TOGGLE_STICKY_CTRL && stickyCtrl) ||
-                    (key.kind == KeyActionKind.TOGGLE_STICKY_ALT && stickyAlt)
+                    (key.kind == KeyActionKind.TOGGLE_STICKY_ALT && stickyAlt) ||
+                    (key.sticky && stickyPrefix == key.payload)
                 KeyCell(key = key, selected = selected) {
+                    // A sticky key does not fire itself: it latches its payload as the prefix the
+                    // next key will carry (a user-made modifier). Pressing it again unlatches.
+                    if (key.sticky) {
+                        onToggleStickyPrefix(key.payload)
+                        return@KeyCell
+                    }
                     when (key.kind) {
-                        KeyActionKind.INSERT_INTO_DRAFT -> onInsert(key.payload)
+                        KeyActionKind.INSERT_INTO_DRAFT -> {
+                            onInsert(key.payload)
+                            if (stickyPrefix != null) onConsumeStickyPrefix()
+                        }
 
                         KeyActionKind.SEND_TO_TERMINAL -> {
                             if (key == DefaultKeys.TAB && suggestionActive) {
@@ -182,8 +198,8 @@ fun KeyRow(
                                 onCursor(cursor)
                                 return@KeyCell
                             }
-                            // Ctrl folds a letter to its control char; Alt prefixes ESC. Both
-                            // modifiers are consumed once they have combined with this key.
+                            // Ctrl folds a letter to its control char; Alt prefixes ESC; a sticky
+                            // prefix leads. Each modifier is consumed once it has combined here.
                             val ch = key.payload.singleOrNull()
                             val combinable = ch?.isCtrlCombinable() == true
                             val base = if (stickyCtrl && combinable && ch != null) {
@@ -191,9 +207,11 @@ fun KeyRow(
                             } else {
                                 key.payload
                             }
-                            onSendBytes(if (stickyAlt) "\u001B" + base else base)
+                            val withAlt = if (stickyAlt) "\u001B" + base else base
+                            onSendBytes(if (stickyPrefix != null) stickyPrefix + withAlt else withAlt)
                             if (stickyCtrl && combinable && ch != null) onConsumeStickyCtrl()
                             if (stickyAlt) onConsumeStickyAlt()
+                            if (stickyPrefix != null) onConsumeStickyPrefix()
                         }
 
                         KeyActionKind.TOGGLE_STICKY_CTRL -> onToggleStickyCtrl()
