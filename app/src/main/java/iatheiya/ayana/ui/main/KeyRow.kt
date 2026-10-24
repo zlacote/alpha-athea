@@ -117,6 +117,7 @@ private fun TerminalKey.toCustomKey(): CustomKey = CustomKey(
         KeyActionKind.INSERT_INTO_DRAFT -> KeyKind.INSERT
         KeyActionKind.SEND_TO_TERMINAL -> KeyKind.SEND
         KeyActionKind.TOGGLE_STICKY_CTRL -> KeyKind.CTRL
+        KeyActionKind.TOGGLE_STICKY_ALT -> KeyKind.ALT
     },
 )
 

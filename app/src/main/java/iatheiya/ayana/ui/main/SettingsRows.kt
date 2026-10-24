@@ -230,6 +230,7 @@ internal fun KeyEditorDialog(
                         KeyKind.SEND to stringResource(R.string.settings_keys_kind_send),
                         KeyKind.INSERT to stringResource(R.string.settings_keys_kind_insert),
                         KeyKind.CTRL to stringResource(R.string.settings_keys_kind_ctrl),
+                        KeyKind.ALT to stringResource(R.string.settings_keys_kind_alt),
                     ).forEach { (candidate, text) ->
                         FilterChip(
                             selected = kind == candidate,

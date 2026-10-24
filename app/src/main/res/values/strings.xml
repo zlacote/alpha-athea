@@ -98,6 +98,7 @@
     <string name="settings_keys_kind_send">Send now</string>
     <string name="settings_keys_kind_insert">Into editor</string>
     <string name="settings_keys_kind_ctrl">Ctrl</string>
+    <string name="settings_keys_kind_alt">Alt</string>
     <string name="settings_keys_esc_hint">Escape syntax: \E, \t, control chars as \u0003</string>
     <string name="settings_diag_section">Diagnostics</string>
     <string name="settings_diag_copy">Copy logs to clipboard</string>
