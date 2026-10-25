@@ -1,9 +1,16 @@
 package iatheiya.ayana.ui.main
 
-import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.ui.graphics.SolidColor
+import iatheiya.ayana.ui.common.AyanaChoiceSheet
+import iatheiya.ayana.ui.common.SheetChoice
+import iatheiya.ayana.ui.theme.messageStyle
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -11,8 +18,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -122,45 +127,23 @@ fun KeysScreen(
                     )
                 }
 
-                // One add area: the sequence is typed by hand (escapes for special keys), and the
-                // action list decides what the finished key does.
-                OutlinedTextField(
-                    value = buffer,
-                    onValueChange = { buffer = it },
-                    label = { Text(stringResource(R.string.settings_keys_payload)) },
-                    singleLine = true,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = Ui.screenGutter, vertical = Ui.sectionGap),
+                // One add block, built like the composer: the sequence is typed in a field with
+                // the send button inside it (it grows with the text), and under a dividing line
+                // the action is chosen from the same sheet every option uses.
+                KeyAddBlock(
+                    text = buffer,
+                    onTextChange = { buffer = it },
+                    mode = mode,
+                    onModeChange = { mode = it },
+                    onAdd = {
+                        val key = CustomKey(
+                            label = visibleSequence(unescapeKeySequence(buffer)).take(12),
+                            payload = keyPayload(buffer, mode),
+                        ).withMode(mode)
+                        onKeysChange(keys + key)
+                        buffer = ""
+                    },
                 )
-                Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    KeyModeField(
-                        mode = mode,
-                        onModeChange = { mode = it },
-                        modifier = Modifier.weight(1f),
-                    )
-                    Button(
-                        onClick = {
-                            val key = CustomKey(
-                                label = visibleSequence(unescapeKeySequence(buffer)).take(12),
-                                payload = keyPayload(buffer, mode),
-                            ).withMode(mode)
-                            onKeysChange(keys + key)
-                            buffer = ""
-                        },
-                        enabled = buffer.isNotEmpty(),
-                        // Level with the field's box, below the room its floating label takes.
-                        modifier = Modifier.padding(top = 8.dp),
-                    ) {
-                        Text(stringResource(R.string.keys_add))
-                    }
-                }
                 KeyEscapeHelp(Modifier.padding(horizontal = 20.dp, vertical = 8.dp))
             }
 
@@ -186,5 +169,81 @@ fun KeysScreen(
                 },
             )
         }
+    }
+}
+
+private val KEY_BLOCK_RADIUS = 20.dp
+private val KeyFieldShape = RoundedCornerShape(topStart = KEY_BLOCK_RADIUS, topEnd = KEY_BLOCK_RADIUS)
+private val KeyActionShape = RoundedCornerShape(bottomStart = KEY_BLOCK_RADIUS, bottomEnd = KEY_BLOCK_RADIUS)
+
+@Composable
+private fun KeyAddBlock(
+    text: String,
+    onTextChange: (String) -> Unit,
+    mode: KeyMode,
+    onModeChange: (KeyMode) -> Unit,
+    onAdd: () -> Unit,
+) {
+    var choosing by remember { mutableStateOf(false) }
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .padding(horizontal = Ui.screenGutter, vertical = Ui.sectionGap),
+    ) {
+        // The field: rounded on top like a card, in the main composer's material.
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .liquidGlass(null, KeyFieldShape, KEY_BLOCK_RADIUS)
+                .padding(start = Ui.spaceL, end = Ui.spaceXs, top = Ui.spaceXs, bottom = Ui.spaceXs),
+        ) {
+            BasicTextField(
+                value = text,
+                onValueChange = onTextChange,
+                textStyle = messageStyle().copy(color = MaterialTheme.colorScheme.onSurface),
+                cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                maxLines = 6,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(end = Ui.composerButtonSize + Ui.spaceXs)
+                    .heightIn(min = Ui.composerButtonSize)
+                    .align(Alignment.CenterStart),
+                decorationBox = { inner ->
+                    Box(Modifier.heightIn(min = Ui.composerButtonSize), contentAlignment = Alignment.CenterStart) {
+                        if (text.isEmpty()) {
+                            Text(
+                                stringResource(R.string.settings_keys_payload),
+                                style = messageStyle(),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        inner()
+                    }
+                },
+            )
+            SendCircleButton(
+                enabled = text.isNotEmpty(),
+                onClick = onAdd,
+                modifier = Modifier.align(Alignment.BottomEnd),
+            )
+        }
+        SettingsDivider()
+        // The action: rounded at the bottom, with the chevron that opens the chooser.
+        Surface(shape = KeyActionShape, color = MaterialTheme.colorScheme.surfaceContainer) {
+            ChoiceSettingRow(
+                title = stringResource(R.string.keys_mode),
+                value = keyModeLabel(mode),
+                onClick = { choosing = true },
+            )
+        }
+    }
+    if (choosing) {
+        AyanaChoiceSheet(
+            title = stringResource(R.string.keys_mode),
+            choices = KeyMode.entries.map { SheetChoice(it, keyModeLabel(it)) },
+            selected = mode,
+            onPick = onModeChange,
+            onDismiss = { choosing = false },
+        )
     }
 }

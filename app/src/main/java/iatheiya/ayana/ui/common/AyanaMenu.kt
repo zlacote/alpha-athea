@@ -17,18 +17,23 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import iatheiya.ayana.ui.liquid.LocalLiquidBackdrop
 import iatheiya.ayana.ui.liquid.liquidGlass
+import iatheiya.ayana.ui.theme.ChromeTint
 import iatheiya.ayana.ui.theme.Ui
 
 /**
@@ -127,7 +132,11 @@ fun AyanaDropdownMenu(
             onDismissRequest = onDismissRequest,
             offset = offset,
             shape = Ui.menuShape,
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+            // A popup window cannot see the screen under it, so it cannot be glass; it takes the
+            // solid tone, with the chosen colour mixed in like every other surface.
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh.let { base ->
+                ChromeTint.color?.let { lerp(base, it, ChromeTint.SOLID_MIX) } ?: base
+            },
             modifier = Modifier.widthIn(min = Ui.menuMinWidth),
             content = content,
         )
@@ -149,10 +158,19 @@ fun AyanaDropdownMenu(
                     .shadow(Ui.menuElevation, Ui.menuShape)
                     .clip(Ui.menuShape)
                     .widthIn(min = Ui.menuMinWidth)
-                    .liquidGlass(LocalLiquidBackdrop.current, Ui.menuShape, Ui.menuRadius),
+                    .liquidGlass(LocalLiquidBackdrop.current, Ui.menuShape, Ui.menuRadius)
+                    // The panel itself holds every touch on it: a tap between or beside the items
+                    // must not fall through to the scrim below and close the menu.
+                    .pointerInput(Unit) { awaitEachGesture { awaitFirstDown(requireUnconsumed = false) } },
             ) {
-                // As wide as its widest item, so the menu hugs its content.
-                androidx.compose.foundation.layout.Column(Modifier.width(IntrinsicSize.Max), content = content)
+                // As wide as its widest item, and at least as wide as the panel, so the items reach
+                // its right edge (over the button that opened it) instead of leaving a dead strip.
+                androidx.compose.foundation.layout.Column(
+                    Modifier
+                        .width(IntrinsicSize.Max)
+                        .widthIn(min = Ui.menuMinWidth),
+                    content = content,
+                )
             }
         }
     }

@@ -37,7 +37,8 @@ class TranscriptBuilderTest {
         val command = snapshot.blocks[0].block as CommandBlock
         assertEquals("cmd-1", command.id)
         assertEquals("ls", command.text)
-        assertFalse(snapshot.blocks[0].collapsed)
+        // Folded until opened; the view shows a message this short in full anyway.
+        assertTrue(snapshot.blocks[0].collapsed)
 
         val output = snapshot.blocks[1].block as OutputBlock
         assertEquals("total\n", output.text)
@@ -89,7 +90,7 @@ class TranscriptBuilderTest {
         builder.applyCommandSubmitted(1, longCommand)
 
         var view = builder.snapshot(false).blocks.first()
-        assertTrue(view.collapsed) // > PREVIEW_LINES collapses by default
+        assertTrue(view.collapsed) // folded by default
 
         builder.toggleExpanded(view.block.id)
         view = builder.snapshot(false).blocks.first()

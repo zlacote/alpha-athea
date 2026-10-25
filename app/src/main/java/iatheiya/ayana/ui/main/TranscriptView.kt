@@ -66,6 +66,9 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
@@ -88,8 +91,8 @@ import iatheiya.ayana.core.model.OutputBlock
 import iatheiya.ayana.transcript.BlockView
 import iatheiya.ayana.session.SearchState
 import iatheiya.ayana.session.SessionView
-import iatheiya.ayana.ui.common.AyanaMenuHost
-import iatheiya.ayana.ui.common.rememberAyanaMenu
+import iatheiya.ayana.ui.common.ContextMenuRequest
+import iatheiya.ayana.ui.common.LocalContextMenu
 import iatheiya.ayana.ui.theme.CodeStyle
 import iatheiya.ayana.ui.theme.HighlightColor
 import iatheiya.ayana.ui.theme.OnHighlightColor
@@ -360,6 +363,7 @@ fun TranscriptView(
                                 previewLines = previewLines,
                                 currentMatch = block.id == currentMatchId,
                                 scrollInside = virtualizeLargeOutput,
+                                query = search?.query,
                                 onToggle = { onToggleBlock(block.id) },
                                 onCopy = { onCopyCommand(block.text) },
                                 onSelectText = { onSelectCommandText(block.text) },
@@ -475,15 +479,34 @@ private fun CommandBubble(
     currentMatch: Boolean,
     /** Large output inside scroll: a long expanded message scrolls inside a bounded box too. */
     scrollInside: Boolean,
+    /** The search text, highlighted in the message like in the outputs. */
+    query: String?,
     onToggle: () -> Unit,
     onCopy: () -> Unit,
     onSelectText: () -> Unit,
     onFavorite: () -> Unit,
 ) {
-    val lines = block.text.lines()
-    val collapsible = lines.size > previewLines
     val bubbleStyle = messageStyle()
-    val menu = rememberAyanaMenu()
+    val contextMenu = LocalContextMenu.current
+    // Read here: the menu's items are composed in the screen's menu layer, not in this bubble.
+    val copyLabel = stringResource(R.string.copy)
+    val selectLabel = stringResource(R.string.select_text)
+    val favoriteLabel = stringResource(R.string.add_to_favorites)
+    var bubbleBounds by remember { mutableStateOf(Rect.Zero) }
+    // Long is counted in the lines the message takes on screen, not in its line breaks: one long
+    // paragraph without a break wraps into many lines and must fold and scroll like any other.
+    val measurer = rememberTextMeasurer()
+    val density = LocalDensity.current
+    val textWidthPx = with(density) { (maxWidth - Ui.bubblePaddingH * 2).roundToPx() }.coerceAtLeast(1)
+    val shownLines = remember(block.text, bubbleStyle, textWidthPx) {
+        measurer.measure(
+            AnnotatedString(block.text),
+            bubbleStyle,
+            constraints = androidx.compose.ui.unit.Constraints(maxWidth = textWidthPx),
+        ).lineCount
+    }
+    val collapsible = shownLines > previewLines
+    val text = remember(block.text, query) { AnnotatedString(block.text).withSearchHighlights(query) }
 
     Row(
         Modifier
@@ -501,11 +524,20 @@ private fun CommandBubble(
             },
             modifier = Modifier
                 .widthIn(max = maxWidth)
+                .onGloballyPositioned { bubbleBounds = it.boundsInRoot() }
                 .combinedClickable(
                     // Tapping the bubble body is reserved for text
                     // selection; expand/collapse lives on the chevrons.
                     onClick = {},
-                    onLongClick = menu::open,
+                    onLongClick = {
+                        contextMenu?.show(
+                            ContextMenuRequest(bubbleBounds) {
+                                item(icon = Icons.Default.ContentCopy, text = copyLabel) { onCopy() }
+                                item(icon = Icons.Default.TextFields, text = selectLabel) { onSelectText() }
+                                item(icon = Icons.Default.Star, text = favoriteLabel) { onFavorite() }
+                            },
+                        )
+                    },
                 )
                 .glass(Ui.bubbleShape),
         ) {
@@ -514,9 +546,11 @@ private fun CommandBubble(
                     // The tail fades out to transparent, so it sinks into whatever the bubble is
                     // (a tinted glass, a wallpaper behind it) instead of under a painted black band.
                     Text(
-                        text = lines.take(previewLines).joinToString("\n"),
+                        text = text,
                         style = bubbleStyle,
                         color = MaterialTheme.colorScheme.onSecondaryContainer,
+                        maxLines = previewLines,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Clip,
                         modifier = Modifier.fadeOutBottom(Ui.tailFadeHeight),
                     )
                     Icon(
@@ -530,7 +564,7 @@ private fun CommandBubble(
                             .clickable(onClick = onToggle),
                     )
                 } else {
-                    if (scrollInside && lines.size > Ui.hugeLinesThreshold) {
+                    if (scrollInside && shownLines > Ui.hugeLinesThreshold) {
                         // The same bound as a large output: the message scrolls inside it.
                         val screenHeight = androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp.dp
                         Box(
@@ -539,14 +573,14 @@ private fun CommandBubble(
                                 .verticalScroll(rememberScrollState()),
                         ) {
                             Text(
-                                text = block.text,
+                                text = text,
                                 style = bubbleStyle,
                                 color = MaterialTheme.colorScheme.onSecondaryContainer,
                             )
                         }
                     } else {
                         Text(
-                            text = block.text,
+                            text = text,
                             style = bubbleStyle,
                             color = MaterialTheme.colorScheme.onSecondaryContainer,
                         )
@@ -570,20 +604,6 @@ private fun CommandBubble(
                 }
             }
 
-            AyanaMenuHost(menu) {
-                item(
-                    icon = Icons.Default.ContentCopy,
-                    text = stringResource(R.string.copy),
-                ) { onCopy() }
-                item(
-                    icon = Icons.Default.TextFields,
-                    text = stringResource(R.string.select_text),
-                ) { onSelectText() }
-                item(
-                    icon = Icons.Default.Star,
-                    text = stringResource(R.string.add_to_favorites),
-                ) { onFavorite() }
-            }
         }
     }
 }
@@ -808,8 +828,7 @@ private fun VirtualizedOutput(annotated: AnnotatedString, query: String?, jumpTo
         Box(
             Modifier
                 .fillMaxWidth()
-                .heightIn(max = maxH)
-                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = Ui.virtualizedBgAlpha)),
+                .heightIn(max = maxH),
         ) {
             androidx.compose.foundation.lazy.LazyColumn(
                 state = innerState,

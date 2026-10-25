@@ -103,6 +103,9 @@ import iatheiya.ayana.ui.MainViewModel
 import iatheiya.ayana.session.WorkspaceEvent
 import iatheiya.ayana.ui.UiState
 import iatheiya.ayana.ui.common.AyanaDialogContainer
+import iatheiya.ayana.ui.common.ContextMenuLayer
+import iatheiya.ayana.ui.common.ContextMenuState
+import iatheiya.ayana.ui.common.LocalContextMenu
 import iatheiya.ayana.ui.liquid.LiquidBackdrop
 import iatheiya.ayana.ui.liquid.LocalLiquidBackdrop
 import iatheiya.ayana.ui.liquid.liquidBackdrop
@@ -400,8 +403,9 @@ private fun MainScreenRoutes(viewModel: MainViewModel, state: UiState) {
 @Composable
 private fun MainScreenContent(viewModel: MainViewModel, state: UiState) {
     val composerBackdrop = rememberLiquidBackdrop()
+    val contextMenu = remember { ContextMenuState() }
     // Every glass surface on this screen refracts the same transcript backdrop.
-    CompositionLocalProvider(LocalLiquidBackdrop provides composerBackdrop) {
+    CompositionLocalProvider(LocalLiquidBackdrop provides composerBackdrop, LocalContextMenu provides contextMenu) {
         MainScreenBody(viewModel, state, composerBackdrop)
     }
 }
@@ -418,6 +422,7 @@ private fun MainScreenBody(viewModel: MainViewModel, state: UiState, composerBac
     var jumpAvailable by remember { mutableStateOf(false) }
     // Where the send circle is, and where this screen's box is, both in window coordinates.
     var sendBounds by remember { mutableStateOf(Rect.Zero) }
+    var panelBounds by remember { mutableStateOf(Rect.Zero) }
     var screenOrigin by remember { mutableStateOf(Offset.Zero) }
 
     // Native toasts: the system renders them, no custom surfaces needed.
@@ -564,6 +569,7 @@ private fun MainScreenBody(viewModel: MainViewModel, state: UiState, composerBac
                     suggestion = if (state.workspace.search == null) state.workspace.suggestion else null,
                     composerBackdrop = composerBackdrop,
                     onSendBounds = { sendBounds = it },
+                    onPanelBounds = { panelBounds = it },
                     modifier = Modifier
                         .align(Alignment.BottomStart)
                         .fillMaxWidth()
@@ -585,11 +591,14 @@ private fun MainScreenBody(viewModel: MainViewModel, state: UiState, composerBac
                         ),
                 )
 
-                // Back to the newest output: right above the send button, centred on it and the
-                // same size, placed from the circle's measured position rather than by hand.
+                // Back to the newest output: in the send button's column, centred on it and the
+                // same size, a fixed distance above the top of the panel (composer or search),
+                // so a tall draft pushes it up rather than covering it. Placed from measured
+                // positions, not by hand.
                 JumpDownButton(
-                    visible = jumpAvailable && sendBounds != Rect.Zero,
-                    anchor = sendBounds,
+                    visible = jumpAvailable && sendBounds != Rect.Zero && panelBounds != Rect.Zero,
+                    centreX = sendBounds.center.x,
+                    panelTop = panelBounds.top,
                     origin = screenOrigin,
                     onClick = viewModel::requestJumpToBottom,
                 )
@@ -616,6 +625,9 @@ private fun MainScreenBody(viewModel: MainViewModel, state: UiState, composerBac
                     onTogglePin = { current?.let { viewModel.togglePin(it.id) } },
                     onDelete = { current?.let { viewModel.requestDelete(it.id) } },
                 )
+
+                // Context menus (a long-pressed message) open in the screen, above everything.
+                LocalContextMenu.current?.let { ContextMenuLayer(it) }
             }
         }
     }
@@ -674,6 +686,7 @@ private fun BottomBar(
     suggestion: String?,
     composerBackdrop: LiquidBackdrop?,
     onSendBounds: (Rect) -> Unit,
+    onPanelBounds: (Rect) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     // One column aligned to the bottom edge: the composer sits directly above
@@ -715,6 +728,7 @@ private fun BottomBar(
             running = current?.running == true,
             docked = keyRowShown,
             onSendBounds = onSendBounds,
+            onPanelBounds = onPanelBounds,
         )
         if (keyRowShown) {
             // The line between the composer and the keys, like the dividers in the settings cards,
@@ -781,11 +795,11 @@ private fun navigationBarTail(): Dp {
     return with(density) { (bar - keyboard).coerceAtLeast(0).toDp() }
 }
 
-/** Room between the jump-down button and the send button below it. */
-private val JUMP_GAP = 18.dp
+/** Room between the jump-down button and the top of the panel below it. */
+private val JUMP_GAP = 12.dp
 
 @Composable
-private fun JumpDownButton(visible: Boolean, anchor: Rect, origin: Offset, onClick: () -> Unit) {
+private fun JumpDownButton(visible: Boolean, centreX: Float, panelTop: Float, origin: Offset, onClick: () -> Unit) {
     AnimatedVisibility(
         visible = visible,
         enter = fadeIn(tween(160)) + scaleIn(tween(200), initialScale = 0.7f),
@@ -793,8 +807,8 @@ private fun JumpDownButton(visible: Boolean, anchor: Rect, origin: Offset, onCli
         modifier = Modifier.offset {
             val size = SEND_BUTTON_SIZE.roundToPx()
             IntOffset(
-                (anchor.center.x - origin.x - size / 2f).roundToInt(),
-                (anchor.top - origin.y - JUMP_GAP.toPx() - size).roundToInt(),
+                (centreX - origin.x - size / 2f).roundToInt(),
+                (panelTop - origin.y - JUMP_GAP.toPx() - size).roundToInt(),
             )
         },
     ) {

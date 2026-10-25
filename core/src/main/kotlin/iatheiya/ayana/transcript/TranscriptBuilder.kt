@@ -30,7 +30,7 @@ data class TranscriptSnapshot(
  * produces the same transcript, which is how sessions survive restarts.
  *
  * Collapse rules (the manual override always wins):
- *  - a command bubble collapses when it exceeds [previewLines] lines;
+ *  - a command bubble is folded until opened (the view shows one that fits in full);
  *  - an output block stays open while it runs or is the newest output;
  *    older outputs auto-collapse when the next command is submitted.
  */
@@ -157,7 +157,10 @@ class TranscriptBuilder(
     private fun computeCollapsed(block: Block, expandedOutputId: String?): Boolean {
         expandedOverrides[block.id]?.let { return it }
         return when (block) {
-            is CommandBlock -> block.text.count { it == '\n' } + 1 > previewLines
+            // Folded until opened. Whether there is anything to fold depends on how many lines the
+            // message takes on screen, which only the view knows: a message that fits is shown
+            // whole either way.
+            is CommandBlock -> true
             is OutputBlock -> !(block.running || block.id == expandedOutputId)
         }
     }

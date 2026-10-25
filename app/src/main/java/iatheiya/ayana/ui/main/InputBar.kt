@@ -105,6 +105,8 @@ fun InputBar(
     docked: Boolean = false,
     /** Reports where the send circle is on screen, so the jump-down button can stand right above it. */
     onSendBounds: (Rect) -> Unit = {},
+    /** Reports the panel's own outline on screen (composer or search), whatever its height. */
+    onPanelBounds: (Rect) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     if (search == null) {
@@ -123,6 +125,7 @@ fun InputBar(
             running = running,
             docked = docked,
             onSendBounds = onSendBounds,
+            onPanelBounds = onPanelBounds,
             modifier = modifier,
         )
     } else {
@@ -134,6 +137,7 @@ fun InputBar(
             onNext = onSearchNext,
             onExit = onExitSearch,
             backdrop = composerBackdrop,
+            onPanelBounds = onPanelBounds,
             modifier = modifier,
         )
     }
@@ -172,6 +176,7 @@ private fun DraftPanel(
     running: Boolean,
     docked: Boolean,
     onSendBounds: (Rect) -> Unit,
+    onPanelBounds: (Rect) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var lineCount by remember { mutableStateOf(1) }
@@ -195,7 +200,8 @@ private fun DraftPanel(
                         .barPadding()
                         .liquidGlass(backdrop, Ui.panelShape, Ui.panelRadius)
                 },
-            ),
+            )
+            .onGloballyPositioned { onPanelBounds(it.boundsInRoot()) },
     ) {
         Column(Modifier.padding(horizontal = if (docked) DOCKED_PADDING_H else FLOATING_PADDING_H, vertical = 4.dp)) {
             Box {
@@ -306,46 +312,11 @@ private fun DraftPanel(
                             )
                         }
                     }
-                    val hasText = draft.isNotBlank()
-                    // No fill until a send is possible, then the accent eases in — background and
-                    // icon tint cross-fade slowly so it is gentle, not a pop. The circle is kept
-                    // well inside the field rather than filling it.
-                    val sendBackground by animateColorAsState(
-                        targetValue = if (hasText) MaterialTheme.colorScheme.primary else Color.Transparent,
-                        animationSpec = tween(durationMillis = 320, easing = FastOutSlowInEasing),
-                        label = "sendBackground",
-                    )
-                    val sendTint by animateColorAsState(
-                        targetValue = if (hasText) {
-                            MaterialTheme.colorScheme.onPrimary
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        },
-                        animationSpec = tween(durationMillis = 320, easing = FastOutSlowInEasing),
-                        label = "sendTint",
-                    )
-                    IconButton(
+                    SendCircleButton(
+                        enabled = draft.isNotBlank(),
                         onClick = onSend,
-                        enabled = hasText,
-                        modifier = Modifier.size(Ui.composerButtonSize),
-                    ) {
-                        // The drawn circle is smaller than the touch target, so it sits a few
-                        // pixels inside the field instead of filling it edge to edge.
-                        androidx.compose.foundation.layout.Box(
-                            Modifier
-                                .size(SEND_BUTTON_SIZE)
-                                .onGloballyPositioned { onSendBounds(it.boundsInRoot()) }
-                                .clip(CircleShape)
-                                .background(sendBackground),
-                            contentAlignment = androidx.compose.ui.Alignment.Center,
-                        ) {
-                            Icon(
-                                Icons.Default.ArrowUpward,
-                                contentDescription = stringResource(R.string.cd_send),
-                                tint = sendTint,
-                            )
-                        }
-                    }
+                        onBounds = onSendBounds,
+                    )
                 }
                 if (!compact) {
                     IconButton(
@@ -373,6 +344,7 @@ private fun SearchPanel(
     onNext: () -> Unit,
     onExit: () -> Unit,
     backdrop: LiquidBackdrop?,
+    onPanelBounds: (Rect) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Surface(
@@ -381,7 +353,8 @@ private fun SearchPanel(
         modifier = modifier
             .fillMaxWidth()
             .barPadding()
-            .liquidGlass(backdrop, Ui.panelShape, Ui.panelRadius),
+            .liquidGlass(backdrop, Ui.panelShape, Ui.panelRadius)
+            .onGloballyPositioned { onPanelBounds(it.boundsInRoot()) },
     ) {
         Row(
             Modifier.padding(horizontal = 6.dp, vertical = 4.dp),
@@ -489,3 +462,39 @@ private fun fittedStyle(measurer: TextMeasurer, text: String, style: TextStyle, 
 
 private const val MIN_FIT_SP = 11f
 private const val FIT_STEP_SP = 0.5f
+
+/**
+ * The send button: a circle with an arrow, without fill until there is something to send, then
+ * the accent eases in (background and arrow cross-fade slowly, so it is gentle, not a pop). The
+ * drawn circle sits inside its touch target. The composer and the Keys page share it.
+ */
+@Composable
+internal fun SendCircleButton(
+    enabled: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    onBounds: (Rect) -> Unit = {},
+) {
+    val background by animateColorAsState(
+        targetValue = if (enabled) MaterialTheme.colorScheme.primary else Color.Transparent,
+        animationSpec = tween(durationMillis = 320, easing = FastOutSlowInEasing),
+        label = "sendBackground",
+    )
+    val tint by animateColorAsState(
+        targetValue = if (enabled) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+        animationSpec = tween(durationMillis = 320, easing = FastOutSlowInEasing),
+        label = "sendTint",
+    )
+    IconButton(onClick = onClick, enabled = enabled, modifier = modifier.size(Ui.composerButtonSize)) {
+        Box(
+            Modifier
+                .size(SEND_BUTTON_SIZE)
+                .onGloballyPositioned { onBounds(it.boundsInRoot()) }
+                .clip(CircleShape)
+                .background(background),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(Icons.Default.ArrowUpward, contentDescription = stringResource(R.string.cd_send), tint = tint)
+        }
+    }
+}

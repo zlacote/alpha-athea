@@ -71,6 +71,7 @@
     <string name="appearance_screen_awake_running">While a command runs</string>
     <string name="appearance_screen_awake_always">Always</string>
     <string name="appearance_tint_pick">Any color</string>
+    <string name="appearance_tint_hex">Hex code</string>
     <string name="appearance_tint_hue">Hue</string>
     <string name="appearance_tint_saturation">Saturation</string>
     <string name="appearance_tint_brightness">Brightness</string>

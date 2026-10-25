@@ -33,6 +33,7 @@ import androidx.compose.material.icons.filled.BlurOn
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -109,10 +110,10 @@ private val BASIC_TINTS = listOf(
     0xFFF0A13AL, // orange
     0xFFE8D44DL, // yellow
     0xFF4CC38AL, // green
-    0xFF3FC1C9L, // teal
 )
 
 private val SWATCH = 42.dp
+private const val SWATCHES_PER_ROW = 6
 
 /** The font chooser's last row: it opens the file picker instead of choosing a font. */
 private const val PICK_FONT_FILE = "pick"
@@ -321,11 +322,13 @@ private fun TintChooser(state: AppearanceState, actions: AppearanceActions) {
     )
     if (on) {
         SettingsDivider()
+        // Two even rows of six: the accent and the neutrals, then the colours and the picker.
         FlowRow(
             Modifier
                 .fillMaxWidth()
                 .padding(horizontal = Ui.spaceL, vertical = Ui.spaceM),
-            horizontalArrangement = Arrangement.spacedBy(Ui.spaceS),
+            maxItemsInEachRow = SWATCHES_PER_ROW,
+            horizontalArrangement = Arrangement.SpaceBetween,
             verticalArrangement = Arrangement.spacedBy(Ui.spaceS),
         ) {
             if (system != null) {
@@ -400,7 +403,10 @@ private fun Swatch(
 
 private val SWATCH_RING = 4.dp
 
-/** Any colour, as hue, saturation and brightness, with the result shown as it is chosen. */
+/**
+ * Any colour: typed as a hex code, or set by hue, saturation and brightness, each with its number.
+ * The two stay in step, and the result shows as it is chosen.
+ */
 @Composable
 private fun ColorPickerDialog(initial: Color, onDismiss: () -> Unit, onPick: (Color) -> Unit) {
     val start = remember(initial) {
@@ -410,6 +416,11 @@ private fun ColorPickerDialog(initial: Color, onDismiss: () -> Unit, onPick: (Co
     var saturation by remember { mutableStateOf(start[1]) }
     var brightness by remember { mutableStateOf(start[2]) }
     val color = Color(android.graphics.Color.HSVToColor(floatArrayOf(hue, saturation, brightness)))
+    var hex by remember { mutableStateOf(hexOf(color)) }
+    // The sliders write the code; a complete code typed by hand moves the sliders.
+    fun fromSliders() {
+        hex = hexOf(Color(android.graphics.Color.HSVToColor(floatArrayOf(hue, saturation, brightness))))
+    }
     AyanaDialogContainer(
         title = stringResource(R.string.appearance_tint_pick),
         onDismiss = onDismiss,
@@ -421,9 +432,35 @@ private fun ColorPickerDialog(initial: Color, onDismiss: () -> Unit, onPick: (Co
                     .clip(MaterialTheme.shapes.medium)
                     .background(color),
             )
-            PickerSlider(stringResource(R.string.appearance_tint_hue), hue, 0f..360f) { hue = it }
-            PickerSlider(stringResource(R.string.appearance_tint_saturation), saturation, 0f..1f) { saturation = it }
-            PickerSlider(stringResource(R.string.appearance_tint_brightness), brightness, 0f..1f) { brightness = it }
+            OutlinedTextField(
+                value = hex,
+                onValueChange = { typed ->
+                    hex = typed.uppercase().filter { it == '#' || it in '0'..'9' || it in 'A'..'F' }.take(7)
+                    parseHex(hex)?.let { parsed ->
+                        val hsv = FloatArray(3).also { android.graphics.Color.colorToHSV(parsed.toArgb(), it) }
+                        hue = hsv[0]
+                        saturation = hsv[1]
+                        brightness = hsv[2]
+                    }
+                },
+                label = { Text(stringResource(R.string.appearance_tint_hex)) },
+                singleLine = true,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = Ui.spaceM),
+            )
+            PickerSlider(stringResource(R.string.appearance_tint_hue), hue, 0f..360f, "${hue.toInt()}°") {
+                hue = it
+                fromSliders()
+            }
+            PickerSlider(stringResource(R.string.appearance_tint_saturation), saturation, 0f..1f, "${(saturation * 100).toInt()}%") {
+                saturation = it
+                fromSliders()
+            }
+            PickerSlider(stringResource(R.string.appearance_tint_brightness), brightness, 0f..1f, "${(brightness * 100).toInt()}%") {
+                brightness = it
+                fromSliders()
+            }
         },
         confirm = {
             TextButton(onClick = { onPick(color) }) { Text(stringResource(R.string.dialog_ok)) }
@@ -431,10 +468,38 @@ private fun ColorPickerDialog(initial: Color, onDismiss: () -> Unit, onPick: (Co
     )
 }
 
+/** "#RRGGBB" for [color]. */
+private fun hexOf(color: Color): String = "#%06X".format(color.toArgb() and 0xFFFFFF)
+
+/** A colour from "#RRGGBB" or "RRGGBB" (also the short "#RGB"); null until the code is complete. */
+private fun parseHex(text: String): Color? {
+    val digits = text.removePrefix("#")
+    val full = when (digits.length) {
+        3 -> digits.map { "$it$it" }.joinToString("")
+        6 -> digits
+        else -> return null
+    }
+    return full.toLongOrNull(16)?.let { Color(0xFF000000 or it) }
+}
+
 @Composable
-private fun PickerSlider(title: String, value: Float, range: ClosedFloatingPointRange<Float>, onChange: (Float) -> Unit) {
+private fun PickerSlider(
+    title: String,
+    value: Float,
+    range: ClosedFloatingPointRange<Float>,
+    shown: String,
+    onChange: (Float) -> Unit,
+) {
     Column(Modifier.padding(top = Ui.spaceS)) {
-        Text(title, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Row(Modifier.fillMaxWidth()) {
+            Text(
+                title,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.weight(1f),
+            )
+            Text(shown, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
         Slider(value = value, onValueChange = onChange, valueRange = range)
     }
 }
