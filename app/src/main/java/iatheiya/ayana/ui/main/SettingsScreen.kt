@@ -39,7 +39,7 @@ import java.io.File
 internal enum class SettingsPane { ROOT, INPUT, OUTPUT, APPEARANCE, FAVORITES }
 
 @Composable
-fun SettingsScreen(
+internal fun SettingsScreen(
     enterSends: Boolean,
     autoScrollOnSend: Boolean,
     rawStream: Boolean,
