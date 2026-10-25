@@ -218,7 +218,17 @@ private fun MainScreenRoutes(viewModel: MainViewModel, state: UiState) {
 
     if (state.showGlassTuning) {
         BackHandler { viewModel.setShowGlassTuning(false) }
-        GlassTuningScreen(onBack = { viewModel.setShowGlassTuning(false) })
+        GlassTuningScreen(
+            onBack = { viewModel.setShowGlassTuning(false) },
+            // The phone's accent where there is one, else the first basic colour.
+            onEnableAccent = {
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                    viewModel.setTint(TINT_SYSTEM, null)
+                } else {
+                    viewModel.setTint(TINT_COLOR, 0xFF5B8DEFL)
+                }
+            },
+        )
         return
     }
 
@@ -309,6 +319,8 @@ private fun MainScreenRoutes(viewModel: MainViewModel, state: UiState) {
             onWaitForNotificationSettings = viewModel::waitForNotificationSettings,
             onLongCommandSecChange = viewModel::setLongCommandSec,
             autocompleteEnabled = state.workspace.settings.autocompleteEnabled,
+            downSetsDraftAside = settings.downSetsDraftAside,
+            onDownSetsDraftAsideChange = viewModel::setDownSetsDraftAside,
             virtualizeLargeOutput = state.workspace.settings.virtualizeLargeOutput,
             previewLines = state.workspace.settings.previewLines,
             onEnterSendsChange = viewModel::setEnterSends,

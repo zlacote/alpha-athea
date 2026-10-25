@@ -68,6 +68,8 @@ internal fun SettingsScreen(
     onWaitForNotificationSettings: () -> Unit,
     onLongCommandSecChange: (Int) -> Unit,
     autocompleteEnabled: Boolean,
+    downSetsDraftAside: Boolean,
+    onDownSetsDraftAsideChange: (Boolean) -> Unit,
     virtualizeLargeOutput: Boolean,
     previewLines: Int,
     attachSendsNow: Boolean,
@@ -215,6 +217,13 @@ internal fun SettingsScreen(
                         subtitle = stringResource(R.string.settings_autocomplete_desc),
                         checked = autocompleteEnabled,
                         onChange = onAutocompleteEnabledChange,
+                    )
+                    SettingsDivider()
+                    SwitchRow(
+                        title = stringResource(R.string.settings_down_aside),
+                        subtitle = stringResource(R.string.settings_down_aside_desc),
+                        checked = downSetsDraftAside,
+                        onChange = onDownSetsDraftAsideChange,
                     )
                     SettingsDivider()
                     SwitchRow(

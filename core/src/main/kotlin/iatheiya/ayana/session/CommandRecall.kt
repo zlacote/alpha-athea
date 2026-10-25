@@ -40,6 +40,9 @@ class CommandRecall {
         return history.asReversed().filter { seen.add(it) }.asReversed()
     }
 
+    /** The walk has not started: the field shows the live draft. */
+    val atLive: Boolean get() = steps == 0
+
     /** Ends the walk: the user is editing a draft again. */
     fun reset() {
         steps = 0

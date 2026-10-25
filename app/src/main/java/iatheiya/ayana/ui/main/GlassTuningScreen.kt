@@ -42,6 +42,7 @@ import androidx.compose.ui.zIndex
 import kotlin.math.cos
 import kotlin.math.sin
 import iatheiya.ayana.R
+import iatheiya.ayana.ui.common.AyanaConfirmDialog
 import iatheiya.ayana.ui.common.AyanaScaffold
 import iatheiya.ayana.ui.common.AyanaScrollHeader
 import iatheiya.ayana.ui.liquid.GlassTuning
@@ -69,8 +70,24 @@ private const val SCENE_PERIOD_MS = 16000
 @Composable
 fun GlassTuningScreen(
     onBack: () -> Unit,
+    /** Turns the accent colour on (Appearance), for tinting the glass when it was off. */
+    onEnableAccent: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    var askAccent by remember { mutableStateOf(false) }
+    if (askAccent) {
+        AyanaConfirmDialog(
+            title = stringResource(R.string.glass_tint_ask_title),
+            text = stringResource(R.string.glass_tint_ask_text),
+            onConfirm = {
+                askAccent = false
+                onEnableAccent()
+                AccentColor.tintsGlass = true
+            },
+            onDismiss = { askAccent = false },
+            confirmLabel = stringResource(R.string.glass_tint_ask_confirm),
+        )
+    }
     val sampleBackdrop = rememberLiquidBackdrop()
     val background = MaterialTheme.colorScheme.background
     val scroll = rememberScrollState()
@@ -93,16 +110,15 @@ fun GlassTuningScreen(
                         onChange = { GlassTuning.enabled = it },
                     )
                     SettingsDivider()
-                    // The accent colour from Appearance washed over the glass too. Without a colour
-                    // chosen there is nothing to tint with, so the switch waits.
+                    // The accent colour from Appearance washed over the glass too. With no accent
+                    // on, turning this on offers to turn the accent on with it.
                     SwitchRow(
                         title = stringResource(R.string.glass_tint),
-                        subtitle = stringResource(
-                            if (AccentColor.color != null) R.string.glass_tint_desc else R.string.glass_tint_needs_color,
-                        ),
-                        checked = AccentColor.tintsGlass,
-                        onChange = { AccentColor.tintsGlass = it },
-                        enabled = AccentColor.color != null,
+                        subtitle = stringResource(R.string.glass_tint_desc),
+                        checked = AccentColor.tintsGlass && AccentColor.color != null,
+                        onChange = { on ->
+                            if (on && AccentColor.color == null) askAccent = true else AccentColor.tintsGlass = on
+                        },
                     )
                 }
             }

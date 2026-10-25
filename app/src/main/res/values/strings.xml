@@ -89,7 +89,7 @@
     <string name="signal_title">Command finished</string>
     <string name="signal_text">%1$s: done after %2$d s</string>
     <string name="settings_section_appearance">Appearance</string>
-    <string name="appearance_tint">Color</string>
+    <string name="appearance_tint">Accent color</string>
     <string name="appearance_tint_desc">Lights switches, chosen options and armed keys</string>
     <string name="appearance_font">Font</string>
     <string name="appearance_greeting_animated">Shimmering greeting</string>
@@ -110,6 +110,8 @@
     <string name="settings_raw_stream">Raw stream view</string>
     <string name="settings_raw_stream_desc">Continuous terminal flow instead of chat blocks</string>
     <string name="settings_autocomplete">History autocomplete</string>
+    <string name="settings_down_aside">Down sets the draft aside</string>
+    <string name="settings_down_aside_desc">Down clears the field and keeps what you wrote; Up brings it back until you send</string>
     <string name="settings_autocomplete_desc">Ghost suggestion from history while typing; Tab accepts it</string>
     <string name="settings_pinch_zoom">Pinch to zoom text</string>
     <string name="settings_pinch_zoom_desc">Two-finger pinch on the transcript scales the font</string>
@@ -186,7 +188,9 @@
     <string name="glass_reset">Reset to defaults</string>
     <string name="glass_tint">Tint the glass</string>
     <string name="glass_tint_desc">The accent color from Appearance washes over the glass</string>
-    <string name="glass_tint_needs_color">Choose a color in Appearance first</string>
+    <string name="glass_tint_ask_title">Turn on the accent color?</string>
+    <string name="glass_tint_ask_text">The glass is tinted with the accent color, which is off. Turn on both?</string>
+    <string name="glass_tint_ask_confirm">Turn on</string>
     <string name="reset_all_title">Reset all settings?</string>
     <string name="reset_all_text">Every setting, the key row and the glass go back to how Ayana ships. Sessions, favorites and history stay.</string>
     <string name="reset_all_confirm">Reset</string>

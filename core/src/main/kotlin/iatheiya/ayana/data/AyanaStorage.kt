@@ -113,6 +113,8 @@ data class AyanaSettings(
     val previewLines: Int = PREVIEW_LINES,
     val bubbleFontSizeSp: Int = 16,
     val autocompleteEnabled: Boolean = true,
+    /** Down on a written draft sets it aside and clears the field; Up brings it back until a send. */
+    val downSetsDraftAside: Boolean = true,
     val pinchZoomEnabled: Boolean = true,
     val shellPath: String = DEFAULT_SHELL_PATH,
     val virtualizeLargeOutput: Boolean = false,

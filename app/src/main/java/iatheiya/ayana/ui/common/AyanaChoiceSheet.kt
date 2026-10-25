@@ -32,6 +32,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.window.DialogWindowProvider
 import iatheiya.ayana.ui.theme.AccentColor
+import iatheiya.ayana.ui.theme.contentOn
 import kotlin.math.roundToInt
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -191,6 +192,9 @@ fun <T> AyanaChoiceSheet(
                             accent != null -> accent
                             else -> MaterialTheme.colorScheme.surfaceContainerHigh
                         }
+                        // On the accent, text and marks turn black or white, whichever reads.
+                        val ink = if (current && accent != null) contentOn(accent) else MaterialTheme.colorScheme.onSurface
+                        val faintInk = if (current && accent != null) ink else MaterialTheme.colorScheme.onSurfaceVariant
                         Row(
                             Modifier
                                 .fillMaxWidth()
@@ -205,16 +209,17 @@ fun <T> AyanaChoiceSheet(
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             choice.icon?.let {
-                                Icon(it, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Icon(it, contentDescription = null, tint = faintInk)
                                 Spacer(Modifier.width(Ui.spaceL))
                             }
                             Text(
                                 choice.label,
                                 style = MaterialTheme.typography.bodyLarge,
+                                color = ink,
                                 modifier = Modifier.weight(1f),
                             )
                             if (current) {
-                                Icon(Icons.Default.Check, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface)
+                                Icon(Icons.Default.Check, contentDescription = null, tint = ink)
                             }
                         }
                     }

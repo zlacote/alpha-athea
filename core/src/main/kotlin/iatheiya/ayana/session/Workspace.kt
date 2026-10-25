@@ -83,6 +83,9 @@ class Workspace(
     /** Submitted command texts per session, newest last (autocomplete source). */
     private val histories = HashMap<Long, MutableList<String>>()
 
+    /** Every command sent in any session, in the order sent, newest last: what Up walks through. */
+    private val sharedHistory = ArrayList<String>()
+
     /** Sessions with pending transcript refreshes, drained at a fixed rate. */
     private val dirtySessions = ConcurrentHashMap.newKeySet<Long>()
 
@@ -129,10 +132,12 @@ class Workspace(
         }
         favoriteCounter = favorites.nextFavoriteId - 1
 
+        val allCommands = ArrayList<JournalEvent.CommandSubmitted>()
         val restored = index.items.map { meta ->
             val journal = storage.journalFor(meta.id)
             val events = journal.readAll()
             val commands = events.filterIsInstance<JournalEvent.CommandSubmitted>()
+            allCommands += commands
             RestoredSession(
                 meta = meta,
                 pipe = SessionPipe(
@@ -145,6 +150,8 @@ class Workspace(
             )
         }
         synchronized(lock) {
+            // The shared history in the order the commands were sent, across all sessions.
+            allCommands.sortedBy { it.timestampMs }.takeLast(SHARED_HISTORY_CAP).mapTo(sharedHistory) { it.text }
             for (session in restored) {
                 val id = session.meta.id
                 metas[id] = session.meta
@@ -368,10 +375,8 @@ class Workspace(
     }
 
     /** Commands sent in the current session, oldest first, for walking back with the up key. */
-    fun commandHistory(): List<String> {
-        val id = _state.value.currentSessionId ?: return emptyList()
-        return synchronized(lock) { histories[id]?.toList() }.orEmpty()
-    }
+    /** The commands sent in all sessions, oldest first: Up recalls from any session. */
+    fun commandHistory(): List<String> = synchronized(lock) { sharedHistory.toList() }
 
     /** Raw bytes to the current shell, bypassing the draft (key row). */
     fun sendRaw(payload: String) {
@@ -426,6 +431,8 @@ class Workspace(
             val history = histories.getOrPut(id) { mutableListOf() }
             history.add(text)
             if (history.size > HISTORY_CAP) history.removeAt(0)
+            sharedHistory.add(text)
+            if (sharedHistory.size > SHARED_HISTORY_CAP) sharedHistory.removeAt(0)
             refreshSession(id)
             seq
         }
@@ -715,6 +722,7 @@ class Workspace(
         const val INITIAL_ROWS = 24
         const val INITIAL_COLS = 80
         const val HISTORY_CAP = 500
+        const val SHARED_HISTORY_CAP = 2000
         const val REFRESH_INTERVAL_MS = 100L
         const val EVENT_QUEUE_CAPACITY = 16
     }
