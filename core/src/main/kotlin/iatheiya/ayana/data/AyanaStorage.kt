@@ -42,6 +42,12 @@ internal data class FavoritesIndex(
 )
 
 /** User-facing application preferences. */
+
+const val FONT_SYSTEM = "system"
+const val FONT_MONO = "mono"
+const val FONT_SERIF = "serif"
+const val FONT_CUSTOM = "custom"
+
 /** Default rows and columns of the key grid above the composer. */
 const val DEFAULT_KEY_ROWS = 2
 const val DEFAULT_KEY_COLS = 7
@@ -58,6 +64,20 @@ data class AyanaSettings(
     val rawStream: Boolean = false,
     /** Full screen: the status bar with the clock is hidden until swiped in. */
     val immersiveMode: Boolean = false,
+    /** The screen stays on while Ayana is in front. */
+    val keepScreenOn: Boolean = false,
+    /** Glass surfaces on; off, every surface is one solid tone. */
+    val glassEnabled: Boolean = true,
+    /** A colour mixed into the base of buttons and panels, as ARGB; null for none. */
+    val tintArgb: Long? = null,
+    /** The transcript font: one of [FONT_SYSTEM], [FONT_MONO], [FONT_SERIF], [FONT_CUSTOM]. */
+    val font: String = FONT_SYSTEM,
+    /** Bumped each time a custom font file is picked; 0 while there is none. */
+    val customFontVersion: Long = 0,
+    /** Bumped each time a wallpaper is picked; 0 while there is none. */
+    val wallpaperVersion: Long = 0,
+    /** How much the wallpaper is darkened under the text, in percent. */
+    val wallpaperDimPct: Int = 45,
     val outputFontSizeSp: Int = 13,
     val previewLines: Int = PREVIEW_LINES,
     val bubbleFontSizeSp: Int = 16,
@@ -88,7 +108,7 @@ data class AyanaSettings(
  * and the shell integration rc. Pure file operations; orchestration lives
  * in the ViewModel, so this class stays trivially testable.
  */
-class AyanaStorage(root: File) {
+class AyanaStorage(private val root: File) {
 
     private val json = Json { ignoreUnknownKeys = true }
 
@@ -178,4 +198,11 @@ class AyanaStorage(root: File) {
     }
 
     fun shellHome(): File = homeDir
+
+    /** Files the user picked to dress the app: the wallpaper and a custom font. */
+    fun wallpaperFile(): File = File(appearanceDir, "wallpaper")
+
+    fun customFontFile(): File = File(appearanceDir, "font")
+
+    private val appearanceDir get() = File(root, "appearance").apply { mkdirs() }
 }

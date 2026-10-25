@@ -30,6 +30,7 @@ import iatheiya.ayana.data.KeyKind
 import iatheiya.ayana.ui.common.EqualCellGrid
 import iatheiya.ayana.ui.common.pressWash
 import iatheiya.ayana.ui.liquid.LocalLiquidBackdrop
+import iatheiya.ayana.ui.liquid.backdropGap
 import iatheiya.ayana.ui.liquid.liquidGlass
 import iatheiya.ayana.ui.theme.Ui
 import iatheiya.ayana.util.isCtrlCombinable
@@ -193,13 +194,10 @@ fun KeyRow(
             contentPaddingH = Ui.keyRowPaddingH,
             contentPaddingV = Ui.keyRowPaddingV,
             modifier = Modifier.fillMaxWidth(),
-            separator = {
-                Box(
-                    Modifier.background(
-                        MaterialTheme.colorScheme.outline.copy(alpha = Ui.dividerAlpha),
-                    ),
-                )
-            },
+            // Between keys, thin lines of strong blur: the row reads as separate keys of one
+            // panel. Only between keys, none along the outer edges.
+            separator = { Box(Modifier.fillMaxSize().backdropGap(LocalLiquidBackdrop.current)) },
+            rowSeparator = { Box(Modifier.fillMaxSize().backdropGap(LocalLiquidBackdrop.current)) },
             cell = { key ->
                 val selected = (key.kind == KeyActionKind.TOGGLE_STICKY_CTRL && stickyCtrl) ||
                     (key.kind == KeyActionKind.TOGGLE_STICKY_ALT && stickyAlt) ||

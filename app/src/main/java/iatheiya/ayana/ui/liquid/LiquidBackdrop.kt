@@ -8,15 +8,20 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import android.os.Build
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.BlurEffect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.graphics.drawscope.ContentDrawScope
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipPath
+import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.layer.CompositingStrategy
 import androidx.compose.ui.graphics.layer.GraphicsLayer
@@ -27,6 +32,7 @@ import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import iatheiya.ayana.ui.theme.ChromeTint
 import iatheiya.ayana.ui.theme.glass
 import iatheiya.ayana.ui.theme.glassFill
 import iatheiya.ayana.ui.theme.solidChrome
@@ -161,9 +167,46 @@ fun Modifier.liquidGlass(
                 }
                 clipPath(path) { drawLayer(lensLayer) }
                 drawPath(path, color = fill)
+                ChromeTint.color?.let { drawPath(path, color = it.copy(alpha = ChromeTint.GLASS_ALPHA)) }
                 drawPath(path, color = sheen)
                 if (lit) drawPath(path, color = rim, style = Stroke(width = rimWidth))
                 drawContent()
             }
         }
 }
+
+/**
+ * A gap inside a glass surface, such as the line between the composer and the key row or between
+ * two keys. It is not cut out to the page (text behind would show through it, sharp) and not
+ * left as glass: it shows the backdrop under a much stronger blur, without the glass fill. So the
+ * surface reads as parts of one panel, while nothing behind it is legible.
+ *
+ * With glass off, or where the blur cannot be drawn (before Android 12), the gap is a plain cutout
+ * in the page colour, like the dividers in the settings cards.
+ */
+@Composable
+fun Modifier.backdropGap(backdrop: LiquidBackdrop?, blur: Dp = GAP_BLUR): Modifier {
+    val layer = rememberGraphicsLayer()
+    val placement = remember { GlassPlacement() }
+    val cutout = MaterialTheme.colorScheme.background
+    if (!GlassTuning.enabled || backdrop == null || Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
+        return drawBehind { drawRect(cutout) }
+    }
+    return this
+        .onGloballyPositioned { placement.rootOrigin = it.positionInRoot() }
+        .drawBehind {
+            val radius = blur.toPx()
+            if (layer.renderEffect == null) layer.renderEffect = BlurEffect(radius, radius, TileMode.Clamp)
+            // Recorded with a margin of the blur radius on every side, so the blur at the gap's
+            // edges is made of the real neighbouring backdrop, not of clamped edge pixels.
+            val margin = radius * 2
+            val offset = placement.rootOrigin - backdrop.rootOrigin
+            val pixels = IntSize((size.width + margin * 2).roundToInt(), (size.height + margin * 2).roundToInt())
+            layer.record(this, layoutDirection, pixels) {
+                translate(margin - offset.x, margin - offset.y) { drawLayer(backdrop.layer) }
+            }
+            clipRect { translate(-margin, -margin) { drawLayer(layer) } }
+        }
+}
+
+private val GAP_BLUR = 24.dp

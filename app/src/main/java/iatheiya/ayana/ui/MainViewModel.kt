@@ -12,6 +12,7 @@ import iatheiya.ayana.R
 import iatheiya.ayana.core.terminal.TerminalEngine
 import iatheiya.ayana.data.AyanaStorage
 import iatheiya.ayana.data.CustomKey
+import iatheiya.ayana.data.FONT_CUSTOM
 import iatheiya.ayana.engine.NativeShellEngine
 import iatheiya.ayana.session.Attachments
 import iatheiya.ayana.session.CommandRecall
@@ -180,6 +181,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     /** Runs a favourite or key payload straight to the shell. */
     fun executeDirectly(command: String) {
         if (workspace.executeDirectly(command)) jumpIfEnabled()
+    }
+
+    /** The jump-down button: animate the transcript to its very end. */
+    fun requestJumpToBottom() {
+        _jumpToBottom.tryEmit(Unit)
     }
 
     private fun jumpIfEnabled() {
@@ -435,6 +441,56 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun setRawStream(enabled: Boolean) = workspace.updateSettings { it.copy(rawStream = enabled) }
 
     fun setImmersiveMode(value: Boolean) = workspace.updateSettings { it.copy(immersiveMode = value) }
+
+    // ------------------------------------------------------------ appearance
+
+    fun setKeepScreenOn(value: Boolean) = workspace.updateSettings { it.copy(keepScreenOn = value) }
+
+    fun setGlassEnabled(value: Boolean) = workspace.updateSettings { it.copy(glassEnabled = value) }
+
+    fun setTint(argb: Long?) = workspace.updateSettings { it.copy(tintArgb = argb) }
+
+    fun setFont(font: String) = workspace.updateSettings { it.copy(font = font) }
+
+    fun setWallpaperDim(pct: Int) = workspace.updateSettings { it.copy(wallpaperDimPct = pct) }
+
+    fun wallpaperFile(): File = storage.wallpaperFile()
+
+    fun customFontFile(): File = storage.customFontFile()
+
+    /** Copies a picked image in as the wallpaper; the new version makes every screen reload it. */
+    fun importWallpaper(uri: Uri, context: Context) = importAppearanceFile(uri, context, storage.wallpaperFile()) {
+        workspace.updateSettings { it.copy(wallpaperVersion = System.currentTimeMillis()) }
+    }
+
+    fun removeWallpaper() {
+        storage.wallpaperFile().delete()
+        workspace.updateSettings { it.copy(wallpaperVersion = 0) }
+    }
+
+    /** Copies a picked font file in and switches the transcript to it, if Android can read it as a font. */
+    fun importCustomFont(uri: Uri, context: Context) = importAppearanceFile(uri, context, storage.customFontFile()) { file ->
+        val readable = runCatching { android.graphics.Typeface.createFromFile(file) }.isSuccess
+        if (readable) {
+            workspace.updateSettings { it.copy(font = FONT_CUSTOM, customFontVersion = System.currentTimeMillis()) }
+        } else {
+            file.delete()
+            android.widget.Toast.makeText(context, R.string.appearance_font_unreadable, android.widget.Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun importAppearanceFile(uri: Uri, context: Context, target: File, done: (File) -> Unit) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                context.contentResolver.openInputStream(uri)?.use { input ->
+                    target.outputStream().use { output -> input.copyTo(output) }
+                } ?: throw IllegalStateException("cannot open $uri")
+                withContext(Dispatchers.Main) { done(target) }
+            } catch (e: Exception) {
+                AyanaLog.error("appearance", "import failed", e)
+            }
+        }
+    }
 
     fun setAutocompleteEnabled(value: Boolean) = workspace.updateSettings { it.copy(autocompleteEnabled = value) }
 

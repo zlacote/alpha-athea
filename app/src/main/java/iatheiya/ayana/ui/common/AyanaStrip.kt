@@ -41,6 +41,8 @@ fun <T> EqualCellGrid(
     contentPaddingV: Dp,
     modifier: Modifier = Modifier,
     separator: @Composable () -> Unit,
+    /** Drawn between the rows of a column, [separatorWidth] tall; none when null. */
+    rowSeparator: (@Composable () -> Unit)? = null,
     cell: @Composable (T) -> Unit,
 ) {
     val scrollState = rememberScrollState()
@@ -57,6 +59,8 @@ fun <T> EqualCellGrid(
         val cellWidth = if (viewport <= fixed) 0.dp else (viewport - fixed) / cols
         // Column-major: each column is a stack of [rowCount] cells.
         val columns = items.chunked(rowCount)
+        val rowGaps = if (rowSeparator != null) separatorWidth * (rowCount - 1) else 0.dp
+        val columnHeight = cellHeight * rowCount + rowGaps
         Row(
             Modifier
                 .fillMaxWidth()
@@ -71,7 +75,7 @@ fun <T> EqualCellGrid(
                     Box(
                         Modifier
                             .width(separatorWidth)
-                            .height(cellHeight * rowCount),
+                            .height(columnHeight),
                         contentAlignment = Alignment.Center,
                     ) {
                         separator()
@@ -79,6 +83,9 @@ fun <T> EqualCellGrid(
                 }
                 Column(Modifier.width(cellWidth)) {
                     for (rowIndex in 0 until rowCount) {
+                        if (rowIndex > 0 && rowSeparator != null) {
+                            Box(Modifier.width(cellWidth).height(separatorWidth)) { rowSeparator() }
+                        }
                         Box(
                             Modifier
                                 .width(cellWidth)

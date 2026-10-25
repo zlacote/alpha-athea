@@ -57,11 +57,15 @@ val CodeStyle = TextStyle(
 /** Output font size chosen in settings; defaults match [CodeStyle]. */
 val LocalOutputFontSize = staticCompositionLocalOf { 13 }
 
-/** [CodeStyle] honoring the user-selected output font size. */
+/** The transcript font picked in Appearance; null keeps the built-in faces. */
+val LocalTranscriptFont = staticCompositionLocalOf<FontFamily?> { null }
+
+/** [CodeStyle] honoring the user-selected output font size and font. */
 @Composable
 fun codeStyle(): TextStyle {
     val size = LocalOutputFontSize.current
-    return CodeStyle.copy(fontSize = size.sp, lineHeight = (size * 1.45f).sp)
+    val style = CodeStyle.copy(fontSize = size.sp, lineHeight = (size * 1.45f).sp)
+    return LocalTranscriptFont.current?.let { style.copy(fontFamily = it) } ?: style
 }
 
 /** Chat-message style for command bubbles and the composer, like chat apps. */
@@ -77,7 +81,8 @@ val LocalMessageFontSize = staticCompositionLocalOf { 16 }
 @Composable
 fun messageStyle(): TextStyle {
     val size = LocalMessageFontSize.current
-    return MessageStyle.copy(fontSize = size.sp, lineHeight = (size * 1.375f).sp)
+    val style = MessageStyle.copy(fontSize = size.sp, lineHeight = (size * 1.375f).sp)
+    return LocalTranscriptFont.current?.let { style.copy(fontFamily = it) } ?: style
 }
 
 val HighlightColor = Color(0xFFBB8009)

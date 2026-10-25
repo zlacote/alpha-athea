@@ -1,11 +1,15 @@
 package iatheiya.ayana.ui.theme
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.dp
 
@@ -35,6 +39,20 @@ object Glass {
     val CANVAS_TINT = Color(0xFF101014)
 }
 
+/**
+ * The colour the user mixed into the base of buttons and panels (Appearance), or null for none.
+ * Glass surfaces lay it over their fill as a light wash; with glass off it tints the solid tone.
+ */
+object ChromeTint {
+    var color by mutableStateOf<Color?>(null)
+
+    /** How strongly the colour washes over a glass surface. */
+    internal const val GLASS_ALPHA = 0.22f
+
+    /** How far the solid tone moves toward the colour with glass off. */
+    internal const val SOLID_MIX = 0.35f
+}
+
 internal fun glassFill(strong: Boolean, clear: Boolean): Color = when {
     clear -> Glass.FILL_CLEAR
     strong -> Glass.FILL_STRONG
@@ -60,6 +78,7 @@ fun Modifier.glass(
         val rimWidth = 1.dp.toPx()
         onDrawBehind {
             drawPath(path, color = fill)
+            ChromeTint.color?.let { drawPath(path, color = it.copy(alpha = ChromeTint.GLASS_ALPHA)) }
             if (lit) drawPath(path, color = Glass.RIM, style = Stroke(width = rimWidth))
         }
     }
@@ -81,7 +100,7 @@ fun Modifier.solidChrome(
     val path = shape.createOutline(size, layoutDirection, this).toPath()
     val rimWidth = 1.dp.toPx()
     onDrawBehind {
-        drawPath(path, color = color)
+        drawPath(path, color = ChromeTint.color?.let { lerp(color, it, ChromeTint.SOLID_MIX) } ?: color)
         if (lit) drawPath(path, color = Glass.RIM, style = Stroke(width = rimWidth))
     }
 }

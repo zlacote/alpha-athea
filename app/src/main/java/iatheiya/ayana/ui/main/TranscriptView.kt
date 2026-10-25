@@ -49,11 +49,11 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -90,7 +90,6 @@ import iatheiya.ayana.ui.text.toAnnotated
 import iatheiya.ayana.ui.theme.messageStyle
 import iatheiya.ayana.util.trimCommand
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.launch
 
 private const val TAIL_LINES = 5
 
@@ -148,8 +147,8 @@ fun TranscriptView(
     previewLines: Int,
     contentTopPadding: Dp,
     contentBottomPadding: Dp = Ui.contentPaddingV,
-    /** From the right edge to the jump-down button, so it lines up with the send button below it. */
-    jumpButtonEnd: Dp = 16.dp,
+    /** Whether the transcript is scrolled up from its end; the composer shows a jump-down button then. */
+    onJumpAvailableChange: (Boolean) -> Unit = {},
     pinchZoomEnabled: Boolean,
     virtualizeLargeOutput: Boolean = false,
     onTranscriptFontZoom: (Float) -> Unit,
@@ -305,14 +304,12 @@ fun TranscriptView(
             }
         }
 
-        // The button remains available whenever even part of a tall final
-        // chunk is below the viewport, and disappears only at the true end.
-        var showJumpDown by remember { mutableStateOf(false) }
+        // The jump-down button (in the composer) shows whenever even part of a tall final chunk
+        // is below the viewport, and goes away only at the true end.
         LaunchedEffect(listState) {
-            snapshotFlow { listState.canScrollForward }.collect { canScrollForward ->
-                showJumpDown = canScrollForward
-            }
+            snapshotFlow { listState.canScrollForward }.collect { onJumpAvailableChange(it) }
         }
+        DisposableEffect(Unit) { onDispose { onJumpAvailableChange(false) } }
 
         val currentMatchId = search?.matchBlockIds?.getOrNull(search.index)
 
@@ -407,35 +404,6 @@ fun TranscriptView(
             }
         }
 
-        if (showJumpDown) {
-            val scope = rememberCoroutineScope()
-            Surface(
-                onClick = {
-                    // A final chunk can exceed the viewport, so moving to
-                    // that item alone would stop at its first line.
-                    val last = itemCount - 1
-                    if (last >= 0) scope.launch { try { listState.animateScrollToEnd(last) } catch (_: Exception) {} }
-                    else {
-                        val fallback = listState.layoutInfo.totalItemsCount - 1
-                        if (fallback >= 0) scope.launch { try { listState.animateScrollToEnd(fallback) } catch (_: Exception) {} }
-                    }
-                },
-                shape = androidx.compose.foundation.shape.CircleShape,
-                color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                // Same size as the send button and in its column, just above the composer.
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(end = jumpButtonEnd, bottom = contentBottomPadding - Ui.contentPaddingV + 2.dp),
-            ) {
-                Box(Modifier.size(SEND_BUTTON_SIZE), contentAlignment = Alignment.Center) {
-                    Icon(
-                        Icons.Default.KeyboardArrowDown,
-                        contentDescription = stringResource(R.string.cd_scroll_down),
-                        tint = MaterialTheme.colorScheme.onSurface,
-                    )
-                }
-            }
-        }
     }
 }
 

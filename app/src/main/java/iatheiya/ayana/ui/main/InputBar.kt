@@ -8,7 +8,13 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -65,17 +71,9 @@ import iatheiya.ayana.ui.theme.glass
 import iatheiya.ayana.ui.theme.messageStyle
 
 /** The drawn send circle, kept smaller than its touch target so it sits inside the field. */
-internal val SEND_BUTTON_SIZE = 34.dp
+private val SEND_BUTTON_SIZE = 36.dp
 
-/**
- * From the screen's right edge to the send circle's right edge, docked or floating: the panel's
- * outer and inner padding, the button row's end padding and the margin inside the touch target.
- * The transcript's jump-down button uses it to sit in the same column as the send button.
- */
-internal fun sendCircleEndInset(docked: Boolean) =
-    (if (docked) DOCKED_PADDING_H else FLOATING_MARGIN_H + FLOATING_PADDING_H) +
-        BUTTON_ROW_END + (Ui.composerButtonSize - SEND_BUTTON_SIZE) / 2
-
+private const val JUMP_FILL_ALPHA = 0.14f
 private val DOCKED_PADDING_H = 8.dp
 private val FLOATING_PADDING_H = 4.dp
 private val FLOATING_MARGIN_H = 16.dp
@@ -109,6 +107,9 @@ fun InputBar(
      * the key row share one container (see [DockedPanelShape]), drawn by the caller.
      */
     docked: Boolean = false,
+    /** The transcript is not at its end: a jump-down button shows beside the send button. */
+    showJumpDown: Boolean = false,
+    onJumpDown: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     if (search == null) {
@@ -126,6 +127,8 @@ fun InputBar(
             directory = directory,
             running = running,
             docked = docked,
+            showJumpDown = showJumpDown,
+            onJumpDown = onJumpDown,
             modifier = modifier,
         )
     } else {
@@ -174,9 +177,17 @@ private fun DraftPanel(
     directory: String?,
     running: Boolean,
     docked: Boolean,
+    showJumpDown: Boolean,
+    onJumpDown: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var lineCount by remember { mutableStateOf(1) }
+    // The field makes room for the jump-down button while it shows, and gives it back smoothly.
+    val jumpRoom by animateDpAsState(
+        targetValue = if (showJumpDown) Ui.composerButtonSize else 0.dp,
+        animationSpec = tween(durationMillis = 200, easing = FastOutSlowInEasing),
+        label = "jumpRoom",
+    )
     var grown by remember { mutableStateOf(false) }
     if (draft.isEmpty()) grown = false
     if (lineCount > 1) grown = true
@@ -195,7 +206,7 @@ private fun DraftPanel(
                 } else {
                     Modifier
                         .barPadding()
-                        .liquidGlass(backdrop, Ui.panelShape, Ui.panelRadius, strong = true)
+                        .liquidGlass(backdrop, Ui.panelShape, Ui.panelRadius)
                 },
             ),
     ) {
@@ -219,7 +230,7 @@ private fun DraftPanel(
                         .fillMaxWidth()
                         .padding(
                             start = if (compact) 50.dp else 16.dp,
-                            end = if (compact) Ui.composerButtonSpace else Ui.composerFieldEndGrown,
+                            end = (if (compact) Ui.composerButtonSpace else Ui.composerFieldEndGrown) + jumpRoom,
                             top = if (compact) 4.dp else Ui.composerFieldTopGrown,
                             bottom = if (compact) 0.dp else Ui.composerButtonRowHeight,
                         ),
@@ -245,25 +256,26 @@ private fun DraftPanel(
                         ) {
                             if (draft.isEmpty()) {
                                 // The live prompt, like a terminal shows it: the shell's real working
-                                // directory, updated after every command. While a command runs, the
-                                // field feeds that program instead, and the hint says so.
-                                Text(
-                                    if (running) {
-                                        stringResource(R.string.input_hint_running)
-                                    } else {
-                                        stringResource(R.string.input_prompt, directory ?: "")
-                                            .trimStart()
-                                    },
-                                    style = if (running) {
-                                        messageStyle()
-                                    } else {
-                                        messageStyle().copy(fontFamily = FontFamily.Monospace)
-                                    },
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    maxLines = 1,
-                                    // Optically centered — 2dp lift is clearly visible
-                                    modifier = Modifier.align(Alignment.CenterStart).padding(bottom = 2.dp),
-                                )
+                                // directory, `~` for home, updated after every command. It shrinks to
+                                // fit; a path still too long loses its start, the end being what tells
+                                // where you are. While a command runs, the field feeds that program
+                                // instead, and the hint says so.
+                                Box(Modifier.align(Alignment.CenterStart).padding(bottom = 2.dp)) {
+                                    FittingText(
+                                        text = if (running) {
+                                            stringResource(R.string.input_hint_running)
+                                        } else {
+                                            stringResource(R.string.input_prompt, directory ?: "").trimStart()
+                                        },
+                                        style = if (running) {
+                                            messageStyle()
+                                        } else {
+                                            messageStyle().copy(fontFamily = FontFamily.Monospace)
+                                        },
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        cutStart = !running,
+                                    )
+                                }
                             }
                             // Ghost suggestion: the opaque draft text covers the
                             // prefix, the gray tail sticks out past the cursor.
@@ -305,6 +317,29 @@ private fun DraftPanel(
                                 contentDescription = stringResource(R.string.cd_expand_editor),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
+                        }
+                    }
+                    // The way back to the newest output, on the same line as the send button and
+                    // drawn the same size, only while the transcript is scrolled up.
+                    AnimatedVisibility(
+                        visible = showJumpDown,
+                        enter = fadeIn(tween(160)) + scaleIn(tween(200), initialScale = 0.6f),
+                        exit = fadeOut(tween(120)) + scaleOut(tween(160), targetScale = 0.6f),
+                    ) {
+                        IconButton(onClick = onJumpDown, modifier = Modifier.size(Ui.composerButtonSize)) {
+                            Box(
+                                Modifier
+                                    .size(SEND_BUTTON_SIZE)
+                                    .clip(CircleShape)
+                                    .background(MaterialTheme.colorScheme.onSurface.copy(alpha = JUMP_FILL_ALPHA)),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Icon(
+                                    Icons.Default.KeyboardArrowDown,
+                                    contentDescription = stringResource(R.string.cd_scroll_down),
+                                    tint = MaterialTheme.colorScheme.onSurface,
+                                )
+                            }
                         }
                     }
                     val hasText = draft.isNotBlank()
@@ -381,7 +416,7 @@ private fun SearchPanel(
         modifier = modifier
             .fillMaxWidth()
             .barPadding()
-            .liquidGlass(backdrop, Ui.panelShape, Ui.panelRadius, strong = true),
+            .liquidGlass(backdrop, Ui.panelShape, Ui.panelRadius),
     ) {
         Row(
             Modifier.padding(horizontal = 6.dp, vertical = 4.dp),
@@ -444,20 +479,39 @@ private fun SearchPanel(
     }
 }
 
-/** One line of text that shrinks its font until it fits the width, so it never widens the field beside it. */
+/**
+ * One line of text that shrinks its font until it fits the width, so it never widens the field
+ * beside it. With [cutStart], text that still does not fit at the smallest size drops characters
+ * from its start behind an ellipsis, keeping its end.
+ */
 @Composable
-private fun FittingText(text: String, style: TextStyle, color: Color) {
+private fun FittingText(text: String, style: TextStyle, color: Color, cutStart: Boolean = false) {
     val measurer = rememberTextMeasurer()
     BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val maxWidth = constraints.maxWidth
+        val fitted = fittedStyle(measurer, text, style, maxWidth)
+        val shown = if (cutStart) cutToFit(measurer, text, fitted, maxWidth) else text
         Text(
-            text,
-            style = fittedStyle(measurer, text, style, constraints.maxWidth),
+            shown,
+            style = fitted,
             color = color,
             maxLines = 1,
             softWrap = false,
         )
     }
 }
+
+/** [text] as is when it fits [maxWidth], else an ellipsis and as much of its end as fits. */
+private fun cutToFit(measurer: TextMeasurer, text: String, style: TextStyle, maxWidth: Int): String {
+    if (measurer.measure(text, style).size.width <= maxWidth) return text
+    var start = 1
+    while (start < text.length && measurer.measure(ELLIPSIS + text.substring(start), style).size.width > maxWidth) {
+        start++
+    }
+    return ELLIPSIS + text.substring(start)
+}
+
+private const val ELLIPSIS = "\u2026"
 
 /** The largest font size, down to [MIN_FIT_SP], at which [text] fits [maxWidth] pixels on one line. */
 private fun fittedStyle(measurer: TextMeasurer, text: String, style: TextStyle, maxWidth: Int): TextStyle {

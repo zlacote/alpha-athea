@@ -10,12 +10,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.BlurOn
 import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Keyboard
 import androidx.compose.material.icons.filled.KeyboardCommandKey
-import androidx.compose.material.icons.filled.LightMode
+import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material3.Icon
@@ -37,20 +36,16 @@ import iatheiya.ayana.util.copyToClipboard
 import java.io.File
 
 /** Which room of the settings is on screen: the entry list or one of its sub-rooms. */
-private enum class SettingsPane { ROOT, INPUT, OUTPUT, FAVORITES }
+private enum class SettingsPane { ROOT, INPUT, OUTPUT, APPEARANCE, FAVORITES }
 
 @Composable
 fun SettingsScreen(
     enterSends: Boolean,
     autoScrollOnSend: Boolean,
     rawStream: Boolean,
-    immersiveMode: Boolean,
     autocompleteEnabled: Boolean,
-    pinchZoomEnabled: Boolean,
     virtualizeLargeOutput: Boolean,
-    outputFontSizeSp: Int,
     previewLines: Int,
-    bubbleFontSizeSp: Int,
     attachSendsNow: Boolean,
     favoriteReturnsHome: Boolean,
     favoriteSendsImmediately: Boolean,
@@ -59,17 +54,13 @@ fun SettingsScreen(
     onEnterSendsChange: (Boolean) -> Unit,
     onAutoScrollOnSendChange: (Boolean) -> Unit,
     onRawStreamChange: (Boolean) -> Unit,
-    onImmersiveModeChange: (Boolean) -> Unit,
     onAutocompleteEnabledChange: (Boolean) -> Unit,
-    onPinchZoomEnabledChange: (Boolean) -> Unit,
     onVirtualizeLargeOutputChange: (Boolean) -> Unit,
-    onOutputFontSizeChange: (Int) -> Unit,
     onPreviewLinesChange: (Int) -> Unit,
-    onBubbleFontSizeChange: (Int) -> Unit,
     onAttachSendsNowChange: (Boolean) -> Unit,
-    onOpenGlow: () -> Unit,
     onOpenKeys: () -> Unit,
-    onOpenGlassTuning: () -> Unit,
+    appearance: AppearanceState,
+    appearanceActions: AppearanceActions,
     scrollState: ScrollState,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
@@ -115,21 +106,15 @@ fun SettingsScreen(
 
                 SettingsEntryGroup {
                     SettingsEntryRow(
-                        icon = Icons.Default.LightMode,
-                        title = stringResource(R.string.settings_glow_section),
-                        onClick = onOpenGlow,
+                        icon = Icons.Default.Palette,
+                        title = stringResource(R.string.settings_section_appearance),
+                        onClick = { pane = SettingsPane.APPEARANCE },
                     )
                     SettingsDivider()
                     SettingsEntryRow(
                         icon = Icons.Default.KeyboardCommandKey,
                         title = stringResource(R.string.settings_key_row),
                         onClick = onOpenKeys,
-                    )
-                    SettingsDivider()
-                    SettingsEntryRow(
-                        icon = Icons.Default.BlurOn,
-                        title = stringResource(R.string.glass_open),
-                        onClick = onOpenGlassTuning,
                     )
                 }
 
@@ -198,24 +183,10 @@ fun SettingsScreen(
                 AyanaScrollHeader(stringResource(R.string.settings_section_output))
                 SettingsCard {
                     SwitchRow(
-                        title = stringResource(R.string.settings_immersive),
-                        subtitle = stringResource(R.string.settings_immersive_desc),
-                        checked = immersiveMode,
-                        onChange = onImmersiveModeChange,
-                    )
-                    SettingsDivider()
-                    SwitchRow(
                         title = stringResource(R.string.settings_raw_stream),
                         subtitle = stringResource(R.string.settings_raw_stream_desc),
                         checked = rawStream,
                         onChange = onRawStreamChange,
-                    )
-                    SettingsDivider()
-                    SwitchRow(
-                        title = stringResource(R.string.settings_pinch_zoom),
-                        subtitle = stringResource(R.string.settings_pinch_zoom_desc),
-                        checked = pinchZoomEnabled,
-                        onChange = onPinchZoomEnabledChange,
                     )
                     SettingsDivider()
                     SwitchRow(
@@ -226,28 +197,16 @@ fun SettingsScreen(
                     )
                     SettingsDivider()
                     SliderRow(
-                        title = stringResource(R.string.settings_font_size),
-                        value = outputFontSizeSp,
-                        range = 10f..22f,
-                        onChange = onOutputFontSizeChange,
-                    )
-                    SettingsDivider()
-                    SliderRow(
                         title = stringResource(R.string.settings_preview_lines),
                         value = previewLines,
                         range = 1f..10f,
                         onChange = onPreviewLinesChange,
                     )
-                    SettingsDivider()
-                    SliderRow(
-                        title = stringResource(R.string.settings_bubble_size),
-                        value = bubbleFontSizeSp,
-                        range = 12f..24f,
-                        onChange = onBubbleFontSizeChange,
-                    )
                 }
                 Spacer(Modifier.height(24.dp))
             }
+
+            SettingsPane.APPEARANCE -> AppearancePane(state = appearance, actions = appearanceActions)
 
             SettingsPane.FAVORITES -> Column(
                 Modifier

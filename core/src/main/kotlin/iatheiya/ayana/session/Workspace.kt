@@ -21,8 +21,6 @@ import iatheiya.ayana.util.AyanaLog
 import iatheiya.ayana.util.normalizeCommand
 import iatheiya.ayana.util.shellEval
 import iatheiya.ayana.util.trimCommand
-import java.io.ByteArrayOutputStream
-import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -38,6 +36,9 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import java.io.ByteArrayOutputStream
+import java.io.File
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Owns live sessions end-to-end: transcripts, journals, terminal backends,
@@ -570,6 +571,7 @@ class Workspace(
         outputFontSizeSp = outputFontSizeSp.coerceIn(10, 22),
         previewLines = previewLines.coerceIn(1, 10),
         bubbleFontSizeSp = bubbleFontSizeSp.coerceIn(12, 24),
+        wallpaperDimPct = wallpaperDimPct.coerceIn(0, 90),
     )
 
     // ------------------------------------------------------------ persistence
@@ -649,15 +651,30 @@ class Workspace(
         }
     }
 
-    /** `~` for the shell's home folder, as shells show it in their prompt. */
-    private fun abbreviateHome(path: String): String {
-        val home = storage.shellHome().absolutePath.trimEnd('/')
-        return when {
-            path == home -> "~"
-            path.startsWith("$home/") -> "~" + path.substring(home.length)
-            else -> path
+    /**
+     * `~` for the shell's home folder, as shells show it in their prompt. Both sides are compared
+     * resolved: the shell reports its physical directory (/data/data/...), while the home was handed
+     * over through a symlinked path (/data/user/0/...), so a plain prefix check never matched.
+     */
+    private fun abbreviateHome(path: String): String = shownDirectories.getOrPut(path) {
+        val resolved = runCatching { File(path).canonicalPath }.getOrDefault(path)
+        when {
+            resolved == canonicalHome -> "~"
+            resolved.startsWith("$canonicalHome/") -> "~" + resolved.substring(canonicalHome.length)
+            else -> resolved
         }
     }
+
+    private val canonicalHome: String by lazy {
+        runCatching { storage.shellHome().canonicalPath }.getOrDefault(storage.shellHome().absolutePath).trimEnd('/')
+    }
+
+    /**
+     * Resolving a path touches the disk, and the projection is rebuilt often: each path is resolved
+     * once. Lazy, like [canonicalHome], because sessions are projected while the workspace is still
+     * being constructed, before properties declared down here are initialised.
+     */
+    private val shownDirectories by lazy { java.util.concurrent.ConcurrentHashMap<String, String>() }
 
     private fun rebuildAllSessions() {
         for (id in pipes.keys.toList()) refreshSession(id)

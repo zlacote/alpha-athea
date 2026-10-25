@@ -17,14 +17,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.foundation.background
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.Dp
@@ -152,19 +149,8 @@ fun AyanaDropdownMenu(
                     .shadow(Ui.menuElevation, Ui.menuShape)
                     .clip(Ui.menuShape)
                     .widthIn(min = Ui.menuMinWidth)
-                    .liquidGlass(LocalLiquidBackdrop.current, Ui.menuShape, Ui.menuRadius, strong = true),
+                    .liquidGlass(LocalLiquidBackdrop.current, Ui.menuShape, Ui.menuRadius),
             ) {
-                // A faint top sheen so the panel still reads as frosted glass even over the dark
-                // transcript, where there is little for the lens to refract.
-                androidx.compose.foundation.layout.Box(
-                    Modifier
-                        .matchParentSize()
-                        .background(
-                            Brush.verticalGradient(
-                                listOf(Color.White.copy(alpha = 0.06f), Color.Transparent),
-                            ),
-                        ),
-                )
                 // As wide as its widest item, so the menu hugs its content.
                 androidx.compose.foundation.layout.Column(Modifier.width(IntrinsicSize.Max), content = content)
             }

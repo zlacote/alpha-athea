@@ -1,6 +1,17 @@
 package iatheiya.ayana.ui.main
 
 import androidx.activity.compose.BackHandler
+import android.graphics.Typeface
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.SideEffect
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.text.font.FontFamily
+import iatheiya.ayana.data.FONT_CUSTOM
+import iatheiya.ayana.data.FONT_MONO
+import iatheiya.ayana.data.FONT_SERIF
+import iatheiya.ayana.ui.liquid.GlassTuning
+import iatheiya.ayana.ui.theme.ChromeTint
+import iatheiya.ayana.ui.theme.LocalTranscriptFont
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -45,11 +56,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
@@ -63,6 +76,7 @@ import iatheiya.ayana.ui.common.AyanaDialogContainer
 import iatheiya.ayana.ui.liquid.LiquidBackdrop
 import iatheiya.ayana.ui.liquid.LocalLiquidBackdrop
 import iatheiya.ayana.ui.liquid.liquidBackdrop
+import iatheiya.ayana.ui.liquid.backdropGap
 import iatheiya.ayana.ui.liquid.liquidGlass
 import iatheiya.ayana.ui.liquid.rememberLiquidBackdrop
 import iatheiya.ayana.ui.theme.LocalMessageFontSize
@@ -80,10 +94,25 @@ fun MainScreen(viewModel: MainViewModel) {
     val settingsScroll = rememberScrollState()
     val scope = rememberCoroutineScope()
 
+    val settings = state.workspace.settings
+    val appContext = LocalContext.current.applicationContext
+
+    // Appearance, applied here above the early returns so it holds on whichever screen is open.
+    val view = LocalView.current
+    DisposableEffect(view, settings.keepScreenOn) {
+        view.keepScreenOn = settings.keepScreenOn
+        onDispose { view.keepScreenOn = false }
+    }
+    // The glass switch lives in GlassTuning (the tuning screen flips it too); it is stored in the
+    // settings so it survives a restart: the stored value is applied, and every change is stored.
+    LaunchedEffect(settings.glassEnabled) { GlassTuning.enabled = settings.glassEnabled }
+    LaunchedEffect(Unit) { snapshotFlow { GlassTuning.enabled }.collect { viewModel.setGlassEnabled(it) } }
+    SideEffect { ChromeTint.color = settings.tintArgb?.let { Color(it) } }
+
     // Full screen hides the status bar on every screen; a swipe from the top brings it back for
-    // a moment. Applied here, above the early returns, so it holds whichever screen is open.
+    // a moment.
     val activity = LocalContext.current as? android.app.Activity
-    val immersive = state.workspace.settings.immersiveMode
+    val immersive = settings.immersiveMode
     LaunchedEffect(activity, immersive) {
         val window = activity?.window ?: return@LaunchedEffect
         WindowCompat.getInsetsController(window, window.decorView).apply {
@@ -141,35 +170,52 @@ fun MainScreen(viewModel: MainViewModel) {
         BackHandler { closeSettings() }
         SettingsScreen(
             scrollState = settingsScroll,
+            appearance = AppearanceState(
+                immersiveMode = settings.immersiveMode,
+                keepScreenOn = settings.keepScreenOn,
+                tintArgb = settings.tintArgb,
+                font = settings.font,
+                hasCustomFont = settings.customFontVersion != 0L,
+                hasWallpaper = settings.wallpaperVersion != 0L,
+                wallpaperDimPct = settings.wallpaperDimPct,
+                pinchZoomEnabled = settings.pinchZoomEnabled,
+                outputFontSizeSp = settings.outputFontSizeSp,
+                bubbleFontSizeSp = settings.bubbleFontSizeSp,
+            ),
+            appearanceActions = AppearanceActions(
+                onImmersiveModeChange = viewModel::setImmersiveMode,
+                onKeepScreenOnChange = viewModel::setKeepScreenOn,
+                onTintChange = viewModel::setTint,
+                onFontChange = viewModel::setFont,
+                onFontPicked = { uri -> viewModel.importCustomFont(uri, appContext) },
+                onWallpaperPicked = { uri -> viewModel.importWallpaper(uri, appContext) },
+                onRemoveWallpaper = viewModel::removeWallpaper,
+                onWallpaperDimChange = viewModel::setWallpaperDim,
+                onPinchZoomEnabledChange = viewModel::setPinchZoomEnabled,
+                onOutputFontSizeChange = viewModel::setOutputFontSize,
+                onBubbleFontSizeChange = viewModel::setBubbleFontSize,
+                onOpenGlassTuning = { viewModel.setShowGlassTuning(true) },
+                onOpenGlow = { viewModel.setShowGlow(true) },
+            ),
             enterSends = state.workspace.settings.enterSends,
             autoScrollOnSend = state.workspace.settings.autoScrollOnSend,
             rawStream = state.workspace.settings.rawStream,
-            immersiveMode = state.workspace.settings.immersiveMode,
-            onImmersiveModeChange = viewModel::setImmersiveMode,
             autocompleteEnabled = state.workspace.settings.autocompleteEnabled,
-            pinchZoomEnabled = state.workspace.settings.pinchZoomEnabled,
             virtualizeLargeOutput = state.workspace.settings.virtualizeLargeOutput,
-            outputFontSizeSp = state.workspace.settings.outputFontSizeSp,
             previewLines = state.workspace.settings.previewLines,
-            bubbleFontSizeSp = state.workspace.settings.bubbleFontSizeSp,
             onEnterSendsChange = viewModel::setEnterSends,
             onAutoScrollOnSendChange = viewModel::setAutoScrollOnSend,
             onRawStreamChange = viewModel::setRawStream,
             onAutocompleteEnabledChange = viewModel::setAutocompleteEnabled,
-            onPinchZoomEnabledChange = viewModel::setPinchZoomEnabled,
             onVirtualizeLargeOutputChange = viewModel::setVirtualizeLargeOutput,
-            onOutputFontSizeChange = viewModel::setOutputFontSize,
             onPreviewLinesChange = viewModel::setPreviewLines,
-            onBubbleFontSizeChange = viewModel::setBubbleFontSize,
             onOpenKeys = { viewModel.setShowKeys(true) },
-            onOpenGlow = { viewModel.setShowGlow(true) },
             attachSendsNow = state.workspace.settings.attachSendsNow,
             onAttachSendsNowChange = viewModel::setAttachSendsNow,
             favoriteReturnsHome = state.workspace.settings.favoriteReturnsHome,
             favoriteSendsImmediately = state.workspace.settings.favoriteSendsImmediately,
             onFavoriteReturnsHomeChange = viewModel::setFavoriteReturnsHome,
             onFavoriteSendsImmediatelyChange = viewModel::setFavoriteSendsImmediately,
-            onOpenGlassTuning = { viewModel.setShowGlassTuning(true) },
             onBack = { closeSettings() },
         )
         return
@@ -255,7 +301,16 @@ fun MainScreen(viewModel: MainViewModel) {
         )
     }
 
+    val transcriptFont = remember(settings.font, settings.customFontVersion) {
+        when (settings.font) {
+            FONT_MONO -> FontFamily.Monospace
+            FONT_SERIF -> FontFamily.Serif
+            FONT_CUSTOM -> runCatching { FontFamily(Typeface.createFromFile(viewModel.customFontFile())) }.getOrNull()
+            else -> null
+        }
+    }
     CompositionLocalProvider(
+        LocalTranscriptFont provides transcriptFont,
         LocalOutputFontSize provides state.workspace.settings.outputFontSizeSp,
         LocalMessageFontSize provides state.workspace.settings.bubbleFontSizeSp,
     ) {
@@ -280,6 +335,8 @@ private fun MainScreenBody(viewModel: MainViewModel, state: UiState, composerBac
     val density = LocalDensity.current
     // Measured height of the composer and key row: the transcript keeps its last line above them.
     var bottomBarHeight by remember { mutableStateOf(0.dp) }
+    // The transcript is scrolled up from its end: the composer offers a jump back down.
+    var jumpAvailable by remember { mutableStateOf(false) }
 
     // Native toasts: the system renders them, no custom surfaces needed.
     LaunchedEffect(viewModel) {
@@ -353,6 +410,12 @@ private fun MainScreenBody(viewModel: MainViewModel, state: UiState, composerBac
                 // session and the empty state, wired in exactly one place.
                 if (current != null) {
                     Box(Modifier.fillMaxSize().liquidBackdrop(composerBackdrop, MaterialTheme.colorScheme.background)) {
+                        // Inside the backdrop, so the glass refracts the wallpaper like any content.
+                        Wallpaper(
+                            file = viewModel.wallpaperFile(),
+                            version = state.workspace.settings.wallpaperVersion,
+                            dimPct = state.workspace.settings.wallpaperDimPct,
+                        )
                         val overlayBottom = bottomBarHeight + Ui.contentPaddingV
                         val fullScreen = current.fullScreen
                         if (fullScreen != null) {
@@ -373,9 +436,7 @@ private fun MainScreenBody(viewModel: MainViewModel, state: UiState, composerBac
                                 previewLines = state.workspace.settings.previewLines,
                                 contentTopPadding = statusBarTop + Ui.topBarContentTop,
                                 contentBottomPadding = overlayBottom,
-                                jumpButtonEnd = sendCircleEndInset(
-                                    docked = state.workspace.settings.keyRowVisible && state.workspace.search == null,
-                                ),
+                                onJumpAvailableChange = { jumpAvailable = it },
                                 pinchZoomEnabled = state.workspace.settings.pinchZoomEnabled,
                                 virtualizeLargeOutput = state.workspace.settings.virtualizeLargeOutput,
                                 onTranscriptFontZoom = viewModel::onTranscriptFontZoom,
@@ -405,6 +466,7 @@ private fun MainScreenBody(viewModel: MainViewModel, state: UiState, composerBac
                     draft = if (current != null) current.draft.orEmpty() else "",
                     suggestion = if (state.workspace.search == null) state.workspace.suggestion else null,
                     composerBackdrop = composerBackdrop,
+                    showJumpDown = jumpAvailable,
                     modifier = Modifier
                         .align(Alignment.BottomStart)
                         .fillMaxWidth()
@@ -505,6 +567,7 @@ private fun BottomBar(
     draft: String,
     suggestion: String?,
     composerBackdrop: LiquidBackdrop?,
+    showJumpDown: Boolean,
     modifier: Modifier = Modifier,
 ) {
     // One column aligned to the bottom edge: the composer sits directly above
@@ -514,10 +577,15 @@ private fun BottomBar(
     val current = state.workspace.sessions.firstOrNull { it.id == state.workspace.currentSessionId }
     // With the key row shown, the composer and the keys are one glass container: rounded on top,
     // flat at the bottom, one lens over both, so they refract the same content as one surface.
+    // It spills just past the left, right and bottom screen edges, so its rim lies off screen there
+    // and only the rounded top edge shows one. Only just: the further out, the less of the bend at
+    // its ends is on screen.
     val container = if (keyRowShown) {
         Modifier
             .padding(top = 10.dp)
-            .liquidGlass(composerBackdrop, DockedPanelShape, Ui.panelRadius, strong = true, bottomCornerRadius = 0.dp)
+            .bleedPastEdges(DOCK_BLEED)
+            .liquidGlass(composerBackdrop, DockedPanelShape, Ui.panelRadius, bottomCornerRadius = 0.dp)
+            .padding(start = DOCK_BLEED, end = DOCK_BLEED, bottom = DOCK_BLEED)
     } else {
         Modifier
     }
@@ -540,8 +608,18 @@ private fun BottomBar(
             directory = current?.directory,
             running = current?.running == true,
             docked = keyRowShown,
+            showJumpDown = showJumpDown,
+            onJumpDown = viewModel::requestJumpToBottom,
         )
         if (keyRowShown) {
+            // The line between the composer and the keys, like the dividers in the settings cards,
+            // made of strong blur rather than a cut, so nothing behind it can be read.
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .height(DOCK_GAP)
+                    .backdropGap(composerBackdrop),
+            )
             val keys = remember(state.workspace.customKeys) {
                 effectiveKeyRow(state.workspace.customKeys).map { it.toTerminalKey() }
             }
@@ -570,5 +648,19 @@ private fun BottomBar(
     }
 }
 
+private val DOCK_BLEED = 2.dp
+private val DOCK_GAP = 3.dp
 
-
+/** Widens the element by [bleed] on the left, right and bottom without moving its content area in the layout. */
+private fun Modifier.bleedPastEdges(bleed: Dp): Modifier = layout { measurable, constraints ->
+    val extra = bleed.roundToPx()
+    val placeable = measurable.measure(
+        constraints.copy(
+            minWidth = constraints.minWidth + extra * 2,
+            maxWidth = if (constraints.hasBoundedWidth) constraints.maxWidth + extra * 2 else constraints.maxWidth,
+        ),
+    )
+    layout(placeable.width - extra * 2, (placeable.height - extra).coerceAtLeast(0)) {
+        placeable.place(-extra, 0)
+    }
+}
