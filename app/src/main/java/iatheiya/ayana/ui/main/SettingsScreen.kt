@@ -44,6 +44,7 @@ fun SettingsScreen(
     enterSends: Boolean,
     autoScrollOnSend: Boolean,
     rawStream: Boolean,
+    immersiveMode: Boolean,
     autocompleteEnabled: Boolean,
     pinchZoomEnabled: Boolean,
     virtualizeLargeOutput: Boolean,
@@ -58,6 +59,7 @@ fun SettingsScreen(
     onEnterSendsChange: (Boolean) -> Unit,
     onAutoScrollOnSendChange: (Boolean) -> Unit,
     onRawStreamChange: (Boolean) -> Unit,
+    onImmersiveModeChange: (Boolean) -> Unit,
     onAutocompleteEnabledChange: (Boolean) -> Unit,
     onPinchZoomEnabledChange: (Boolean) -> Unit,
     onVirtualizeLargeOutputChange: (Boolean) -> Unit,
@@ -195,6 +197,13 @@ fun SettingsScreen(
             ) {
                 AyanaScrollHeader(stringResource(R.string.settings_section_output))
                 SettingsCard {
+                    SwitchRow(
+                        title = stringResource(R.string.settings_immersive),
+                        subtitle = stringResource(R.string.settings_immersive_desc),
+                        checked = immersiveMode,
+                        onChange = onImmersiveModeChange,
+                    )
+                    SettingsDivider()
                     SwitchRow(
                         title = stringResource(R.string.settings_raw_stream),
                         subtitle = stringResource(R.string.settings_raw_stream_desc),

@@ -41,7 +41,7 @@ fun AyanaScaffold(
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
     backIcon: ImageVector = Icons.AutoMirrored.Filled.ArrowBack,
-    /** Drawn above the content and below the back button, e.g. a key being dragged. */
+    /** Drawn above the content and below the back button (which refracts it), e.g. a key being dragged. */
     overlay: @Composable BoxScope.() -> Unit = {},
     content: @Composable ColumnScope.() -> Unit,
 ) {
@@ -51,19 +51,26 @@ fun AyanaScaffold(
     Surface(color = background, modifier = modifier.fillMaxSize()) {
         CompositionLocalProvider(LocalLiquidBackdrop provides backdrop) {
             Box(Modifier.fillMaxSize()) {
-                Column(
+                // The overlay is recorded together with the content, so whatever it draws (a key
+                // being dragged) is refracted by the back button when it passes beneath it.
+                Box(
                     Modifier
                         .fillMaxSize()
-                        .liquidBackdrop(backdrop, background)
-                        .windowInsetsPadding(
-                            WindowInsets.safeDrawing.only(
-                                WindowInsetsSides.Start + WindowInsetsSides.End + WindowInsetsSides.Bottom,
-                            ),
-                        ),
+                        .liquidBackdrop(backdrop, background),
                 ) {
-                    content()
+                    Column(
+                        Modifier
+                            .fillMaxSize()
+                            .windowInsetsPadding(
+                                WindowInsets.safeDrawing.only(
+                                    WindowInsetsSides.Start + WindowInsetsSides.End + WindowInsetsSides.Bottom,
+                                ),
+                            ),
+                    ) {
+                        content()
+                    }
+                    overlay()
                 }
-                overlay()
                 Box(
                     Modifier
                         .fillMaxWidth()

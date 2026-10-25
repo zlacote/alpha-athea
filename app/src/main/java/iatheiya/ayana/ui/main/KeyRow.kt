@@ -17,7 +17,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -166,6 +165,8 @@ fun KeyRow(
     modifier: Modifier = Modifier,
     rows: Int = 1,
     cols: Int = Ui.keyVisibleCount,
+    /** False when the row sits inside a container that already draws the glass. */
+    glass: Boolean = true,
 ) {
     // Fixed bar with thin equal-width cells — not floating chips. The cell
     // width is owned by EqualCellGrid, so KeyRow carries no viewport logic
@@ -175,7 +176,13 @@ fun KeyRow(
         contentColor = MaterialTheme.colorScheme.onSurface,
         modifier = modifier
             .fillMaxWidth()
-            .liquidGlass(LocalLiquidBackdrop.current, RectangleShape, 0.dp, lit = false, flat = true),
+            .then(
+                if (glass) {
+                    Modifier.liquidGlass(LocalLiquidBackdrop.current, RectangleShape, 0.dp, lit = false, flat = true)
+                } else {
+                    Modifier
+                },
+            ),
     ) {
         EqualCellGrid(
             items = keys,
@@ -274,7 +281,6 @@ private fun KeyCell(
     Box(
         Modifier
             .fillMaxSize()
-            .clip(Ui.smallShape)
             // The armed fill is the bright accent, not the container tone: the container tone is
             // the same grey the solid key row uses with glass off, so it would vanish there.
             .background(MaterialTheme.colorScheme.primary.copy(alpha = armed))

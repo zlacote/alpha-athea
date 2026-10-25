@@ -434,6 +434,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     /** Global transcript view: raw stream instead of chat blocks. */
     fun setRawStream(enabled: Boolean) = workspace.updateSettings { it.copy(rawStream = enabled) }
 
+    fun setImmersiveMode(value: Boolean) = workspace.updateSettings { it.copy(immersiveMode = value) }
+
     fun setAutocompleteEnabled(value: Boolean) = workspace.updateSettings { it.copy(autocompleteEnabled = value) }
 
     fun setPinchZoomEnabled(value: Boolean) = workspace.updateSettings { it.copy(pinchZoomEnabled = value) }

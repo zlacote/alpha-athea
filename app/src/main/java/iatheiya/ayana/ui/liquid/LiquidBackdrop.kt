@@ -114,8 +114,8 @@ fun Modifier.liquidGlass(
     strong: Boolean = false,
     clear: Boolean = false,
     flat: Boolean = false,
-    /** Read at draw time: scales the lens, so a surface can animate it without recomposing. */
-    lensBoost: () -> Float = { 1f },
+    /** The radius of the two bottom corners, when they differ from the top ones. */
+    bottomCornerRadius: Dp = cornerRadius,
 ): Modifier {
     // A render effect is only drawn through an offscreen buffer; without it the lens is dropped.
     val lensLayer = rememberGraphicsLayer().apply {
@@ -140,6 +140,7 @@ fun Modifier.liquidGlass(
             val path = shape.createOutline(size, layoutDirection, this).toPath()
             val rimWidth = 1.dp.toPx()
             val radiusPx = cornerRadius.toPx()
+            val bottomRadiusPx = bottomCornerRadius.toPx()
             val pixels = IntSize(size.width.roundToInt(), size.height.roundToInt())
             var logged = false
             onDrawWithContent {
@@ -155,7 +156,7 @@ fun Modifier.liquidGlass(
                     }
                 }
                 if (lensEffect != null) {
-                    val effect = lensEffect.effectFor(size, radiusPx, flat, lensBoost())
+                    val effect = lensEffect.effectFor(size, radiusPx, flat, bottomRadiusPx)
                     if (lensLayer.renderEffect != effect) lensLayer.renderEffect = effect
                 }
                 clipPath(path) { drawLayer(lensLayer) }

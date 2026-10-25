@@ -44,7 +44,8 @@ object Ui {
     val composerFieldTopGrown = 10.dp
 
     // ---- Key row ----------------------------------------------------------
-    val keyMinHeight = 44.dp
+    // Wider than tall, like Termux's extra keys: a row of keys costs little height.
+    val keyMinHeight = 36.dp
     val keyPaddingH = 8.dp
     val keyVisibleCount = 7
     val keySeparatorWidth = 1.dp

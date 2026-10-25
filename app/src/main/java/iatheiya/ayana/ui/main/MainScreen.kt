@@ -51,6 +51,9 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import iatheiya.ayana.R
 import iatheiya.ayana.ui.MainViewModel
@@ -60,6 +63,7 @@ import iatheiya.ayana.ui.common.AyanaDialogContainer
 import iatheiya.ayana.ui.liquid.LiquidBackdrop
 import iatheiya.ayana.ui.liquid.LocalLiquidBackdrop
 import iatheiya.ayana.ui.liquid.liquidBackdrop
+import iatheiya.ayana.ui.liquid.liquidGlass
 import iatheiya.ayana.ui.liquid.rememberLiquidBackdrop
 import iatheiya.ayana.ui.theme.LocalMessageFontSize
 import iatheiya.ayana.ui.theme.LocalOutputFontSize
@@ -75,6 +79,18 @@ fun MainScreen(viewModel: MainViewModel) {
     // once Settings is left.
     val settingsScroll = rememberScrollState()
     val scope = rememberCoroutineScope()
+
+    // Full screen hides the status bar on every screen; a swipe from the top brings it back for
+    // a moment. Applied here, above the early returns, so it holds whichever screen is open.
+    val activity = LocalContext.current as? android.app.Activity
+    val immersive = state.workspace.settings.immersiveMode
+    LaunchedEffect(activity, immersive) {
+        val window = activity?.window ?: return@LaunchedEffect
+        WindowCompat.getInsetsController(window, window.decorView).apply {
+            systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            if (immersive) hide(WindowInsetsCompat.Type.statusBars()) else show(WindowInsetsCompat.Type.statusBars())
+        }
+    }
     fun closeSettings() {
         scope.launch { settingsScroll.scrollTo(0) }
         viewModel.setShowSettings(false)
@@ -128,6 +144,8 @@ fun MainScreen(viewModel: MainViewModel) {
             enterSends = state.workspace.settings.enterSends,
             autoScrollOnSend = state.workspace.settings.autoScrollOnSend,
             rawStream = state.workspace.settings.rawStream,
+            immersiveMode = state.workspace.settings.immersiveMode,
+            onImmersiveModeChange = viewModel::setImmersiveMode,
             autocompleteEnabled = state.workspace.settings.autocompleteEnabled,
             pinchZoomEnabled = state.workspace.settings.pinchZoomEnabled,
             virtualizeLargeOutput = state.workspace.settings.virtualizeLargeOutput,
@@ -355,6 +373,9 @@ private fun MainScreenBody(viewModel: MainViewModel, state: UiState, composerBac
                                 previewLines = state.workspace.settings.previewLines,
                                 contentTopPadding = statusBarTop + Ui.topBarContentTop,
                                 contentBottomPadding = overlayBottom,
+                                jumpButtonEnd = sendCircleEndInset(
+                                    docked = state.workspace.settings.keyRowVisible && state.workspace.search == null,
+                                ),
                                 pinchZoomEnabled = state.workspace.settings.pinchZoomEnabled,
                                 virtualizeLargeOutput = state.workspace.settings.virtualizeLargeOutput,
                                 onTranscriptFontZoom = viewModel::onTranscriptFontZoom,
@@ -491,7 +512,16 @@ private fun BottomBar(
     // corner of the screen.
     val keyRowShown = state.workspace.settings.keyRowVisible && state.workspace.search == null
     val current = state.workspace.sessions.firstOrNull { it.id == state.workspace.currentSessionId }
-    Column(modifier = modifier) {
+    // With the key row shown, the composer and the keys are one glass container: rounded on top,
+    // flat at the bottom, one lens over both, so they refract the same content as one surface.
+    val container = if (keyRowShown) {
+        Modifier
+            .padding(top = 10.dp)
+            .liquidGlass(composerBackdrop, DockedPanelShape, Ui.panelRadius, strong = true, bottomCornerRadius = 0.dp)
+    } else {
+        Modifier
+    }
+    Column(modifier = modifier.then(container)) {
         InputBar(
             draft = draft,
             suggestion = suggestion,
@@ -534,6 +564,7 @@ private fun BottomBar(
                 modifier = Modifier.navigationBarsPadding(),
                 rows = state.workspace.settings.keyRows,
                 cols = state.workspace.settings.keyCols,
+                glass = false,
             )
         }
     }

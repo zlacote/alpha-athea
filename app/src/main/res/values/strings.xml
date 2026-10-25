@@ -66,6 +66,8 @@
     <string name="settings_enter_sends_desc">Off keeps Enter for a new line</string>
     <string name="settings_auto_scroll">Jump to bottom on send</string>
     <string name="settings_auto_scroll_desc">After sending, the transcript follows the newest answer</string>
+    <string name="settings_immersive">Full screen</string>
+    <string name="settings_immersive_desc">Hides the status bar with the clock; swipe from the top edge to see it</string>
     <string name="settings_raw_stream">Raw stream view</string>
     <string name="settings_raw_stream_desc">Continuous terminal flow instead of chat blocks</string>
     <string name="settings_autocomplete">History autocomplete</string>
@@ -103,7 +105,7 @@
     <string name="settings_keys_kind_insert">Into editor</string>
     <string name="settings_keys_kind_ctrl">Ctrl</string>
     <string name="settings_keys_kind_alt">Alt</string>
-    <string name="settings_keys_esc_hint">Special keys are typed as escapes: \\e is Esc, \\t Tab, \\r Enter, \\xHH any code. Home, for example, is \\e[H.</string>
+    <string name="settings_keys_esc_hint">Special keys are typed as escapes. Home, for example, is \\e[H.</string>
     <string name="keys_reference">Key codes reference</string>
     <string name="settings_diag_section">Diagnostics</string>
     <string name="settings_diag_copy">Copy logs to clipboard</string>

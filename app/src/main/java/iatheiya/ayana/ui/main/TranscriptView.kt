@@ -148,6 +148,8 @@ fun TranscriptView(
     previewLines: Int,
     contentTopPadding: Dp,
     contentBottomPadding: Dp = Ui.contentPaddingV,
+    /** From the right edge to the jump-down button, so it lines up with the send button below it. */
+    jumpButtonEnd: Dp = 16.dp,
     pinchZoomEnabled: Boolean,
     virtualizeLargeOutput: Boolean = false,
     onTranscriptFontZoom: (Float) -> Unit,
@@ -420,17 +422,18 @@ fun TranscriptView(
                 },
                 shape = androidx.compose.foundation.shape.CircleShape,
                 color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                // Same size as the send button and in its column, just above the composer.
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .padding(end = 16.dp, bottom = contentBottomPadding + 8.dp),
+                    .padding(end = jumpButtonEnd, bottom = contentBottomPadding - Ui.contentPaddingV + 2.dp),
             ) {
-                    Box(Modifier.size(Ui.scrollbarButtonSize), contentAlignment = Alignment.Center) {
-                        Icon(
-                            Icons.Default.KeyboardArrowDown,
-                            contentDescription = stringResource(R.string.cd_scroll_down),
-                            tint = MaterialTheme.colorScheme.onSurface,
-                        )
-                    }
+                Box(Modifier.size(SEND_BUTTON_SIZE), contentAlignment = Alignment.Center) {
+                    Icon(
+                        Icons.Default.KeyboardArrowDown,
+                        contentDescription = stringResource(R.string.cd_scroll_down),
+                        tint = MaterialTheme.colorScheme.onSurface,
+                    )
+                }
             }
         }
     }

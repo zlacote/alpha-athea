@@ -11,7 +11,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.background
 import androidx.compose.material3.Button
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -103,9 +105,14 @@ fun KeysScreen(
                     )
                 }
 
-                // The editable grid sits on its own card, so the part that is changed by hand
-                // reads as one surface, the same shape as the live row it previews.
-                SettingsCard {
+                // The editable grid sits on a band across the full width, like the live row it
+                // previews, so the part that is changed by hand reads as one surface.
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 6.dp)
+                        .background(MaterialTheme.colorScheme.surfaceContainer),
+                ) {
                     KeyGridEditor(
                         keys = keys,
                         rows = keyRows,
@@ -138,6 +145,7 @@ fun KeysScreen(
                         mode = mode,
                         onModeChange = { mode = it },
                         modifier = Modifier.weight(1f),
+                        containerColor = MaterialTheme.colorScheme.background,
                     )
                     Button(
                         onClick = {

@@ -35,7 +35,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -108,7 +107,7 @@ fun KeyGridEditor(
     BoxWithConstraints(
         modifier
             .fillMaxWidth()
-            .padding(horizontal = Ui.keyRowPaddingH, vertical = 8.dp),
+            .padding(horizontal = Ui.keyRowPaddingH, vertical = Ui.keyRowPaddingV),
     ) {
         val width = maxWidth.value
         val viewport = if (width.isFinite() && width > 0f) maxWidth else 0.dp
@@ -128,11 +127,13 @@ fun KeyGridEditor(
                     for (rowIndex in 0 until rowCount) {
                         val index = columnIndex * rowCount + rowIndex
                         val key = columnKeys.getOrNull(rowIndex)
+                        // Flat cells side by side, like the live row: a hairline of the band shows
+                        // between them, no rounding and no gaps.
                         Box(
                             Modifier
                                 .width(cellW)
                                 .height(cellH)
-                                .padding(2.dp),
+                                .padding(bottom = if (rowIndex < rowCount - 1) sep else 0.dp),
                         ) {
                             if (key != null) {
                                 val dragging = draggedIndex == index
@@ -345,7 +346,6 @@ private fun KeyCellFace(key: CustomKey, highlighted: Boolean, modifier: Modifier
     Box(
         modifier
             .fillMaxSize()
-            .clip(Ui.smallShape)
             .background(
                 if (highlighted) {
                     MaterialTheme.colorScheme.primaryContainer

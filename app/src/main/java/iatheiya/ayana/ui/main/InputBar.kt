@@ -40,6 +40,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextRange
@@ -64,7 +65,21 @@ import iatheiya.ayana.ui.theme.glass
 import iatheiya.ayana.ui.theme.messageStyle
 
 /** The drawn send circle, kept smaller than its touch target so it sits inside the field. */
-private val SEND_BUTTON_SIZE = 31.dp
+internal val SEND_BUTTON_SIZE = 34.dp
+
+/**
+ * From the screen's right edge to the send circle's right edge, docked or floating: the panel's
+ * outer and inner padding, the button row's end padding and the margin inside the touch target.
+ * The transcript's jump-down button uses it to sit in the same column as the send button.
+ */
+internal fun sendCircleEndInset(docked: Boolean) =
+    (if (docked) DOCKED_PADDING_H else FLOATING_MARGIN_H + FLOATING_PADDING_H) +
+        BUTTON_ROW_END + (Ui.composerButtonSize - SEND_BUTTON_SIZE) / 2
+
+private val DOCKED_PADDING_H = 8.dp
+private val FLOATING_PADDING_H = 4.dp
+private val FLOATING_MARGIN_H = 16.dp
+private val BUTTON_ROW_END = 4.dp
 
 /** Space the buttons occupy at the tail of the field, shared by every
  *  layout that reserves room for them. */
@@ -89,7 +104,10 @@ fun InputBar(
     /** The shell's working directory (`~` for home), shown as the prompt while the field is empty. */
     directory: String? = null,
     running: Boolean = false,
-    /** True when the key row sits right below: the panel spans the width and its bottom edge goes flat to meet it. */
+    /**
+     * True when the key row sits right below. Then the composer has no glass of its own: it and
+     * the key row share one container (see [DockedPanelShape]), drawn by the caller.
+     */
     docked: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
@@ -128,11 +146,11 @@ fun InputBar(
 @Composable
 private fun Modifier.barPadding(): Modifier =
     this
-        .padding(horizontal = 16.dp)
+        .padding(horizontal = FLOATING_MARGIN_H)
         .padding(top = 10.dp, bottom = 8.dp)
 
 /** Rounded on top only: the panel's flat bottom continues straight into the key row below it. */
-private val DockedPanelShape = RoundedCornerShape(topStart = Ui.panelRadius, topEnd = Ui.panelRadius)
+internal val DockedPanelShape = RoundedCornerShape(topStart = Ui.panelRadius, topEnd = Ui.panelRadius)
 
 /**
  * One morphing panel, chat-app style:
@@ -166,16 +184,22 @@ private fun DraftPanel(
     // fits in the wide one - without the latch the panel flip-flops.
     val compact = !grown
 
-    val shape = if (docked) DockedPanelShape else Ui.panelShape
     Surface(
-        shape = shape,
+        shape = if (docked) RectangleShape else Ui.panelShape,
         color = Color.Transparent,
         modifier = modifier
             .fillMaxWidth()
-            .then(if (docked) Modifier.padding(top = 10.dp) else Modifier.barPadding())
-            .liquidGlass(backdrop, shape, Ui.panelRadius, strong = true),
+            .then(
+                if (docked) {
+                    Modifier
+                } else {
+                    Modifier
+                        .barPadding()
+                        .liquidGlass(backdrop, Ui.panelShape, Ui.panelRadius, strong = true)
+                },
+            ),
     ) {
-        Column(Modifier.padding(horizontal = if (docked) 8.dp else 4.dp, vertical = 4.dp)) {
+        Column(Modifier.padding(horizontal = if (docked) DOCKED_PADDING_H else FLOATING_PADDING_H, vertical = 4.dp)) {
             Box {
                 BasicTextField(
                     value = TextFieldValue(
@@ -271,7 +295,7 @@ private fun DraftPanel(
                 Row(
                     Modifier
                         .align(if (compact) Alignment.CenterEnd else Alignment.BottomEnd)
-                        .padding(end = 4.dp, bottom = if (compact) 0.dp else 4.dp),
+                        .padding(end = BUTTON_ROW_END, bottom = if (compact) 0.dp else 4.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     if (!compact) {

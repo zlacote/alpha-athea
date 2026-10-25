@@ -56,6 +56,8 @@ data class AyanaSettings(
     val enterSends: Boolean = true,
     val autoScrollOnSend: Boolean = true,
     val rawStream: Boolean = false,
+    /** Full screen: the status bar with the clock is hidden until swiped in. */
+    val immersiveMode: Boolean = false,
     val outputFontSizeSp: Int = 13,
     val previewLines: Int = PREVIEW_LINES,
     val bubbleFontSizeSp: Int = 16,

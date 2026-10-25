@@ -33,29 +33,30 @@ internal class LensEffect(
      * The render effect for a surface of [size], rebuilt only when a parameter changed.
      * A [flat] surface, such as a bar that spans an edge, keeps its blur but is neither bent
      * nor lit: along a straight edge the bend and the highlight read as a bright line.
-     * [boost] scales the bezel and the bend together, for a surface that animates its lens.
+     * [bottomRadiusPx] rounds the two bottom corners differently, for a panel that is
+     * rounded on top only; without it the lens drew round corners the shape does not have.
      */
     fun effectFor(
         size: Size,
         cornerRadiusPx: Float,
         flat: Boolean = false,
-        boost: Float = 1f,
+        bottomRadiusPx: Float = cornerRadiusPx,
     ): androidx.compose.ui.graphics.RenderEffect {
         val bent = GlassTuning.enabled && !flat
-        val scale = boost.coerceAtLeast(0f)
         val angle = GlassTuning.lightAngleDeg * DEGREES_TO_RADIANS
         val values = floatArrayOf(
             size.width,
             size.height,
             cornerRadiusPx,
-            GlassTuning.bezelDp * density * scale,
-            if (bent) GlassTuning.bendDp * density * scale else 0f,
+            GlassTuning.bezelDp * density,
+            if (bent) GlassTuning.bendDp * density else 0f,
             if (bent) GlassTuning.chroma else 0f,
             GlassTuning.highlightWidthDp * density,
             if (bent) GlassTuning.highlightStrength else 0f,
             cos(angle),
             sin(angle),
             GlassTuning.blurDp * density,
+            bottomRadiusPx,
         )
         val previous = applied
         val cached = effect
@@ -63,6 +64,7 @@ internal class LensEffect(
 
         shader.setFloatUniform("lensSize", values[0], values[1])
         shader.setFloatUniform("cornerRadius", values[2])
+        shader.setFloatUniform("bottomRadius", values[11])
         shader.setFloatUniform("bezel", values[3])
         shader.setFloatUniform("bend", values[4])
         shader.setFloatUniform("chroma", values[5])
@@ -117,6 +119,7 @@ private const val LENS_AGSL = """
 uniform shader content;
 uniform float2 lensSize;
 uniform float cornerRadius;
+uniform float bottomRadius;
 uniform float bezel;
 uniform float bend;
 uniform float chroma;
@@ -145,8 +148,9 @@ float circleMap(float x) {
 
 half4 main(float2 xy) {
     float2 halfSize = lensSize * 0.5;
-    float r = min(cornerRadius, min(halfSize.x, halfSize.y));
     float2 p = xy - halfSize;
+    // The top corners take cornerRadius, the bottom ones bottomRadius.
+    float r = min(p.y < 0.0 ? cornerRadius : bottomRadius, min(halfSize.x, halfSize.y));
     float sdf = roundBoxSdf(p, halfSize, r);
     half4 backdrop = content.eval(xy);
     if (sdf > 1.0) {

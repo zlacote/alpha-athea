@@ -1,8 +1,5 @@
 package iatheiya.ayana.ui.common
 
-import androidx.compose.animation.EnterTransition
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.spring
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.ColumnScope
@@ -16,7 +13,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -139,19 +135,14 @@ fun AyanaDropdownMenu(
             content = content,
         )
     } else {
-        // The menu is there at once, full size and fully opaque, so the content behind it is
-        // already bent at its rim on the very first frame. The reveal is the lens itself: it
-        // opens with a wide, strong bend that rolls back to the resting one like a wave, with
-        // a small overshoot. No scale or fade, which would move or hide what the lens samples.
+        // A quick fade, no scale: a growing scale would also move the sampled position every
+        // frame, so the lens would slowly "zoom into place" over the animation. Appearing at
+        // full size lets the lens refract correctly from the first frame.
         androidx.compose.animation.AnimatedVisibility(
             visible = expanded,
-            enter = EnterTransition.None,
+            enter = androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(90)),
             exit = androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(90)),
         ) {
-            val wave = remember { Animatable(MENU_WAVE_START) }
-            LaunchedEffect(Unit) {
-                wave.animateTo(1f, spring(dampingRatio = MENU_WAVE_DAMPING, stiffness = MENU_WAVE_STIFFNESS))
-            }
             // The same chrome material as the buttons: liquid glass when glass is on,
             // the one solid tone when it is off. Drawn straight onto a clipped Box (no
             // wrapping Surface, which left a square under the rounded corners), with a
@@ -161,13 +152,7 @@ fun AyanaDropdownMenu(
                     .shadow(Ui.menuElevation, Ui.menuShape)
                     .clip(Ui.menuShape)
                     .widthIn(min = Ui.menuMinWidth)
-                    .liquidGlass(
-                        LocalLiquidBackdrop.current,
-                        Ui.menuShape,
-                        Ui.menuRadius,
-                        strong = true,
-                        lensBoost = { wave.value },
-                    ),
+                    .liquidGlass(LocalLiquidBackdrop.current, Ui.menuShape, Ui.menuRadius, strong = true),
             ) {
                 // A faint top sheen so the panel still reads as frosted glass even over the dark
                 // transcript, where there is little for the lens to refract.
@@ -186,11 +171,6 @@ fun AyanaDropdownMenu(
         }
     }
 }
-
-/** The lens opens this many times stronger and wider, then rolls back to rest. */
-private const val MENU_WAVE_START = 2.6f
-private const val MENU_WAVE_DAMPING = 0.5f
-private const val MENU_WAVE_STIFFNESS = 260f
 
 private val CROSS_STROKE: Dp = 2.dp
 private const val CROSS_INSET = 0.15f

@@ -1,6 +1,7 @@
 package iatheiya.ayana.ui.main
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
@@ -18,9 +19,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -37,10 +40,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Popup
@@ -59,7 +64,7 @@ private const val KEY_CODES_URL = "https://en.wikipedia.org/wiki/ANSI_escape_cod
 /** The outlined field's box starts below the room its floating label takes. */
 private val FIELD_LABEL_ROOM = 8.dp
 private val FIELD_HEIGHT = 56.dp
-private val LIST_ITEM_HEIGHT = 48.dp
+private val LIST_ITEM_HEIGHT = 52.dp
 
 /**
  * What a key does, as a single choice the user picks from one list — instead of a "kind" plus
@@ -123,19 +128,25 @@ internal fun visibleSequence(text: String): String = text
     .replace("\u007F", "⌫")
 
 /**
- * The key's action, as an outlined field like the others. Tapping it lets a list flow out of the
- * field itself: the current choice stays where it was, on top, and the other choices pour out
- * below it. Picking one, or tapping elsewhere, pulls the list back in.
+ * The key's action, as an outlined field like the others. Tapping it rolls a list out from under
+ * the field: the field keeps showing the current choice, its bottom corners square off, and the
+ * other choices unroll below it as a continuation of the same outline, one row each, split by
+ * thin lines. Picking one, or tapping elsewhere, rolls it back.
+ *
+ * [containerColor] is the surface the field sits on (the dialog, the page), so the list reads as
+ * part of the field rather than a separate card.
  */
 @Composable
 internal fun KeyModeDropdown(
     mode: KeyMode,
     onModeChange: (KeyMode) -> Unit,
     modifier: Modifier = Modifier,
+    containerColor: Color = MaterialTheme.colorScheme.surfaceContainerHigh,
 ) {
     var open by remember { mutableStateOf(false) }
     var widthPx by remember { mutableStateOf(0) }
     val density = LocalDensity.current
+    val arrowTurn by animateFloatAsState(if (open) 180f else 0f, tween(200), label = "arrow")
     Box(modifier.onSizeChanged { widthPx = it.width }) {
         OutlinedTextField(
             value = keyModeLabel(mode),
@@ -143,7 +154,10 @@ internal fun KeyModeDropdown(
             readOnly = true,
             singleLine = true,
             label = { Text(stringResource(R.string.keys_mode)) },
-            trailingIcon = { Icon(Icons.Filled.ArrowDropDown, contentDescription = null) },
+            trailingIcon = {
+                Icon(Icons.Filled.ArrowDropDown, contentDescription = null, modifier = Modifier.rotate(arrowTurn))
+            },
+            shape = if (open) FIELD_SHAPE_OPEN else FIELD_SHAPE,
             modifier = Modifier.fillMaxWidth(),
         )
         // A read-only field still takes the tap for its caret; this cover opens the list instead.
@@ -152,19 +166,21 @@ internal fun KeyModeDropdown(
                 .fillMaxWidth()
                 .padding(top = FIELD_LABEL_ROOM)
                 .height(FIELD_HEIGHT)
-                .clip(MaterialTheme.shapes.extraSmall)
-                .clickable { open = true },
+                .clip(FIELD_SHAPE)
+                .clickable { open = !open },
         )
         if (open) {
-            val offsetPx = with(density) { FIELD_LABEL_ROOM.roundToPx() }
+            // The list's top edge lies on the field's bottom outline, so the two read as one line.
+            val offsetPx = with(density) { (FIELD_LABEL_ROOM + FIELD_HEIGHT - OUTLINE).roundToPx() }
             Popup(
                 offset = IntOffset(0, offsetPx),
                 onDismissRequest = { open = false },
                 properties = PopupProperties(focusable = true),
             ) {
                 KeyModeList(
-                    mode = mode,
+                    current = mode,
                     width = with(density) { widthPx.toDp() },
+                    containerColor = containerColor,
                     onPick = { picked ->
                         onModeChange(picked)
                         open = false
@@ -177,50 +193,34 @@ internal fun KeyModeDropdown(
 
 @Composable
 private fun KeyModeList(
-    mode: KeyMode,
-    width: androidx.compose.ui.unit.Dp,
+    current: KeyMode,
+    width: Dp,
+    containerColor: Color,
     onPick: (KeyMode) -> Unit,
 ) {
-    // Starts at the field's own height, its current choice already in place, and pours out from
-    // there, so the list grows out of the field rather than appearing under it.
-    val fieldPx = with(LocalDensity.current) { FIELD_HEIGHT.roundToPx() }
+    // Unrolls downward from the field's bottom edge.
     val shown = remember { MutableTransitionState(false) }
     LaunchedEffect(Unit) { shown.targetState = true }
     AnimatedVisibility(
         visibleState = shown,
-        enter = expandVertically(tween(200), expandFrom = Alignment.Top, initialHeight = { fieldPx }) +
-            fadeIn(tween(90)),
-        exit = shrinkVertically(tween(150), shrinkTowards = Alignment.Top) + fadeOut(tween(150)),
+        enter = expandVertically(tween(220), expandFrom = Alignment.Top) + fadeIn(tween(120)),
+        exit = shrinkVertically(tween(160), shrinkTowards = Alignment.Top) + fadeOut(tween(160)),
     ) {
         Surface(
-            shape = MaterialTheme.shapes.extraSmall,
-            color = MaterialTheme.colorScheme.surfaceContainerHighest,
-            border = BorderStroke(2.dp, MaterialTheme.colorScheme.primary),
-            shadowElevation = 6.dp,
+            shape = LIST_SHAPE,
+            color = containerColor,
+            border = BorderStroke(OUTLINE, MaterialTheme.colorScheme.outline),
             modifier = Modifier.width(width),
         ) {
             Column {
-                // The current choice first, exactly where the field showed it.
-                Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .height(FIELD_HEIGHT)
-                        .clickable { onPick(mode) }
-                        .padding(start = 16.dp, end = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        keyModeLabel(mode),
-                        style = MaterialTheme.typography.bodyLarge,
-                        modifier = Modifier.weight(1f),
-                    )
-                    Icon(
-                        Icons.Filled.ArrowDropDown,
-                        contentDescription = null,
-                        modifier = Modifier.rotate(180f),
-                    )
-                }
-                KeyMode.entries.filter { it != mode }.forEach { candidate ->
+                KeyMode.entries.filter { it != current }.forEachIndexed { index, candidate ->
+                    if (index > 0) {
+                        HorizontalDivider(
+                            thickness = OUTLINE,
+                            color = MaterialTheme.colorScheme.outline.copy(alpha = DIVIDER_ALPHA),
+                            modifier = Modifier.padding(horizontal = 12.dp),
+                        )
+                    }
                     Row(
                         Modifier
                             .fillMaxWidth()
@@ -232,7 +232,7 @@ private fun KeyModeList(
                         Text(
                             keyModeLabel(candidate),
                             style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = MaterialTheme.colorScheme.onSurface,
                         )
                     }
                 }
@@ -240,6 +240,13 @@ private fun KeyModeList(
         }
     }
 }
+
+private val OUTLINE = 1.dp
+private const val DIVIDER_ALPHA = 0.5f
+private val FIELD_CORNER = 4.dp
+private val FIELD_SHAPE = RoundedCornerShape(FIELD_CORNER)
+private val FIELD_SHAPE_OPEN = RoundedCornerShape(topStart = FIELD_CORNER, topEnd = FIELD_CORNER)
+private val LIST_SHAPE = RoundedCornerShape(bottomStart = FIELD_CORNER, bottomEnd = FIELD_CORNER)
 
 /** How to type special keys, and where to look up any other key's code. */
 @Composable
@@ -300,7 +307,6 @@ internal fun KeyEditorDialog(
                     onModeChange = { mode = it },
                     modifier = Modifier.padding(top = 4.dp),
                 )
-                KeyEscapeHelp(Modifier.padding(top = 8.dp))
             }
         },
         // The dialog lays out its own buttons so Delete can sit on the far left,
