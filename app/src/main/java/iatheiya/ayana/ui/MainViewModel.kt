@@ -140,7 +140,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             } else if (!session.running && started != null) {
                 runStarted.remove(session.id)
                 val seconds = (now - started) / 1000
-                if (settings.signalLongCommands && seconds >= settings.longCommandSec) {
+                val long = seconds >= settings.longCommandSec
+                AyanaLog.log(
+                    "signal",
+                    "command ended after ${seconds}s long=$long on=${settings.signalLongCommands} front=$inForeground",
+                )
+                if (settings.signalLongCommands && long) {
                     signal.fire(session.name, seconds, inForeground)
                 }
             }
@@ -515,60 +520,60 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun setScreenAwake(mode: String) = workspace.updateSettings { it.copy(screenAwake = mode) }
 
-    /** The user's own switch: whatever it was waiting for no longer matters. */
-    fun setSignalLongCommands(value: Boolean) =
-        workspace.updateSettings { it.copy(signalLongCommands = value, signalAwaitingPermission = false) }
+    /** The signal switch. It is only turned on once notifications are allowed (see the settings screen). */
+    fun setSignalLongCommands(value: Boolean) = workspace.updateSettings { it.copy(signalLongCommands = value) }
 
-    /** Turning the signal on asked for notifications; refused, the switch goes back off and waits. */
-    fun onNotificationPermissionResult(granted: Boolean) {
-        if (!granted) {
-            workspace.updateSettings { it.copy(signalLongCommands = false, signalAwaitingPermission = true) }
-        }
+    fun markNotificationsAsked() = workspace.updateSettings { it.copy(notificationsAsked = true) }
+
+    /**
+     * The user was sent to the system's notification settings to allow them for the signal; when
+     * they come back with notifications allowed, the signal they asked for is switched on.
+     */
+    private var signalWaitsForSettings = false
+
+    fun waitForNotificationSettings() {
+        signalWaitsForSettings = true
     }
 
     /**
-     * Keeps the switch true to the system setting, checked whenever Ayana comes back to the front:
-     * notifications taken away turn the signal off; given back, they turn it on again.
+     * Checked whenever Ayana comes back to the front. Notifications taken away switch the signal
+     * off. Given back, they switch nothing on by themselves: allowing something is not asking for
+     * it; only a return from the settings the user was sent to, to turn the signal on, does.
      */
     fun syncNotificationPermission() {
-        if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.TIRAMISU) return
-        val granted = androidx.core.content.ContextCompat.checkSelfPermission(
-            getApplication(),
-            android.Manifest.permission.POST_NOTIFICATIONS,
-        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        val granted = notificationsAllowed()
         val settings = workspace.state.value.settings
-        when {
-            settings.signalLongCommands && !granted ->
-                workspace.updateSettings { it.copy(signalLongCommands = false, signalAwaitingPermission = true) }
-            !settings.signalLongCommands && settings.signalAwaitingPermission && granted ->
-                workspace.updateSettings { it.copy(signalLongCommands = true, signalAwaitingPermission = false) }
+        if (signalWaitsForSettings) {
+            signalWaitsForSettings = false
+            if (granted) workspace.updateSettings { it.copy(signalLongCommands = true) }
+        } else if (settings.signalLongCommands && !granted) {
+            workspace.updateSettings { it.copy(signalLongCommands = false) }
         }
     }
+
+    private fun notificationsAllowed(): Boolean =
+        android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.TIRAMISU ||
+            androidx.core.content.ContextCompat.checkSelfPermission(
+                getApplication(),
+                android.Manifest.permission.POST_NOTIFICATIONS,
+            ) == android.content.pm.PackageManager.PERMISSION_GRANTED
 
     fun setLongCommandSec(sec: Int) = workspace.updateSettings { it.copy(longCommandSec = sec) }
 
     fun setWallpaperBlur(dp: Int) = workspace.updateSettings { it.copy(wallpaperBlurDp = dp) }
 
-    /** Every appearance setting back to how Ayana ships; the picked wallpaper goes too. */
-    fun resetAppearance() {
+    /**
+     * Every setting back to how Ayana ships: all the rooms, the key row, the glass tuning; the
+     * picked wallpaper and font file go too. Sessions, favourites and history are not settings.
+     */
+    fun resetAllSettings() {
         storage.wallpaperFile().delete()
-        workspace.updateSettings {
-            val defaults = AyanaSettings()
-            it.copy(
-                immersiveMode = defaults.immersiveMode,
-                screenAwake = defaults.screenAwake,
-                tintMode = defaults.tintMode,
-                tintArgb = defaults.tintArgb,
-                font = defaults.font,
-                wallpaperVersion = 0,
-                wallpaperDimPct = defaults.wallpaperDimPct,
-                wallpaperBlurDp = defaults.wallpaperBlurDp,
-                outputFontSizeSp = defaults.outputFontSizeSp,
-                bubbleFontSizeSp = defaults.bubbleFontSizeSp,
-                pinchZoomEnabled = defaults.pinchZoomEnabled,
-            )
-        }
+        storage.customFontFile().delete()
+        iatheiya.ayana.ui.liquid.GlassTuning.reset()
+        workspace.setCustomKeys(emptyList())
+        workspace.updateSettings { AyanaSettings(shellPath = it.shellPath, notificationsAsked = it.notificationsAsked) }
     }
+
 
     fun setGlassEnabled(value: Boolean) = workspace.updateSettings { it.copy(glassEnabled = value) }
 

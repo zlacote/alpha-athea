@@ -103,7 +103,7 @@ object DefaultKeys {
     val SLASH = TerminalKey("/", KeyActionKind.INSERT_INTO_DRAFT, "/")
     val DASH = TerminalKey("-", KeyActionKind.INSERT_INTO_DRAFT, "-")
 
-    // The Termux layout on two rows of seven, with the arrows as an inverted T:
+    // Two rows of seven, with the arrows as an inverted T:
     //   ESC  /     -    HOME  ↑  END  PGUP
     //   TAB  CTRL  ALT  ←     ↓  →    PGDN
     // The grid is column-major, so the list runs down each column in turn. Ctrl and Alt are

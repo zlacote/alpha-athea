@@ -4,13 +4,19 @@ import android.net.Uri
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.FileOpen
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.font.FontWeight
+import iatheiya.ayana.ui.common.AyanaChoiceSheet
+import iatheiya.ayana.ui.common.SheetChoice
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -20,15 +26,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BlurOn
-import androidx.compose.material.icons.filled.Colorize
 import androidx.compose.material.icons.filled.LightMode
-import androidx.compose.material.icons.filled.PhoneAndroid
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
@@ -96,7 +98,6 @@ class AppearanceActions(
     val onBubbleFontSizeChange: (Int) -> Unit,
     val onOpenGlassTuning: () -> Unit,
     val onOpenGlow: () -> Unit,
-    val onReset: () -> Unit,
 )
 
 /** The basic colours offered for buttons and panels. */
@@ -111,7 +112,10 @@ private val BASIC_TINTS = listOf(
     0xFF3FC1C9L, // teal
 )
 
-private val SWATCH = 34.dp
+private val SWATCH = 42.dp
+
+/** The font chooser's last row: it opens the file picker instead of choosing a font. */
+private const val PICK_FONT_FILE = "pick"
 
 /** The phone's own accent (Android 12 and later), or null where the system has none to give. */
 @Composable
@@ -148,16 +152,26 @@ internal fun AppearancePane(state: AppearanceState, actions: AppearanceActions, 
                 onChange = actions.onImmersiveModeChange,
             )
             SettingsDivider()
-            ChoiceRow(
-                title = stringResource(R.string.appearance_screen_awake),
-                choices = listOf(
-                    AWAKE_OFF to R.string.appearance_screen_awake_off,
-                    AWAKE_RUNNING to R.string.appearance_screen_awake_running,
-                    AWAKE_ALWAYS to R.string.appearance_screen_awake_always,
-                ),
-                selected = state.screenAwake,
-                onSelect = actions.onScreenAwakeChange,
+            val awakeChoices = listOf(
+                SheetChoice(AWAKE_OFF, stringResource(R.string.appearance_screen_awake_off)),
+                SheetChoice(AWAKE_RUNNING, stringResource(R.string.appearance_screen_awake_running)),
+                SheetChoice(AWAKE_ALWAYS, stringResource(R.string.appearance_screen_awake_always)),
             )
+            var choosingAwake by remember { mutableStateOf(false) }
+            ChoiceSettingRow(
+                title = stringResource(R.string.appearance_screen_awake),
+                value = awakeChoices.firstOrNull { it.value == state.screenAwake }?.label.orEmpty(),
+                onClick = { choosingAwake = true },
+            )
+            if (choosingAwake) {
+                AyanaChoiceSheet(
+                    title = stringResource(R.string.appearance_screen_awake),
+                    choices = awakeChoices,
+                    selected = state.screenAwake,
+                    onPick = actions.onScreenAwakeChange,
+                    onDismiss = { choosingAwake = false },
+                )
+            }
         }
 
         // The surfaces.
@@ -180,42 +194,29 @@ internal fun AppearancePane(state: AppearanceState, actions: AppearanceActions, 
 
         // The text, everywhere in the app.
         SettingsCard {
-            Column(Modifier.padding(horizontal = Ui.spaceL, vertical = Ui.spaceM)) {
-                Text(stringResource(R.string.appearance_font), style = MaterialTheme.typography.bodyLarge)
-                Row(
-                    Modifier
-                        .padding(top = Ui.spaceS)
-                        .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(Ui.spaceS),
-                ) {
-                    listOf(
-                        FONT_SYSTEM to R.string.appearance_font_system,
-                        FONT_MONO to R.string.appearance_font_mono,
-                        FONT_SERIF to R.string.appearance_font_serif,
-                    ).forEach { (font, label) ->
-                        FilterChip(
-                            selected = state.font == font,
-                            onClick = { actions.onFontChange(font) },
-                            label = { Text(stringResource(label)) },
-                        )
-                    }
-                    // Without a file yet, the custom choice goes straight to picking one.
-                    FilterChip(
-                        selected = state.font == FONT_CUSTOM,
-                        onClick = {
-                            if (state.hasCustomFont) actions.onFontChange(FONT_CUSTOM) else pickFont.launch(arrayOf("*/*"))
-                        },
-                        label = { Text(stringResource(R.string.appearance_font_custom)) },
-                    )
-                }
-                if (state.font == FONT_CUSTOM) {
-                    TextButton(
-                        onClick = { pickFont.launch(arrayOf("*/*")) },
-                        contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp),
-                    ) {
-                        Text(stringResource(R.string.appearance_font_change))
-                    }
-                }
+            val fontChoices = buildList {
+                add(SheetChoice(FONT_SYSTEM, stringResource(R.string.appearance_font_system)))
+                add(SheetChoice(FONT_MONO, stringResource(R.string.appearance_font_mono)))
+                add(SheetChoice(FONT_SERIF, stringResource(R.string.appearance_font_serif)))
+                if (state.hasCustomFont) add(SheetChoice(FONT_CUSTOM, stringResource(R.string.appearance_font_custom)))
+                add(SheetChoice(PICK_FONT_FILE, stringResource(R.string.appearance_font_change), Icons.Default.FileOpen))
+            }
+            var choosingFont by remember { mutableStateOf(false) }
+            ChoiceSettingRow(
+                title = stringResource(R.string.appearance_font),
+                value = fontChoices.firstOrNull { it.value == state.font }?.label.orEmpty(),
+                onClick = { choosingFont = true },
+            )
+            if (choosingFont) {
+                AyanaChoiceSheet(
+                    title = stringResource(R.string.appearance_font),
+                    choices = fontChoices,
+                    selected = state.font,
+                    onPick = { picked ->
+                        if (picked == PICK_FONT_FILE) pickFont.launch(arrayOf("*/*")) else actions.onFontChange(picked)
+                    },
+                    onDismiss = { choosingFont = false },
+                )
             }
             SettingsDivider()
             SliderRow(
@@ -289,114 +290,68 @@ internal fun AppearancePane(state: AppearanceState, actions: AppearanceActions, 
             }
         }
 
-        // Defaults at the very end, centred and bare, like the Glass and Keys screens.
-        Box(
-            Modifier
-                .fillMaxWidth()
-                .padding(top = Ui.spaceS),
-            contentAlignment = Alignment.Center,
-        ) {
-            TextButton(onClick = actions.onReset) {
-                Text(stringResource(R.string.glass_reset))
-            }
-        }
         Spacer(Modifier.height(Ui.spaceXl))
     }
 }
 
-/** A titled row of chips, one of which is chosen. */
-@Composable
-private fun ChoiceRow(
-    title: String,
-    choices: List<Pair<String, Int>>,
-    selected: String,
-    onSelect: (String) -> Unit,
-) {
-    Column(Modifier.padding(horizontal = Ui.spaceL, vertical = Ui.spaceM)) {
-        Text(title, style = MaterialTheme.typography.bodyLarge)
-        Row(
-            Modifier
-                .padding(top = Ui.spaceS)
-                .horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(Ui.spaceS),
-        ) {
-            choices.forEach { (value, label) ->
-                FilterChip(
-                    selected = selected == value,
-                    onClick = { onSelect(value) },
-                    label = { Text(stringResource(label)) },
-                )
-            }
-        }
-    }
-}
-
 /**
- * The colour of buttons and panels: Ayana's own base tone, the phone's accent, one of the basic
- * colours, or any colour at all from the picker.
+ * The colour of buttons and panels. Off (the default), the surfaces carry no colour at all. On,
+ * the colour is the phone's own accent, black, grey or white, a basic colour, or any colour from the
+ * picker, laid out as one grid of swatches.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun TintChooser(state: AppearanceState, actions: AppearanceActions) {
     var picking by remember { mutableStateOf(false) }
     val system = systemAccent()
-    val chosen = state.tintArgb?.let { Color(it) }
-    val custom = state.tintMode == TINT_COLOR && state.tintArgb !in BASIC_TINTS
-    Column(Modifier.padding(horizontal = Ui.spaceL, vertical = Ui.spaceM)) {
-        Text(stringResource(R.string.appearance_tint), style = MaterialTheme.typography.bodyLarge)
-        Text(
-            stringResource(R.string.appearance_tint_desc),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Row(
-            Modifier
-                .padding(top = Ui.spaceM)
-                .horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(Ui.spaceS),
-        ) {
-            // Ayana's own base: the neutral tone the surfaces have without a colour.
-            Swatch(
-                fill = Brush.linearGradient(listOf(MaterialTheme.colorScheme.surfaceContainerHigh, MaterialTheme.colorScheme.surfaceContainerHigh)),
-                selected = state.tintMode == TINT_DEFAULT,
-            ) { actions.onTintChange(TINT_DEFAULT, null) }
-            if (system != null) {
-                Swatch(
-                    fill = Brush.linearGradient(listOf(system, system)),
-                    selected = state.tintMode == TINT_SYSTEM,
-                    icon = { Icon(Icons.Default.PhoneAndroid, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp)) },
-                ) { actions.onTintChange(TINT_SYSTEM, null) }
+    val on = state.tintMode != TINT_DEFAULT
+    val custom = state.tintMode == TINT_COLOR && state.tintArgb !in PRESET_TINTS
+    SwitchRow(
+        title = stringResource(R.string.appearance_tint),
+        subtitle = stringResource(R.string.appearance_tint_desc),
+        checked = on,
+        onChange = { enable ->
+            when {
+                !enable -> actions.onTintChange(TINT_DEFAULT, null)
+                state.tintArgb != null -> actions.onTintChange(TINT_COLOR, state.tintArgb)
+                system != null -> actions.onTintChange(TINT_SYSTEM, null)
+                else -> actions.onTintChange(TINT_COLOR, BASIC_TINTS.first())
             }
-            BASIC_TINTS.forEach { argb ->
+        },
+    )
+    if (on) {
+        SettingsDivider()
+        FlowRow(
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = Ui.spaceL, vertical = Ui.spaceM),
+            horizontalArrangement = Arrangement.spacedBy(Ui.spaceS),
+            verticalArrangement = Arrangement.spacedBy(Ui.spaceS),
+        ) {
+            if (system != null) {
+                // The phone's accent: its colour, marked with an A for automatic.
+                Swatch(fill = SolidColor(system), selected = state.tintMode == TINT_SYSTEM, mark = { AutoMark() }) {
+                    actions.onTintChange(TINT_SYSTEM, null)
+                }
+            }
+            PRESET_TINTS.forEach { argb ->
                 Swatch(
-                    fill = Brush.linearGradient(listOf(Color(argb), Color(argb))),
+                    fill = SolidColor(Color(argb)),
                     selected = state.tintMode == TINT_COLOR && state.tintArgb == argb,
                 ) { actions.onTintChange(TINT_COLOR, argb) }
             }
-            // Any colour: the picked one when it is not a basic colour, a rainbow until then.
+            // Any colour: the picked one once chosen, a colour wheel until then, marked with a +.
+            val chosen = state.tintArgb?.let { Color(it) }
             Swatch(
-                fill = if (custom && chosen != null) {
-                    Brush.linearGradient(listOf(chosen, chosen))
-                } else {
-                    Brush.sweepGradient(RAINBOW)
-                },
+                fill = if (custom && chosen != null) SolidColor(chosen) else Brush.sweepGradient(RAINBOW),
                 selected = custom,
-                icon = { Icon(Icons.Default.Colorize, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp)) },
+                mark = { Icon(Icons.Default.Add, contentDescription = null, tint = Color.Black, modifier = Modifier.size(18.dp)) },
             ) { picking = true }
         }
-        Text(
-            text = when (state.tintMode) {
-                TINT_SYSTEM -> stringResource(R.string.appearance_tint_system)
-                TINT_COLOR -> chosen?.let { "#%06X".format(it.toArgb() and 0xFFFFFF) } ?: ""
-                else -> stringResource(R.string.appearance_tint_default)
-            },
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(top = Ui.spaceS),
-        )
     }
     if (picking) {
         ColorPickerDialog(
-            initial = chosen ?: Color(BASIC_TINTS.first()),
+            initial = state.tintArgb?.let { Color(it) } ?: Color(BASIC_TINTS.first()),
             onDismiss = { picking = false },
             onPick = { color ->
                 picking = false
@@ -406,33 +361,44 @@ private fun TintChooser(state: AppearanceState, actions: AppearanceActions) {
     }
 }
 
+/** "A" for automatic, in black so it reads on any accent. */
+@Composable
+private fun AutoMark() {
+    Text("A", style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold), color = Color.Black)
+}
+
+/** The neutral tones first, then the basic colours. */
+private val PRESET_TINTS = listOf(0xFF000000L, 0xFF8A8A8AL, 0xFFFFFFFFL) + BASIC_TINTS
+
 private val RAINBOW = listOf(
     Color(0xFFFF4D4D), Color(0xFFFFC44D), Color(0xFF8DFF4D), Color(0xFF4DFFD2),
     Color(0xFF4D8DFF), Color(0xFFC44DFF), Color(0xFFFF4D4D),
 )
 
+/** One colour to pick: a disc, with a ring around it when chosen, and an optional mark inside. */
 @Composable
 private fun Swatch(
     fill: Brush,
     selected: Boolean,
-    icon: (@Composable () -> Unit)? = null,
+    mark: (@Composable () -> Unit)? = null,
     onClick: () -> Unit,
 ) {
     Box(
         Modifier
             .size(SWATCH)
+            .border(if (selected) 2.dp else 0.dp, if (selected) MaterialTheme.colorScheme.onSurface else Color.Transparent, CircleShape)
+            .padding(SWATCH_RING)
             .clip(CircleShape)
             .background(fill)
-            .border(
-                if (selected) BorderStroke(2.dp, MaterialTheme.colorScheme.onSurface) else BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
-                CircleShape,
-            )
+            .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
-        icon?.invoke()
+        mark?.invoke()
     }
 }
+
+private val SWATCH_RING = 4.dp
 
 /** Any colour, as hue, saturation and brightness, with the result shown as it is chosen. */
 @Composable

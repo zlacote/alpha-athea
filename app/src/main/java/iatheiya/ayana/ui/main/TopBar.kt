@@ -87,12 +87,15 @@ fun TopBar(
                         icon = Icons.Default.Add,
                         contentDescription = stringResource(R.string.cd_new_session),
                         onClick = onNewSession,
+                        enabled = !menu.expanded,
                     )
                 }
                 AyanaPillIcon(
                     icon = Icons.Default.MoreVert,
                     contentDescription = stringResource(R.string.cd_more),
                     onClick = menu::toggle,
+                    // The open menu covers this button; taps there belong to the menu's items.
+                    enabled = !menu.expanded,
                 )
             }
         }

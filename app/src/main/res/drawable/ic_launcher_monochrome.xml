@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Themed icon: the bubble as an outline with the prompt inside, in one colour. -->
+<!-- Themed icon: the drop's rim, its light and the cursor, in one colour. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
@@ -8,20 +8,18 @@
     <path
         android:fillColor="#00000000"
         android:strokeColor="#FFFFFFFF"
-        android:strokeWidth="4"
-        android:strokeLineJoin="round"
-        android:pathData="M44,32 L68,32 A12,12 0 0 1 80,44 L80,60 A12,12 0 0 1 68,72 L46,72 L35,80 L37,71 A12,12 0 0 1 28,60 L28,44 A12,12 0 0 1 40,32 Z" />
+        android:strokeWidth="3"
+        android:pathData="M31,54 A23,23 0 1,1 77,54 A23,23 0 1,1 31,54 Z" />
     <path
         android:fillColor="#00000000"
         android:strokeColor="#FFFFFFFF"
-        android:strokeWidth="5"
+        android:strokeWidth="3"
         android:strokeLineCap="round"
-        android:strokeLineJoin="round"
-        android:pathData="M42,45 L50,52 L42,59" />
+        android:pathData="M37.5,46 A18,18 0 0,1 49,36.6" />
     <path
         android:fillColor="#00000000"
         android:strokeColor="#FFFFFFFF"
-        android:strokeWidth="5"
+        android:strokeWidth="5.5"
         android:strokeLineCap="round"
-        android:pathData="M55,59 L66,59" />
+        android:pathData="M55,47 L55,62" />
 </vector>

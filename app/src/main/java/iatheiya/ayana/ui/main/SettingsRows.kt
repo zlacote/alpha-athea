@@ -188,3 +188,36 @@ internal fun SettingsDivider() {
         color = MaterialTheme.colorScheme.background,
     )
 }
+
+/**
+ * A setting chosen from a few options: its name, and its current value with a chevron. Tapping it
+ * raises the options from the bottom (see [iatheiya.ayana.ui.common.AyanaChoiceSheet]).
+ */
+@Composable
+internal fun ChoiceSettingRow(title: String, value: String, onClick: () -> Unit) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = Ui.spaceL, vertical = Ui.spaceL),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.bodyLarge,
+            modifier = Modifier
+                .weight(1f)
+                .padding(end = Ui.controlGap),
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Icon(
+            Icons.AutoMirrored.Filled.KeyboardArrowRight,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}

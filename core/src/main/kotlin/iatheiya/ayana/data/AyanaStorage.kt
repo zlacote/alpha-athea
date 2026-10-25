@@ -76,11 +76,8 @@ data class AyanaSettings(
     val screenAwake: String = AWAKE_OFF,
     /** A vibration, or a notification when Ayana is in the background, as a long command ends. */
     val signalLongCommands: Boolean = false,
-    /**
-     * The signal was switched off because notifications are not allowed; it comes back on by
-     * itself once they are.
-     */
-    val signalAwaitingPermission: Boolean = false,
+    /** Ayana has asked for notifications once; after a refusal Android stops showing the dialog. */
+    val notificationsAsked: Boolean = false,
     /** How long a command must run, in seconds, to count as long. */
     val longCommandSec: Int = 15,
     /** Glass surfaces on; off, every surface is one solid tone. */

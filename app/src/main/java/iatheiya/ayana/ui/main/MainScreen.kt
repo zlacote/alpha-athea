@@ -235,7 +235,6 @@ private fun MainScreenRoutes(viewModel: MainViewModel, state: UiState) {
             onKeyRowsChange = viewModel::setKeyRows,
             onKeyColsChange = viewModel::setKeyCols,
             onKeysChange = viewModel::setCustomKeys,
-            onResetKeys = viewModel::resetKeysToDefaults,
             onBack = { viewModel.setShowKeys(false) },
         )
         return
@@ -245,6 +244,7 @@ private fun MainScreenRoutes(viewModel: MainViewModel, state: UiState) {
         BackHandler { closeSettings() }
         SettingsScreen(
             scrollState = settingsScroll,
+            onResetAll = viewModel::resetAllSettings,
             pane = settingsPane,
             onPaneChange = { settingsPane = it },
             appearanceScroll = appearanceScroll,
@@ -277,7 +277,6 @@ private fun MainScreenRoutes(viewModel: MainViewModel, state: UiState) {
                 onBubbleFontSizeChange = viewModel::setBubbleFontSize,
                 onOpenGlassTuning = { viewModel.setShowGlassTuning(true) },
                 onOpenGlow = { viewModel.setShowGlow(true) },
-                onReset = viewModel::resetAppearance,
             ),
             enterSends = state.workspace.settings.enterSends,
             autoScrollOnSend = state.workspace.settings.autoScrollOnSend,
@@ -285,7 +284,9 @@ private fun MainScreenRoutes(viewModel: MainViewModel, state: UiState) {
             signalLongCommands = settings.signalLongCommands,
             longCommandSec = settings.longCommandSec,
             onSignalLongCommandsChange = viewModel::setSignalLongCommands,
-            onNotificationPermissionResult = viewModel::onNotificationPermissionResult,
+            notificationsAsked = settings.notificationsAsked,
+            onNotificationsAsked = viewModel::markNotificationsAsked,
+            onWaitForNotificationSettings = viewModel::waitForNotificationSettings,
             onLongCommandSecChange = viewModel::setLongCommandSec,
             autocompleteEnabled = state.workspace.settings.autocompleteEnabled,
             virtualizeLargeOutput = state.workspace.settings.virtualizeLargeOutput,
@@ -450,8 +451,11 @@ private fun MainScreenBody(viewModel: MainViewModel, state: UiState, composerBac
 
     ModalNavigationDrawer(
         drawerState = drawerState,
-        // Drawer swipes must not fight with fullscreen overlays.
-        gesturesEnabled = !state.editorExpanded && state.selectTextPayload == null,
+        // Drawer swipes must not fight with fullscreen overlays. While it is closed, opening is
+        // left to swipeOpensDrawer alone: the drawer's own drag, started on the same touch, pulled
+        // it back shut. Once open (or moving), its own drag closes it as usual.
+        gesturesEnabled = !state.editorExpanded && state.selectTextPayload == null &&
+            (drawerState.isOpen || drawerState.isAnimationRunning),
         drawerContent = {
             SessionsDrawerContent(
                 sessions = state.workspace.sessions,

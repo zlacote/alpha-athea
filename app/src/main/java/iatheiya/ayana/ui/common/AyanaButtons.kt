@@ -90,6 +90,8 @@ fun AyanaPillIcon(
     contentDescription: String?,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    /** Off while something covers the button (an open menu), so a tap there is never its. */
+    enabled: Boolean = true,
 ) {
     val source = remember { MutableInteractionSource() }
     Box(
@@ -97,7 +99,13 @@ fun AyanaPillIcon(
             .size(Ui.topButtonSize)
             .clip(CircleShape)
             .background(pressWash(source))
-            .clickable(interactionSource = source, indication = null, role = Role.Button, onClick = onClick),
+            .clickable(
+                interactionSource = source,
+                indication = null,
+                role = Role.Button,
+                enabled = enabled,
+                onClick = onClick,
+            ),
         contentAlignment = Alignment.Center,
     ) {
         Icon(

@@ -12,10 +12,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -51,7 +49,6 @@ fun KeysScreen(
     onKeyRowsChange: (Int) -> Unit,
     onKeyColsChange: (Int) -> Unit,
     onKeysChange: (List<CustomKey>) -> Unit,
-    onResetKeys: () -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -143,11 +140,10 @@ fun KeysScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    KeyModeDropdown(
+                    KeyModeField(
                         mode = mode,
                         onModeChange = { mode = it },
                         modifier = Modifier.weight(1f),
-                        containerColor = MaterialTheme.colorScheme.background,
                     )
                     Button(
                         onClick = {
@@ -168,17 +164,6 @@ fun KeysScreen(
                 KeyEscapeHelp(Modifier.padding(horizontal = 20.dp, vertical = 8.dp))
             }
 
-            // Default button at the very end, centred and bare, like the Glass screen.
-            Box(
-                Modifier
-                    .fillMaxWidth()
-                    .padding(top = 8.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-                TextButton(onClick = onResetKeys) {
-                    Text(stringResource(R.string.settings_keys_reset))
-                }
-            }
             Spacer(Modifier.height(24.dp))
         }
     }

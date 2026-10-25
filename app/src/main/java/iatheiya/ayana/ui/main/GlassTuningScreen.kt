@@ -23,7 +23,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -211,18 +210,6 @@ fun GlassTuningScreen(
                 reason = offReason ?: noHighlight,
                 onChange = { GlassTuning.lightAngleDeg = it },
             )
-
-            // The default button sits at the very end, centred and bare, like the title.
-            Box(
-                Modifier
-                    .fillMaxWidth()
-                    .padding(top = 8.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-                TextButton(onClick = { GlassTuning.reset() }) {
-                    Text(stringResource(R.string.glass_reset))
-                }
-            }
 
             Spacer(Modifier.height(24.dp))
         }

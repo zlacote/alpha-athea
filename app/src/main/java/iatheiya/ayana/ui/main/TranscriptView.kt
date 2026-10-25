@@ -219,7 +219,6 @@ fun TranscriptView(
         // Architectural: huge fully-expanded output is split into multiple outer
         // LazyColumn items (chunks) so outer virtualization composes only visible
         // chunks and scrollToItem(last) is truly very end — no large offset hack.
-        // Termux does same via TerminalBuffer grid, we do via chunked items.
         // Offload chunking from main thread to avoid jank when scrolling tools.
         var displayItems by remember { mutableStateOf<List<DisplayItem>>(emptyList()) }
         LaunchedEffect(views, viewportChunkSize, virtualizeLargeOutput) {
@@ -652,8 +651,7 @@ private fun OutputPanel(
             // Always chunk huge text to avoid Compose Text OOM, even when
             // virtualize toggle is off. Off = fully expanded Column (no inner
             // scroll, no label), on = bounded LazyColumn inside 50% box.
-            // Termux solves same via TerminalBuffer grid + canvas draw; we copy
-            // by chunking AnnotatedString and rendering per-chunk Texts.
+            // Huge text is split into chunks, one Text each.
             val isHuge = lineCount > Ui.hugeLinesThreshold || plainText.length > Ui.hugeCharsThreshold
             if (isHuge) {
                 ChunkedExpanded(annotated = displayAnnotated, query = query)
@@ -791,7 +789,7 @@ private fun VirtualizedOutput(annotated: AnnotatedString, query: String?, jumpTo
             }
         }
     }
-    // Termux-like: inner virtualized list pinned to bottom — auto instant, jump slightly slower (animate)
+    // Inner virtualized list pinned to bottom — auto instant, jump slightly slower (animate)
     androidx.compose.runtime.LaunchedEffect(chunks.size) {
         if (chunks.isNotEmpty() && stickToBottom) {
             try { innerState.scrollToEnd(chunks.size - 1) } catch (_: Exception) {}
@@ -835,7 +833,7 @@ private fun VirtualizedOutput(annotated: AnnotatedString, query: String?, jumpTo
 
 @Composable
 private fun ChunkedExpanded(annotated: AnnotatedString, query: String?) {
-    // Termux-like: same chunking but fully expanded (no inner scroll, no label)
+    // Same chunking but fully expanded (no inner scroll, no label)
     // Prevents single huge Text OOM while keeping default fully visible.
     val chunks = remember(annotated) { chunkAnnotated(annotated) }
     SelectionContainer {

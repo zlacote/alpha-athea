@@ -70,8 +70,6 @@
     <string name="appearance_screen_awake_off">Off</string>
     <string name="appearance_screen_awake_running">While a command runs</string>
     <string name="appearance_screen_awake_always">Always</string>
-    <string name="appearance_tint_default">Default: Ayana\'s own neutral tone</string>
-    <string name="appearance_tint_system">The phone\'s accent color</string>
     <string name="appearance_tint_pick">Any color</string>
     <string name="appearance_tint_hue">Hue</string>
     <string name="appearance_tint_saturation">Saturation</string>
@@ -87,13 +85,13 @@
     <string name="signal_text">%1$s: done after %2$d s</string>
     <string name="settings_section_appearance">Appearance</string>
     <string name="appearance_tint">Color</string>
-    <string name="appearance_tint_desc">Mixed into buttons and panels: it tints the glass, or the solid tone with glass off</string>
+    <string name="appearance_tint_desc">A color in the base of buttons and panels; off, they have none</string>
     <string name="appearance_font">Font</string>
     <string name="appearance_font_system">Default</string>
     <string name="appearance_font_mono">Monospace</string>
     <string name="appearance_font_serif">Serif</string>
-    <string name="appearance_font_custom">Own file…</string>
-    <string name="appearance_font_change">Choose another font file</string>
+    <string name="appearance_font_custom">Own font</string>
+    <string name="appearance_font_change">Choose a font file…</string>
     <string name="appearance_font_unreadable">This file is not a font Android can read</string>
     <string name="appearance_wallpaper">Wallpaper</string>
     <string name="appearance_wallpaper_choose">Choose</string>
@@ -179,6 +177,9 @@
     <string name="glass_fill">Fill under the lens</string>
     <string name="glass_rim">Rim strength</string>
     <string name="glass_reset">Reset to defaults</string>
+    <string name="reset_all_title">Reset all settings?</string>
+    <string name="reset_all_text">Every setting, the key row and the glass go back to how Ayana ships. Sessions, favorites and history stay.</string>
+    <string name="reset_all_confirm">Reset</string>
     <string name="glass_group_surface">Surface</string>
     <string name="glass_group_lens">Lens</string>
     <string name="glass_group_highlight">Highlight</string>

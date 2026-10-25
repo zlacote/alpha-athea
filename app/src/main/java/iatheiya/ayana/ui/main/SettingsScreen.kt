@@ -1,7 +1,14 @@
 package iatheiya.ayana.ui.main
 
 import android.Manifest
+import android.app.Activity
 import android.content.Context
+import android.content.ContextWrapper
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.provider.Settings
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -24,7 +31,19 @@ import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import iatheiya.ayana.ui.common.AyanaConfirmDialog
+import iatheiya.ayana.ui.theme.Ui
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -46,7 +65,9 @@ internal fun SettingsScreen(
     signalLongCommands: Boolean,
     longCommandSec: Int,
     onSignalLongCommandsChange: (Boolean) -> Unit,
-    onNotificationPermissionResult: (Boolean) -> Unit,
+    notificationsAsked: Boolean,
+    onNotificationsAsked: () -> Unit,
+    onWaitForNotificationSettings: () -> Unit,
     onLongCommandSecChange: (Int) -> Unit,
     autocompleteEnabled: Boolean,
     virtualizeLargeOutput: Boolean,
@@ -74,6 +95,8 @@ internal fun SettingsScreen(
     appearance: AppearanceState,
     appearanceActions: AppearanceActions,
     scrollState: ScrollState,
+    /** Everything back to how Ayana ships: every room's settings, the keys, the glass. */
+    onResetAll: () -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -142,6 +165,33 @@ internal fun SettingsScreen(
                                 tint = MaterialTheme.colorScheme.primary,
                             )
                         },
+                    )
+                }
+
+                // The one way back to the defaults, for every room at once: at the very end,
+                // centred and bare. It asks first, as it undoes a lot.
+                var confirmReset by remember { mutableStateOf(false) }
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(top = Ui.spaceS),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    TextButton(onClick = { confirmReset = true }) {
+                        Text(stringResource(R.string.glass_reset))
+                    }
+                }
+                if (confirmReset) {
+                    AyanaConfirmDialog(
+                        title = stringResource(R.string.reset_all_title),
+                        text = stringResource(R.string.reset_all_text),
+                        onConfirm = {
+                            confirmReset = false
+                            onResetAll()
+                        },
+                        onDismiss = { confirmReset = false },
+                        confirmLabel = stringResource(R.string.reset_all_confirm),
+                        confirmTinted = true,
                     )
                 }
 
@@ -216,19 +266,29 @@ internal fun SettingsScreen(
                         onChange = onPreviewLinesChange,
                     )
                 }
-                // A long command's end: felt, or seen in the notifications while Ayana is away.
+                // A long command's end: felt, or seen in the notifications while Ayana is away. The
+                // switch turns on only once notifications are allowed: asked for in a dialog, or,
+                // when Android no longer shows one, in the app's notification settings.
                 val askNotifications = rememberLauncherForActivityResult(
                     ActivityResultContracts.RequestPermission(),
-                ) { granted -> onNotificationPermissionResult(granted) }
+                ) { granted -> if (granted) onSignalLongCommandsChange(true) }
                 SettingsCard {
                     SwitchRow(
                         title = stringResource(R.string.settings_long_signal),
                         subtitle = stringResource(R.string.settings_long_signal_desc),
                         checked = signalLongCommands,
                         onChange = { on ->
-                            onSignalLongCommandsChange(on)
-                            if (on && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                                askNotifications.launch(Manifest.permission.POST_NOTIFICATIONS)
+                            when {
+                                !on -> onSignalLongCommandsChange(false)
+                                notificationsAllowed(context) -> onSignalLongCommandsChange(true)
+                                notificationsAsked && !mayAskAgain(context) -> {
+                                    onWaitForNotificationSettings()
+                                    openNotificationSettings(context)
+                                }
+                                else -> {
+                                    onNotificationsAsked()
+                                    askNotifications.launch(Manifest.permission.POST_NOTIFICATIONS)
+                                }
                             }
                         },
                     )
@@ -288,4 +348,29 @@ private fun copyDiagnostics(context: Context) {
         context.getString(R.string.settings_diag_copied),
         android.widget.Toast.LENGTH_SHORT,
     ).show()
+}
+
+private fun notificationsAllowed(context: Context): Boolean =
+    Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+        ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) ==
+        PackageManager.PERMISSION_GRANTED
+
+/** False once the user has refused for good: Android then answers at once, without a dialog. */
+private fun mayAskAgain(context: Context): Boolean {
+    val activity = context.findActivity() ?: return true
+    return ActivityCompat.shouldShowRequestPermissionRationale(activity, Manifest.permission.POST_NOTIFICATIONS)
+}
+
+private fun Context.findActivity(): Activity? = when (this) {
+    is Activity -> this
+    is ContextWrapper -> baseContext.findActivity()
+    else -> null
+}
+
+private fun openNotificationSettings(context: Context) {
+    context.startActivity(
+        Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+            .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+    )
 }

@@ -1,37 +1,23 @@
 package iatheiya.ayana.ui.main
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.MutableTransitionState
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.ArrowDropDown
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -39,32 +25,21 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Popup
-import androidx.compose.ui.window.PopupProperties
 import iatheiya.ayana.R
 import iatheiya.ayana.data.CustomKey
 import iatheiya.ayana.data.KeyKind
+import iatheiya.ayana.ui.common.AyanaChoiceSheet
 import iatheiya.ayana.ui.common.AyanaDialogContainer
+import iatheiya.ayana.ui.common.SheetChoice
 import iatheiya.ayana.util.escapeKeySequence
 import iatheiya.ayana.util.isPlainText
 import iatheiya.ayana.util.unescapeKeySequence
 
 /** Where the key codes are listed: the terminal input sequences of the ANSI escape code article. */
 private const val KEY_CODES_URL = "https://en.wikipedia.org/wiki/ANSI_escape_code#Terminal_input_sequences"
-
-/** The outlined field's box starts below the room its floating label takes. */
-private val FIELD_LABEL_ROOM = 8.dp
-private val FIELD_HEIGHT = 56.dp
-private val LIST_ITEM_HEIGHT = 52.dp
 
 /**
  * What a key does, as a single choice the user picks from one list — instead of a "kind" plus
@@ -128,125 +103,48 @@ internal fun visibleSequence(text: String): String = text
     .replace("\u007F", "⌫")
 
 /**
- * The key's action, as an outlined field like the others. Tapping it rolls a list out from under
- * the field: the field keeps showing the current choice, its bottom corners square off, and the
- * other choices unroll below it as a continuation of the same outline, one row each, split by
- * thin lines. Picking one, or tapping elsewhere, rolls it back.
- *
- * [containerColor] is the surface the field sits on (the dialog, the page), so the list reads as
- * part of the field rather than a separate card.
+ * The key's action, as an outlined field like the others. Tapping it raises the four actions from
+ * the bottom, the same chooser every option in the app uses.
  */
 @Composable
-internal fun KeyModeDropdown(
+internal fun KeyModeField(
     mode: KeyMode,
     onModeChange: (KeyMode) -> Unit,
     modifier: Modifier = Modifier,
-    containerColor: Color = MaterialTheme.colorScheme.surfaceContainerHigh,
 ) {
-    var open by remember { mutableStateOf(false) }
-    var widthPx by remember { mutableStateOf(0) }
-    val density = LocalDensity.current
-    val arrowTurn by animateFloatAsState(if (open) 180f else 0f, tween(200), label = "arrow")
-    Box(modifier.onSizeChanged { widthPx = it.width }) {
+    var choosing by remember { mutableStateOf(false) }
+    Box(modifier) {
         OutlinedTextField(
             value = keyModeLabel(mode),
             onValueChange = {},
             readOnly = true,
             singleLine = true,
             label = { Text(stringResource(R.string.keys_mode)) },
-            trailingIcon = {
-                Icon(Icons.Filled.ArrowDropDown, contentDescription = null, modifier = Modifier.rotate(arrowTurn))
-            },
-            shape = if (open) FIELD_SHAPE_OPEN else FIELD_SHAPE,
+            trailingIcon = { Icon(Icons.Filled.ArrowDropDown, contentDescription = null) },
             modifier = Modifier.fillMaxWidth(),
         )
-        // A read-only field still takes the tap for its caret; this cover opens the list instead.
+        // A read-only field still takes the tap for its caret; this cover opens the chooser instead.
         Box(
             Modifier
-                .fillMaxWidth()
+                .matchParentSize()
                 .padding(top = FIELD_LABEL_ROOM)
-                .height(FIELD_HEIGHT)
-                .clip(FIELD_SHAPE)
-                .clickable { open = !open },
+                .clip(MaterialTheme.shapes.extraSmall)
+                .clickable { choosing = true },
         )
-        if (open) {
-            // The list's top edge lies on the field's bottom outline, so the two read as one line.
-            val offsetPx = with(density) { (FIELD_LABEL_ROOM + FIELD_HEIGHT - OUTLINE).roundToPx() }
-            Popup(
-                offset = IntOffset(0, offsetPx),
-                onDismissRequest = { open = false },
-                properties = PopupProperties(focusable = true),
-            ) {
-                KeyModeList(
-                    current = mode,
-                    width = with(density) { widthPx.toDp() },
-                    containerColor = containerColor,
-                    onPick = { picked ->
-                        onModeChange(picked)
-                        open = false
-                    },
-                )
-            }
-        }
+    }
+    if (choosing) {
+        AyanaChoiceSheet(
+            title = stringResource(R.string.keys_mode),
+            choices = KeyMode.entries.map { SheetChoice(it, keyModeLabel(it)) },
+            selected = mode,
+            onPick = onModeChange,
+            onDismiss = { choosing = false },
+        )
     }
 }
 
-@Composable
-private fun KeyModeList(
-    current: KeyMode,
-    width: Dp,
-    containerColor: Color,
-    onPick: (KeyMode) -> Unit,
-) {
-    // Unrolls downward from the field's bottom edge.
-    val shown = remember { MutableTransitionState(false) }
-    LaunchedEffect(Unit) { shown.targetState = true }
-    AnimatedVisibility(
-        visibleState = shown,
-        enter = expandVertically(tween(220), expandFrom = Alignment.Top) + fadeIn(tween(120)),
-        exit = shrinkVertically(tween(160), shrinkTowards = Alignment.Top) + fadeOut(tween(160)),
-    ) {
-        Surface(
-            shape = LIST_SHAPE,
-            color = containerColor,
-            border = BorderStroke(OUTLINE, MaterialTheme.colorScheme.outline),
-            modifier = Modifier.width(width),
-        ) {
-            Column {
-                KeyMode.entries.filter { it != current }.forEachIndexed { index, candidate ->
-                    if (index > 0) {
-                        HorizontalDivider(
-                            thickness = OUTLINE,
-                            color = MaterialTheme.colorScheme.outline.copy(alpha = DIVIDER_ALPHA),
-                            modifier = Modifier.padding(horizontal = 12.dp),
-                        )
-                    }
-                    Row(
-                        Modifier
-                            .fillMaxWidth()
-                            .height(LIST_ITEM_HEIGHT)
-                            .clickable { onPick(candidate) }
-                            .padding(horizontal = 16.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(
-                            keyModeLabel(candidate),
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurface,
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-private val OUTLINE = 1.dp
-private const val DIVIDER_ALPHA = 0.5f
-private val FIELD_CORNER = 4.dp
-private val FIELD_SHAPE = RoundedCornerShape(FIELD_CORNER)
-private val FIELD_SHAPE_OPEN = RoundedCornerShape(topStart = FIELD_CORNER, topEnd = FIELD_CORNER)
-private val LIST_SHAPE = RoundedCornerShape(bottomStart = FIELD_CORNER, bottomEnd = FIELD_CORNER)
+/** The outlined field's box starts below the room its floating label takes. */
+private val FIELD_LABEL_ROOM = 8.dp
 
 /** How to type special keys, and where to look up any other key's code. */
 @Composable
@@ -302,7 +200,7 @@ internal fun KeyEditorDialog(
                     label = { Text(stringResource(R.string.settings_keys_payload)) },
                     modifier = Modifier.fillMaxWidth(),
                 )
-                KeyModeDropdown(
+                KeyModeField(
                     mode = mode,
                     onModeChange = { mode = it },
                     modifier = Modifier.padding(top = 4.dp),
