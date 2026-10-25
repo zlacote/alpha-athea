@@ -557,7 +557,7 @@ private fun MainScreenBody(viewModel: MainViewModel, state: UiState, composerBac
                                 contentBottomPadding = overlayBottom,
                                 onJumpAvailableChange = { jumpAvailable = it },
                                 pinchZoomEnabled = state.workspace.settings.pinchZoomEnabled,
-                                greetingAnimated = settings.greetingAnimated || current.id == settings.introSessionId,
+                                greetingAnimated = state.workspace.settings.greetingAnimated || current.id == state.workspace.settings.introSessionId,
                                 virtualizeLargeOutput = state.workspace.settings.virtualizeLargeOutput,
                                 onTranscriptFontZoom = viewModel::onTranscriptFontZoom,
                                 onToggleBlock = viewModel::toggleBlockCollapsed,
