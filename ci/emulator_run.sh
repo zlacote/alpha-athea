@@ -85,6 +85,20 @@ timeout 10 adb logcat -d > "$LOG_DIR/logcat.txt" 2>&1 || true
 echo "--- ayana and renderer log lines ---"
 grep -E "Ayana|AndroidRuntime|hwui|RuntimeShader|SKSL|Skia" "$LOG_DIR/logcat.txt" | tail -n 200 || true
 
+# Close the app the way a user does and open it again: the second start reads back everything
+# the first one stored (sessions, journals, settings), which is where restore bugs show.
+timeout 10 adb shell am force-stop "$PKG" || true
+sleep 2
+timeout 15 adb shell am start -W -n "${PKG}/${MAINACT}" > "$LOG_DIR/relaunch_log.txt" 2>&1 || true
+sleep 6
+timeout 10 adb shell screencap -p /sdcard/screen_relaunch.png || true
+timeout 10 adb pull /sdcard/screen_relaunch.png "$LOG_DIR/screen_relaunch.png" || true
+timeout 10 adb logcat -d > "$LOG_DIR/logcat.txt" 2>&1 || true
+timeout 10 adb shell run-as "$PKG" cat files/crash.log > "$LOG_DIR/crash_log.txt" 2>&1 || true
+echo "--- crash trace after relaunch, if any ---"
+grep -A 40 "FATAL EXCEPTION" "$LOG_DIR/logcat.txt" | head -n 80 || true
+cat "$LOG_DIR/crash_log.txt" 2>/dev/null | head -n 60 || true
+
 CRASHED=""
 for i in $(seq 1 10); do
   if ! timeout 5 adb shell pidof "$PKG" > /dev/null 2>&1; then
