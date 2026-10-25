@@ -182,6 +182,24 @@ class WorkspaceTest {
     }
 
     @Test
+    fun `the shell directory shows as the prompt and survives a restart`() = runTest {
+        val storage = AyanaStorage(tmp.root)
+        val ws = workspace(storage)
+        ws.updateDraft("cd sub")
+        ws.sendDraft()
+        val home = storage.shellHome().canonicalPath
+        started.single().printOutput("\u001B]133;D;0\u0007\u001B]7;$home/sub\u0007")
+        runCurrent()
+        advanceTimeBy(200)
+        assertEquals("~/sub", ws.state.value.sessions.single().directory)
+        ws.close()
+
+        // The stored session is projected while the new workspace is being built.
+        val reopened = workspace(storage)
+        assertEquals("~/sub", reopened.state.value.sessions.single().directory)
+    }
+
+    @Test
     fun `deleting the current session selects its neighbour`() = runTest {
         val ws = workspace()
         ws.newSession()

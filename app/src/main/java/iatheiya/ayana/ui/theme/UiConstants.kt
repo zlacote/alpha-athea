@@ -18,7 +18,7 @@ object Ui {
     val spaceXl = 24.dp
 
     /** Side margin of cards, bands and fields on a page. */
-    val screenGutter = spaceL
+    val screenGutter = spaceM
 
     /** Room above and below every block on a page (card, band, field): neighbours sit twice this apart. */
     val sectionGap = spaceS

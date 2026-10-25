@@ -89,6 +89,17 @@ class Workspace(
     private var nextSessionIdValue = 1L
     private var favoriteCounter = 0L
 
+    // Both must be declared above init: restore() projects the stored sessions from inside the
+    // constructor, and a property declared further down is still unset at that point (a lazy one
+    // included, its delegate being a field too). That was a crash on every start with saved data.
+
+    /** The shell's home, resolved through symlinks, for the `~` in the prompt. */
+    private val canonicalHome: String =
+        runCatching { storage.shellHome().canonicalPath }.getOrDefault(storage.shellHome().absolutePath).trimEnd('/')
+
+    /** Resolving a path touches the disk, and the projection is rebuilt often: each path is resolved once. */
+    private val shownDirectories = ConcurrentHashMap<String, String>()
+
     init {
         restore()
         // Throttled refresh: heavy output produces many batches per second;
@@ -667,16 +678,7 @@ class Workspace(
         }
     }
 
-    private val canonicalHome: String by lazy {
-        runCatching { storage.shellHome().canonicalPath }.getOrDefault(storage.shellHome().absolutePath).trimEnd('/')
-    }
 
-    /**
-     * Resolving a path touches the disk, and the projection is rebuilt often: each path is resolved
-     * once. Lazy, like [canonicalHome], because sessions are projected while the workspace is still
-     * being constructed, before properties declared down here are initialised.
-     */
-    private val shownDirectories by lazy { java.util.concurrent.ConcurrentHashMap<String, String>() }
 
     private fun rebuildAllSessions() {
         for (id in pipes.keys.toList()) refreshSession(id)

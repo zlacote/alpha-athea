@@ -15,7 +15,7 @@
     <string name="cd_scroll_down">Scroll to bottom</string>
     <string name="cd_collapse">Collapse</string>
     <string name="greeting_title">Ayana</string>
-    <string name="greeting_hint">Type a command — the answer appears as a message</string>
+    <string name="greeting_hint">Ready for your command</string>
 
     <!-- Main screen -->
     <string name="input_hint">Type a command…</string>
@@ -81,6 +81,8 @@
     <string name="settings_long_signal_desc">A short vibration; a notification while Ayana is in the background</string>
     <string name="settings_long_after">Long means at least, s</string>
     <string name="signal_channel">Finished commands</string>
+    <string name="keepalive_channel">Running commands</string>
+    <string name="keepalive_title">A command is running</string>
     <string name="signal_title">Command finished</string>
     <string name="signal_text">%1$s: done after %2$d s</string>
     <string name="settings_section_appearance">Appearance</string>

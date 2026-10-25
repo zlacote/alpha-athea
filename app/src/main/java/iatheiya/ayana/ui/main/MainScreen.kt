@@ -285,6 +285,7 @@ private fun MainScreenRoutes(viewModel: MainViewModel, state: UiState) {
             signalLongCommands = settings.signalLongCommands,
             longCommandSec = settings.longCommandSec,
             onSignalLongCommandsChange = viewModel::setSignalLongCommands,
+            onNotificationPermissionResult = viewModel::onNotificationPermissionResult,
             onLongCommandSecChange = viewModel::setLongCommandSec,
             autocompleteEnabled = state.workspace.settings.autocompleteEnabled,
             virtualizeLargeOutput = state.workspace.settings.virtualizeLargeOutput,

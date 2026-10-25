@@ -51,6 +51,9 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import kotlinx.coroutines.delay
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -66,6 +69,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.PointerEventPass
@@ -184,6 +188,12 @@ fun TranscriptView(
             val rows = (constraints.maxHeight / layout.size.height.coerceAtLeast(1))
                 .coerceAtLeast(1)
             onAreaResized(rows, cols)
+        }
+
+        // An empty chat greets the same way in either view.
+        if (session.blocks.isEmpty() && session.rawText.isBlank()) {
+            EmptyGreeting(Modifier.align(Alignment.Center))
+            return@BoxWithConstraints
         }
 
         if (session.rawStream) {
@@ -414,16 +424,38 @@ fun TranscriptView(
     }
 }
 
+/** The greeting's light sweep plays once per start of the app, not on every empty chat. */
+private object GreetingSweep {
+    var played = false
+}
+
 @Composable
 private fun EmptyGreeting(modifier: Modifier = Modifier) {
+    // When the app starts, a soft band of light runs once across the name, then it rests.
+    val sweep = remember { Animatable(if (GreetingSweep.played) 1f else 0f) }
+    LaunchedEffect(Unit) {
+        if (!GreetingSweep.played) {
+            GreetingSweep.played = true
+            delay(SWEEP_DELAY_MS)
+            sweep.animateTo(1f, tween(SWEEP_MS, easing = FastOutSlowInEasing))
+        }
+    }
+    val base = MaterialTheme.colorScheme.onBackground
+    val glow = MaterialTheme.colorScheme.primary
     Column(
         modifier = modifier.padding(horizontal = 32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(
             text = stringResource(R.string.greeting_title),
-            style = MaterialTheme.typography.headlineSmall,
-            color = MaterialTheme.colorScheme.onBackground,
+            style = MaterialTheme.typography.headlineSmall.copy(
+                brush = if (sweep.value >= 1f) {
+                    null
+                } else {
+                    sweepBrush(sweep.value, base.copy(alpha = SWEEP_BASE_ALPHA), glow)
+                },
+            ),
+            color = base,
         )
         Spacer(Modifier.height(8.dp))
         Text(
@@ -913,3 +945,25 @@ private fun Modifier.fadeOutBottom(height: Dp): Modifier =
                 blendMode = BlendMode.DstIn,
             )
         }
+
+private const val SWEEP_DELAY_MS = 250L
+private const val SWEEP_MS = 1600
+private const val SWEEP_BASE_ALPHA = 0.55f
+
+/** A bright band at [progress] (0 left of the text, 1 past its right end) over a dimmer base. */
+private fun sweepBrush(progress: Float, base: Color, glow: Color): Brush {
+    val centre = -0.3f + progress * 1.6f
+    return Brush.linearGradient(
+        0f to base,
+        (centre - 0.25f).coerceIn(0f, 1f) to base,
+        centre.coerceIn(0f, 1f) to glow,
+        (centre + 0.25f).coerceIn(0f, 1f) to base,
+        1f to base,
+        start = Offset(0f, 0f),
+        end = Offset(SWEEP_WIDTH_PX, 0f),
+        tileMode = TileMode.Clamp,
+    )
+}
+
+/** About the width of the name at the greeting's size, so the band crosses it at an even pace. */
+private const val SWEEP_WIDTH_PX = 360f

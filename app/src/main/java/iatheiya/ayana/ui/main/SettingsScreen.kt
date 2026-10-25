@@ -46,6 +46,7 @@ internal fun SettingsScreen(
     signalLongCommands: Boolean,
     longCommandSec: Int,
     onSignalLongCommandsChange: (Boolean) -> Unit,
+    onNotificationPermissionResult: (Boolean) -> Unit,
     onLongCommandSecChange: (Int) -> Unit,
     autocompleteEnabled: Boolean,
     virtualizeLargeOutput: Boolean,
@@ -218,7 +219,7 @@ internal fun SettingsScreen(
                 // A long command's end: felt, or seen in the notifications while Ayana is away.
                 val askNotifications = rememberLauncherForActivityResult(
                     ActivityResultContracts.RequestPermission(),
-                ) { }
+                ) { granted -> onNotificationPermissionResult(granted) }
                 SettingsCard {
                     SwitchRow(
                         title = stringResource(R.string.settings_long_signal),

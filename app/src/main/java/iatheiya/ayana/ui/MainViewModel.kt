@@ -96,6 +96,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     /** Ayana is on screen; a long command's end then only vibrates, without a notification. */
     private var inForeground = true
 
+    /** The keep-alive service is up, or is about to be started. */
+    private var keepAliveOn = false
+    private var keepAliveJob: kotlinx.coroutines.Job? = null
+
     val events: Flow<WorkspaceEvent> = workspace.events
 
     /** One-shot requests to scroll the transcript to a block (search jumps). */
@@ -143,6 +147,32 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
         val alive = projection.sessions.mapTo(HashSet()) { it.id }
         runStarted.keys.retainAll(alive)
+        keepAliveWhileRunning(runStarted.isNotEmpty())
+    }
+
+    /**
+     * Holds the process alive while any command runs. It starts only after a moment, so a quick
+     * command never flashes the notification, and stops as soon as nothing runs.
+     */
+    private fun keepAliveWhileRunning(running: Boolean) {
+        val app = getApplication<Application>()
+        if (running) {
+            if (keepAliveOn || keepAliveJob?.isActive == true) return
+            keepAliveJob = viewModelScope.launch {
+                kotlinx.coroutines.delay(KEEPALIVE_DELAY_MS)
+                if (runStarted.isNotEmpty()) {
+                    iatheiya.ayana.CommandKeepAliveService.start(app)
+                    keepAliveOn = true
+                }
+            }
+        } else {
+            keepAliveJob?.cancel()
+            keepAliveJob = null
+            if (keepAliveOn) {
+                iatheiya.ayana.CommandKeepAliveService.stop(app)
+                keepAliveOn = false
+            }
+        }
     }
 
     private fun createEngine(app: Application, shellPath: String): TerminalEngine =
@@ -485,7 +515,35 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun setScreenAwake(mode: String) = workspace.updateSettings { it.copy(screenAwake = mode) }
 
-    fun setSignalLongCommands(value: Boolean) = workspace.updateSettings { it.copy(signalLongCommands = value) }
+    /** The user's own switch: whatever it was waiting for no longer matters. */
+    fun setSignalLongCommands(value: Boolean) =
+        workspace.updateSettings { it.copy(signalLongCommands = value, signalAwaitingPermission = false) }
+
+    /** Turning the signal on asked for notifications; refused, the switch goes back off and waits. */
+    fun onNotificationPermissionResult(granted: Boolean) {
+        if (!granted) {
+            workspace.updateSettings { it.copy(signalLongCommands = false, signalAwaitingPermission = true) }
+        }
+    }
+
+    /**
+     * Keeps the switch true to the system setting, checked whenever Ayana comes back to the front:
+     * notifications taken away turn the signal off; given back, they turn it on again.
+     */
+    fun syncNotificationPermission() {
+        if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.TIRAMISU) return
+        val granted = androidx.core.content.ContextCompat.checkSelfPermission(
+            getApplication(),
+            android.Manifest.permission.POST_NOTIFICATIONS,
+        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        val settings = workspace.state.value.settings
+        when {
+            settings.signalLongCommands && !granted ->
+                workspace.updateSettings { it.copy(signalLongCommands = false, signalAwaitingPermission = true) }
+            !settings.signalLongCommands && settings.signalAwaitingPermission && granted ->
+                workspace.updateSettings { it.copy(signalLongCommands = true, signalAwaitingPermission = false) }
+        }
+    }
 
     fun setLongCommandSec(sec: Int) = workspace.updateSettings { it.copy(longCommandSec = sec) }
 
@@ -603,11 +661,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun persistTransientState() = workspace.persistTransientState()
 
     override fun onCleared() {
+        iatheiya.ayana.CommandKeepAliveService.stop(getApplication())
         workspace.close()
         super.onCleared()
     }
 
     private companion object {
+        const val KEEPALIVE_DELAY_MS = 1000L
         const val SHELL_ASSET = "mkshrc"
     }
 

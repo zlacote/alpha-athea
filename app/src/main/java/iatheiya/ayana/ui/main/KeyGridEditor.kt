@@ -104,7 +104,7 @@ fun KeyGridEditor(
     BoxWithConstraints(
         modifier
             .fillMaxWidth()
-            .padding(horizontal = Ui.keyRowPaddingH, vertical = Ui.spaceS),
+            .padding(horizontal = Ui.keyRowPaddingH),
     ) {
         val width = maxWidth.value
         val viewport = if (width.isFinite() && width > 0f) maxWidth else 0.dp

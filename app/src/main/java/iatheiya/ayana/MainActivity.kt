@@ -40,6 +40,11 @@ class MainActivity : ComponentActivity() {
         super.onStop()
     }
 
+    override fun onResume() {
+        super.onResume()
+        viewModel.syncNotificationPermission()
+    }
+
     override fun onPause() {
         // Drafts and metadata are cheap to flush here and precious to lose.
         viewModel.persistTransientState()
