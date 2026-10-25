@@ -8,13 +8,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -45,7 +39,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.res.stringResource
@@ -71,9 +68,8 @@ import iatheiya.ayana.ui.theme.glass
 import iatheiya.ayana.ui.theme.messageStyle
 
 /** The drawn send circle, kept smaller than its touch target so it sits inside the field. */
-private val SEND_BUTTON_SIZE = 36.dp
+internal val SEND_BUTTON_SIZE = 38.dp
 
-private const val JUMP_FILL_ALPHA = 0.14f
 private val DOCKED_PADDING_H = 8.dp
 private val FLOATING_PADDING_H = 4.dp
 private val FLOATING_MARGIN_H = 16.dp
@@ -107,9 +103,8 @@ fun InputBar(
      * the key row share one container (see [DockedPanelShape]), drawn by the caller.
      */
     docked: Boolean = false,
-    /** The transcript is not at its end: a jump-down button shows beside the send button. */
-    showJumpDown: Boolean = false,
-    onJumpDown: () -> Unit = {},
+    /** Reports where the send circle is on screen, so the jump-down button can stand right above it. */
+    onSendBounds: (Rect) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     if (search == null) {
@@ -127,8 +122,7 @@ fun InputBar(
             directory = directory,
             running = running,
             docked = docked,
-            showJumpDown = showJumpDown,
-            onJumpDown = onJumpDown,
+            onSendBounds = onSendBounds,
             modifier = modifier,
         )
     } else {
@@ -177,17 +171,10 @@ private fun DraftPanel(
     directory: String?,
     running: Boolean,
     docked: Boolean,
-    showJumpDown: Boolean,
-    onJumpDown: () -> Unit,
+    onSendBounds: (Rect) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var lineCount by remember { mutableStateOf(1) }
-    // The field makes room for the jump-down button while it shows, and gives it back smoothly.
-    val jumpRoom by animateDpAsState(
-        targetValue = if (showJumpDown) Ui.composerButtonSize else 0.dp,
-        animationSpec = tween(durationMillis = 200, easing = FastOutSlowInEasing),
-        label = "jumpRoom",
-    )
     var grown by remember { mutableStateOf(false) }
     if (draft.isEmpty()) grown = false
     if (lineCount > 1) grown = true
@@ -230,7 +217,7 @@ private fun DraftPanel(
                         .fillMaxWidth()
                         .padding(
                             start = if (compact) 50.dp else 16.dp,
-                            end = (if (compact) Ui.composerButtonSpace else Ui.composerFieldEndGrown) + jumpRoom,
+                            end = if (compact) Ui.composerButtonSpace else Ui.composerFieldEndGrown,
                             top = if (compact) 4.dp else Ui.composerFieldTopGrown,
                             bottom = if (compact) 0.dp else Ui.composerButtonRowHeight,
                         ),
@@ -319,29 +306,6 @@ private fun DraftPanel(
                             )
                         }
                     }
-                    // The way back to the newest output, on the same line as the send button and
-                    // drawn the same size, only while the transcript is scrolled up.
-                    AnimatedVisibility(
-                        visible = showJumpDown,
-                        enter = fadeIn(tween(160)) + scaleIn(tween(200), initialScale = 0.6f),
-                        exit = fadeOut(tween(120)) + scaleOut(tween(160), targetScale = 0.6f),
-                    ) {
-                        IconButton(onClick = onJumpDown, modifier = Modifier.size(Ui.composerButtonSize)) {
-                            Box(
-                                Modifier
-                                    .size(SEND_BUTTON_SIZE)
-                                    .clip(CircleShape)
-                                    .background(MaterialTheme.colorScheme.onSurface.copy(alpha = JUMP_FILL_ALPHA)),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                Icon(
-                                    Icons.Default.KeyboardArrowDown,
-                                    contentDescription = stringResource(R.string.cd_scroll_down),
-                                    tint = MaterialTheme.colorScheme.onSurface,
-                                )
-                            }
-                        }
-                    }
                     val hasText = draft.isNotBlank()
                     // No fill until a send is possible, then the accent eases in — background and
                     // icon tint cross-fade slowly so it is gentle, not a pop. The circle is kept
@@ -370,6 +334,7 @@ private fun DraftPanel(
                         androidx.compose.foundation.layout.Box(
                             Modifier
                                 .size(SEND_BUTTON_SIZE)
+                                .onGloballyPositioned { onSendBounds(it.boundsInRoot()) }
                                 .clip(CircleShape)
                                 .background(sendBackground),
                             contentAlignment = androidx.compose.ui.Alignment.Center,

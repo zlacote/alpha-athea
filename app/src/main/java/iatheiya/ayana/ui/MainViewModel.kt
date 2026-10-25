@@ -11,6 +11,7 @@ import androidx.compose.ui.text.TextRange
 import iatheiya.ayana.R
 import iatheiya.ayana.core.terminal.TerminalEngine
 import iatheiya.ayana.data.AyanaStorage
+import iatheiya.ayana.data.AyanaSettings
 import iatheiya.ayana.data.CustomKey
 import iatheiya.ayana.data.FONT_CUSTOM
 import iatheiya.ayana.engine.NativeShellEngine
@@ -86,6 +87,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     /** Walks the commands sent in a session with the up and down keys. */
     private val recall = CommandRecall()
 
+    // Declared before init: the workspace collector below may run at once (Main.immediate).
+    private val signal = LongCommandSignal(application)
+
+    /** When each running session's command started, on the monotonic clock. */
+    private val runStarted = HashMap<Long, Long>()
+
+    /** Ayana is on screen; a long command's end then only vibrates, without a notification. */
+    private var inForeground = true
+
     val events: Flow<WorkspaceEvent> = workspace.events
 
     /** One-shot requests to scroll the transcript to a block (search jumps). */
@@ -102,8 +112,37 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     init {
         viewModelScope.launch {
-            workspace.state.collect { projection -> _state.update { it.copy(workspace = projection) } }
+            workspace.state.collect { projection ->
+                _state.update { it.copy(workspace = projection) }
+                watchLongCommands(projection)
+            }
         }
+    }
+
+    // ------------------------------------------------------------ long commands
+
+    fun setInForeground(value: Boolean) {
+        inForeground = value
+    }
+
+    /** Notes when commands start and, when one that ran long enough ends, gives the signal. */
+    private fun watchLongCommands(projection: WorkspaceState) {
+        val now = android.os.SystemClock.elapsedRealtime()
+        val settings = projection.settings
+        for (session in projection.sessions) {
+            val started = runStarted[session.id]
+            if (session.running && started == null) {
+                runStarted[session.id] = now
+            } else if (!session.running && started != null) {
+                runStarted.remove(session.id)
+                val seconds = (now - started) / 1000
+                if (settings.signalLongCommands && seconds >= settings.longCommandSec) {
+                    signal.fire(session.name, seconds, inForeground)
+                }
+            }
+        }
+        val alive = projection.sessions.mapTo(HashSet()) { it.id }
+        runStarted.keys.retainAll(alive)
     }
 
     private fun createEngine(app: Application, shellPath: String): TerminalEngine =
@@ -444,11 +483,40 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     // ------------------------------------------------------------ appearance
 
-    fun setKeepScreenOn(value: Boolean) = workspace.updateSettings { it.copy(keepScreenOn = value) }
+    fun setScreenAwake(mode: String) = workspace.updateSettings { it.copy(screenAwake = mode) }
+
+    fun setSignalLongCommands(value: Boolean) = workspace.updateSettings { it.copy(signalLongCommands = value) }
+
+    fun setLongCommandSec(sec: Int) = workspace.updateSettings { it.copy(longCommandSec = sec) }
+
+    fun setWallpaperBlur(dp: Int) = workspace.updateSettings { it.copy(wallpaperBlurDp = dp) }
+
+    /** Every appearance setting back to how Ayana ships; the picked wallpaper goes too. */
+    fun resetAppearance() {
+        storage.wallpaperFile().delete()
+        workspace.updateSettings {
+            val defaults = AyanaSettings()
+            it.copy(
+                immersiveMode = defaults.immersiveMode,
+                screenAwake = defaults.screenAwake,
+                tintMode = defaults.tintMode,
+                tintArgb = defaults.tintArgb,
+                font = defaults.font,
+                wallpaperVersion = 0,
+                wallpaperDimPct = defaults.wallpaperDimPct,
+                wallpaperBlurDp = defaults.wallpaperBlurDp,
+                outputFontSizeSp = defaults.outputFontSizeSp,
+                bubbleFontSizeSp = defaults.bubbleFontSizeSp,
+                pinchZoomEnabled = defaults.pinchZoomEnabled,
+            )
+        }
+    }
 
     fun setGlassEnabled(value: Boolean) = workspace.updateSettings { it.copy(glassEnabled = value) }
 
-    fun setTint(argb: Long?) = workspace.updateSettings { it.copy(tintArgb = argb) }
+    fun setTint(mode: String, argb: Long?) = workspace.updateSettings {
+        it.copy(tintMode = mode, tintArgb = argb ?: it.tintArgb)
+    }
 
     fun setFont(font: String) = workspace.updateSettings { it.copy(font = font) }
 

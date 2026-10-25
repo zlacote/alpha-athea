@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -25,7 +24,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
@@ -36,6 +34,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
@@ -44,14 +43,12 @@ import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import iatheiya.ayana.R
 import iatheiya.ayana.data.CustomKey
+import iatheiya.ayana.ui.liquid.backdropGap
 import iatheiya.ayana.ui.theme.Ui
 import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
@@ -107,14 +104,15 @@ fun KeyGridEditor(
     BoxWithConstraints(
         modifier
             .fillMaxWidth()
-            .padding(horizontal = Ui.keyRowPaddingH, vertical = Ui.keyRowPaddingV),
+            .padding(horizontal = Ui.keyRowPaddingH, vertical = Ui.spaceS),
     ) {
         val width = maxWidth.value
         val viewport = if (width.isFinite() && width > 0f) maxWidth else 0.dp
         val fixed = sep * (colsVisible - 1).coerceAtLeast(0)
         val cellW = if (viewport <= fixed) 0.dp else (viewport - fixed) / colsVisible
         val pitchXpx = with(density) { (cellW + sep).toPx() }
-        val pitchYpx = with(density) { cellH.toPx() }
+        // A row is a key plus the gap under it, as in the live row.
+        val pitchYpx = with(density) { (cellH + sep).toPx() }
 
         // The pixel position of slot [k] in the column-major grid.
         fun slotOffset(k: Int) = Offset((k / rowCount) * pitchXpx, (k % rowCount) * pitchYpx)
@@ -122,18 +120,26 @@ fun KeyGridEditor(
         val columns = keys.chunked(rowCount)
         Row(Modifier.horizontalScroll(rememberScrollState())) {
             columns.forEachIndexed { columnIndex, columnKeys ->
-                if (columnIndex > 0) Spacer(Modifier.width(sep))
+                if (columnIndex > 0) {
+                    Box(
+                        Modifier
+                            .width(sep)
+                            .height(cellH * rowCount + sep * (rowCount - 1))
+                            .backdropGap(null),
+                    )
+                }
                 Column(Modifier.width(cellW)) {
                     for (rowIndex in 0 until rowCount) {
+                        if (rowIndex > 0) {
+                            Box(Modifier.width(cellW).height(sep).backdropGap(null))
+                        }
                         val index = columnIndex * rowCount + rowIndex
                         val key = columnKeys.getOrNull(rowIndex)
-                        // Flat cells side by side, like the live row: a hairline of the band shows
-                        // between them, no rounding and no gaps.
+                        // Flat cells side by side, with the same separators as the live row.
                         Box(
                             Modifier
                                 .width(cellW)
-                                .height(cellH)
-                                .padding(bottom = if (rowIndex < rowCount - 1) sep else 0.dp),
+                                .height(cellH),
                         ) {
                             if (key != null) {
                                 val dragging = draggedIndex == index
@@ -340,31 +346,21 @@ private fun EditableKeyCell(
     )
 }
 
-/** How one key looks in the editor, in its cell or carried by a finger. */
+/**
+ * How one key looks in the editor, in its cell or carried by a finger: the live row's own label
+ * on the row's material, and the armed accent while it is carried.
+ */
 @Composable
 private fun KeyCellFace(key: CustomKey, highlighted: Boolean, modifier: Modifier = Modifier) {
     Box(
         modifier
             .fillMaxSize()
-            .background(
-                if (highlighted) {
-                    MaterialTheme.colorScheme.primaryContainer
-                } else {
-                    MaterialTheme.colorScheme.surfaceContainerHigh
-                },
-            ),
+            .background(if (highlighted) MaterialTheme.colorScheme.primary else Color.Transparent),
         contentAlignment = Alignment.Center,
     ) {
-        Text(
-            text = key.label.ifEmpty { stringResource(R.string.settings_keys_unnamed) },
-            style = MaterialTheme.typography.labelLarge.copy(
-                fontFamily = FontFamily.Monospace,
-                fontSize = 13.sp,
-            ),
-            color = MaterialTheme.colorScheme.onSurface,
-            maxLines = 1,
-            softWrap = false,
-            overflow = TextOverflow.Clip,
+        KeyFaceText(
+            label = key.label.ifEmpty { stringResource(R.string.settings_keys_unnamed) },
+            selected = highlighted,
         )
     }
 }

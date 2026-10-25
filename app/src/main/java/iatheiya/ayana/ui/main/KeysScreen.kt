@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.background
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -24,6 +23,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.stringResource
@@ -33,6 +33,7 @@ import iatheiya.ayana.data.CustomKey
 import iatheiya.ayana.util.unescapeKeySequence
 import iatheiya.ayana.ui.common.AyanaScaffold
 import iatheiya.ayana.ui.common.AyanaScrollHeader
+import iatheiya.ayana.ui.liquid.liquidGlass
 import iatheiya.ayana.ui.theme.Ui
 
 /**
@@ -105,13 +106,14 @@ fun KeysScreen(
                     )
                 }
 
-                // The editable grid sits on a band across the full width, like the live row it
-                // previews, so the part that is changed by hand reads as one surface.
+                // The editable grid is drawn as the live row itself: the same material (glass, or
+                // the solid tone with glass off, with the chosen colour), the same labels and
+                // separators, across the full width.
                 Box(
                     Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 6.dp)
-                        .background(MaterialTheme.colorScheme.surfaceContainer),
+                        .padding(vertical = Ui.sectionGap)
+                        .liquidGlass(null, RectangleShape, 0.dp, lit = false, flat = true),
                 ) {
                     KeyGridEditor(
                         keys = keys,
@@ -132,7 +134,7 @@ fun KeysScreen(
                     singleLine = true,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                        .padding(horizontal = Ui.screenGutter, vertical = Ui.sectionGap),
                 )
                 Row(
                     Modifier

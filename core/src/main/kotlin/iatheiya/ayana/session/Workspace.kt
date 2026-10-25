@@ -572,6 +572,8 @@ class Workspace(
         previewLines = previewLines.coerceIn(1, 10),
         bubbleFontSizeSp = bubbleFontSizeSp.coerceIn(12, 24),
         wallpaperDimPct = wallpaperDimPct.coerceIn(0, 90),
+        wallpaperBlurDp = wallpaperBlurDp.coerceIn(0, 40),
+        longCommandSec = longCommandSec.coerceIn(3, 600),
     )
 
     // ------------------------------------------------------------ persistence

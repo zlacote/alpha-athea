@@ -4,6 +4,10 @@
     <!-- Network access for fetching packages. Normal permission: granted at install. -->
     <uses-permission android:name="android.permission.INTERNET" />
 
+    <!-- The signal at the end of a long command: a vibration, and a notification in the background. -->
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
     <application
         android:name=".AyanaApplication"
         android:label="@string/app_name"

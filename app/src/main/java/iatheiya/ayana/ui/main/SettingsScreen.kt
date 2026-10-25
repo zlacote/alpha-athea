@@ -1,6 +1,10 @@
 package iatheiya.ayana.ui.main
 
+import android.Manifest
 import android.content.Context
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.layout.Column
@@ -20,10 +24,6 @@ import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -36,13 +36,17 @@ import iatheiya.ayana.util.copyToClipboard
 import java.io.File
 
 /** Which room of the settings is on screen: the entry list or one of its sub-rooms. */
-private enum class SettingsPane { ROOT, INPUT, OUTPUT, APPEARANCE, FAVORITES }
+internal enum class SettingsPane { ROOT, INPUT, OUTPUT, APPEARANCE, FAVORITES }
 
 @Composable
 fun SettingsScreen(
     enterSends: Boolean,
     autoScrollOnSend: Boolean,
     rawStream: Boolean,
+    signalLongCommands: Boolean,
+    longCommandSec: Int,
+    onSignalLongCommandsChange: (Boolean) -> Unit,
+    onLongCommandSecChange: (Int) -> Unit,
     autocompleteEnabled: Boolean,
     virtualizeLargeOutput: Boolean,
     previewLines: Int,
@@ -59,6 +63,13 @@ fun SettingsScreen(
     onPreviewLinesChange: (Int) -> Unit,
     onAttachSendsNowChange: (Boolean) -> Unit,
     onOpenKeys: () -> Unit,
+    /**
+     * The open room, owned by the caller: a screen opened from a room (Glass, Glow) replaces the
+     * settings on screen, and on its way back the settings must still be in that same room.
+     */
+    pane: SettingsPane,
+    onPaneChange: (SettingsPane) -> Unit,
+    appearanceScroll: ScrollState,
     appearance: AppearanceState,
     appearanceActions: AppearanceActions,
     scrollState: ScrollState,
@@ -66,13 +77,12 @@ fun SettingsScreen(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
-    var pane by remember { mutableStateOf(SettingsPane.ROOT) }
 
     // Inside settings, back steps out of a sub-room first; at the root the outer
     // handler (in MainScreen) closes settings. The back arrow follows the same rule.
-    BackHandler(enabled = pane != SettingsPane.ROOT) { pane = SettingsPane.ROOT }
+    BackHandler(enabled = pane != SettingsPane.ROOT) { onPaneChange(SettingsPane.ROOT) }
     val handleBack: () -> Unit = {
-        if (pane != SettingsPane.ROOT) pane = SettingsPane.ROOT else onBack()
+        if (pane != SettingsPane.ROOT) onPaneChange(SettingsPane.ROOT) else onBack()
     }
 
     AyanaScaffold(onBack = handleBack, modifier = modifier) {
@@ -88,19 +98,19 @@ fun SettingsScreen(
                     SettingsEntryRow(
                         icon = Icons.Default.Keyboard,
                         title = stringResource(R.string.settings_section_input),
-                        onClick = { pane = SettingsPane.INPUT },
+                        onClick = { onPaneChange(SettingsPane.INPUT) },
                     )
                     SettingsDivider()
                     SettingsEntryRow(
                         icon = Icons.Default.Terminal,
                         title = stringResource(R.string.settings_section_output),
-                        onClick = { pane = SettingsPane.OUTPUT },
+                        onClick = { onPaneChange(SettingsPane.OUTPUT) },
                     )
                     SettingsDivider()
                     SettingsEntryRow(
                         icon = Icons.Outlined.StarBorder,
                         title = stringResource(R.string.favorites),
-                        onClick = { pane = SettingsPane.FAVORITES },
+                        onClick = { onPaneChange(SettingsPane.FAVORITES) },
                     )
                 }
 
@@ -108,7 +118,7 @@ fun SettingsScreen(
                     SettingsEntryRow(
                         icon = Icons.Default.Palette,
                         title = stringResource(R.string.settings_section_appearance),
-                        onClick = { pane = SettingsPane.APPEARANCE },
+                        onClick = { onPaneChange(SettingsPane.APPEARANCE) },
                     )
                     SettingsDivider()
                     SettingsEntryRow(
@@ -194,6 +204,8 @@ fun SettingsScreen(
                         subtitle = stringResource(R.string.settings_virtualize_desc),
                         checked = virtualizeLargeOutput,
                         onChange = onVirtualizeLargeOutputChange,
+                        // The raw stream is one continuous text, with no blocks to scroll inside.
+                        enabled = !rawStream,
                     )
                     SettingsDivider()
                     SliderRow(
@@ -203,10 +215,35 @@ fun SettingsScreen(
                         onChange = onPreviewLinesChange,
                     )
                 }
+                // A long command's end: felt, or seen in the notifications while Ayana is away.
+                val askNotifications = rememberLauncherForActivityResult(
+                    ActivityResultContracts.RequestPermission(),
+                ) { }
+                SettingsCard {
+                    SwitchRow(
+                        title = stringResource(R.string.settings_long_signal),
+                        subtitle = stringResource(R.string.settings_long_signal_desc),
+                        checked = signalLongCommands,
+                        onChange = { on ->
+                            onSignalLongCommandsChange(on)
+                            if (on && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                askNotifications.launch(Manifest.permission.POST_NOTIFICATIONS)
+                            }
+                        },
+                    )
+                    SettingsDivider()
+                    SliderRow(
+                        title = stringResource(R.string.settings_long_after),
+                        value = longCommandSec,
+                        range = 3f..120f,
+                        onChange = onLongCommandSecChange,
+                        enabled = signalLongCommands,
+                    )
+                }
                 Spacer(Modifier.height(24.dp))
             }
 
-            SettingsPane.APPEARANCE -> AppearancePane(state = appearance, actions = appearanceActions)
+            SettingsPane.APPEARANCE -> AppearancePane(state = appearance, actions = appearanceActions, scrollState = appearanceScroll)
 
             SettingsPane.FAVORITES -> Column(
                 Modifier

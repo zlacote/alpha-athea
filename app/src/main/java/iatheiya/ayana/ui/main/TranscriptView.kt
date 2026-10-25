@@ -61,7 +61,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
@@ -344,6 +350,7 @@ fun TranscriptView(
                                 maxWidth = maxBubbleWidth,
                                 previewLines = previewLines,
                                 currentMatch = block.id == currentMatchId,
+                                scrollInside = virtualizeLargeOutput,
                                 onToggle = { onToggleBlock(block.id) },
                                 onCopy = { onCopyCommand(block.text) },
                                 onSelectText = { onSelectCommandText(block.text) },
@@ -435,6 +442,8 @@ private fun CommandBubble(
     maxWidth: Dp,
     previewLines: Int,
     currentMatch: Boolean,
+    /** Large output inside scroll: a long expanded message scrolls inside a bounded box too. */
+    scrollInside: Boolean,
     onToggle: () -> Unit,
     onCopy: () -> Unit,
     onSelectText: () -> Unit,
@@ -471,30 +480,14 @@ private fun CommandBubble(
         ) {
             Column(Modifier.padding(start = Ui.bubblePaddingH, end = Ui.bubblePaddingH, top = Ui.bubblePaddingTop, bottom = Ui.bubblePaddingBottom)) {
                 if (collapsed && collapsible) {
-                    Box {
-                        Text(
-                            text = lines.take(previewLines).joinToString("\n"),
-                            style = bubbleStyle,
-                            color = MaterialTheme.colorScheme.onSecondaryContainer,
-                        )
-                        // Fade hugs the tail only: the first lines stay fully readable. It darkens
-                        // toward the chevron (into the canvas), like the output fade — fading to the
-                        // lighter canvas tint made the tail brighten instead.
-                        Box(
-                            Modifier
-                                .align(Alignment.BottomCenter)
-                                .fillMaxWidth()
-                                .height(Ui.tailFadeHeight)
-                                .background(
-                                    Brush.verticalGradient(
-                                        listOf(
-                                            androidx.compose.ui.graphics.Color.Transparent,
-                                            MaterialTheme.colorScheme.background,
-                                        ),
-                                    ),
-                                ),
-                        )
-                    }
+                    // The tail fades out to transparent, so it sinks into whatever the bubble is
+                    // (a tinted glass, a wallpaper behind it) instead of under a painted black band.
+                    Text(
+                        text = lines.take(previewLines).joinToString("\n"),
+                        style = bubbleStyle,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                        modifier = Modifier.fadeOutBottom(Ui.tailFadeHeight),
+                    )
                     Icon(
                         Icons.Default.KeyboardArrowDown,
                         contentDescription = stringResource(R.string.cd_expand_editor),
@@ -506,11 +499,27 @@ private fun CommandBubble(
                             .clickable(onClick = onToggle),
                     )
                 } else {
-                    Text(
-                        text = block.text,
-                        style = bubbleStyle,
-                        color = MaterialTheme.colorScheme.onSecondaryContainer,
-                    )
+                    if (scrollInside && lines.size > Ui.hugeLinesThreshold) {
+                        // The same bound as a large output: the message scrolls inside it.
+                        val screenHeight = androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp.dp
+                        Box(
+                            Modifier
+                                .heightIn(max = screenHeight * Ui.virtualizedMaxFraction)
+                                .verticalScroll(rememberScrollState()),
+                        ) {
+                            Text(
+                                text = block.text,
+                                style = bubbleStyle,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                            )
+                        }
+                    } else {
+                        Text(
+                            text = block.text,
+                            style = bubbleStyle,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer,
+                        )
+                    }
                     if (collapsible) {
                         // Calm collapse affordance at the tail, mirroring
                         // the expand chevron of the collapsed preview.
@@ -593,28 +602,14 @@ private fun OutputPanel(
 
         if (collapsed && collapsible) {
             val allLines = plainText.lines()
-            Box {
-                Text(
-                    text = allLines.takeLast(TAIL_LINES).joinToString("\n"),
-                    style = codeStyle(),
-                    color = MaterialTheme.colorScheme.onBackground,
-                )
-                // Fade at the bottom: suggests more content, tap to expand.
-                Box(
-                    Modifier
-                        .align(Alignment.BottomCenter)
-                        .fillMaxWidth()
-                        .height(Ui.fadeHeight)
-                        .background(
-                            Brush.verticalGradient(
-                                listOf(
-                                    androidx.compose.ui.graphics.Color.Transparent,
-                                    MaterialTheme.colorScheme.background,
-                                ),
-                            ),
-                        ),
-                )
-            }
+            // Fade at the bottom: suggests more content, tap to expand. The text itself fades out, so
+            // a wallpaper behind it is not covered by a black band.
+            Text(
+                text = allLines.takeLast(TAIL_LINES).joinToString("\n"),
+                style = codeStyle(),
+                color = MaterialTheme.colorScheme.onBackground,
+                modifier = Modifier.fadeOutBottom(Ui.fadeHeight),
+            )
         } else if (virtualizeEnabled && lineCount > Ui.hugeLinesThreshold) {
             // Large output: internal scroll only when toggle on; threshold is TAIL_LINES*4.
             VirtualizedOutput(annotated = displayAnnotated, query = query, jumpToBottom = jumpToBottom)
@@ -803,12 +798,6 @@ private fun VirtualizedOutput(annotated: AnnotatedString, query: String?, jumpTo
                 }
             }
         }
-        Text(
-            text = stringResource(R.string.scroll_inside),
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(top = 4.dp),
-        )
     }
 }
 
@@ -909,3 +898,18 @@ private fun buildHighlighted(text: String, query: String?): AnnotatedString =
             from = idx + needle.length
         }
     }
+
+/** Fades the last [height] of the content out to transparent: what is behind shows through, untouched. */
+private fun Modifier.fadeOutBottom(height: Dp): Modifier =
+    graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+        .drawWithContent {
+            drawContent()
+            val fade = height.toPx().coerceAtMost(size.height)
+            val top = size.height - fade
+            drawRect(
+                brush = Brush.verticalGradient(listOf(Color.Black, Color.Transparent), startY = top, endY = size.height),
+                topLeft = Offset(0f, top),
+                size = Size(size.width, fade),
+                blendMode = BlendMode.DstIn,
+            )
+        }

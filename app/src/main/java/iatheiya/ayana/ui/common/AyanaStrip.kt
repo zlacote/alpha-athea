@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -43,6 +44,11 @@ fun <T> EqualCellGrid(
     separator: @Composable () -> Unit,
     /** Drawn between the rows of a column, [separatorWidth] tall; none when null. */
     rowSeparator: (@Composable () -> Unit)? = null,
+    /**
+     * Empty room under the cells (the navigation bar's height, for a grid on the bottom edge).
+     * The column separators run on through it, down to the very edge.
+     */
+    tail: Dp = 0.dp,
     cell: @Composable (T) -> Unit,
 ) {
     val scrollState = rememberScrollState()
@@ -60,7 +66,7 @@ fun <T> EqualCellGrid(
         // Column-major: each column is a stack of [rowCount] cells.
         val columns = items.chunked(rowCount)
         val rowGaps = if (rowSeparator != null) separatorWidth * (rowCount - 1) else 0.dp
-        val columnHeight = cellHeight * rowCount + rowGaps
+        val columnHeight = cellHeight * rowCount + rowGaps + tail
         Row(
             Modifier
                 .fillMaxWidth()
@@ -95,6 +101,7 @@ fun <T> EqualCellGrid(
                             columnItems.getOrNull(rowIndex)?.let { cell(it) }
                         }
                     }
+                    if (tail > 0.dp) Spacer(Modifier.height(tail))
                 }
             }
         }

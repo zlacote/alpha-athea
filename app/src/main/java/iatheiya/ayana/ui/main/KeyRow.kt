@@ -23,6 +23,7 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import iatheiya.ayana.data.CustomKey
@@ -168,6 +169,8 @@ fun KeyRow(
     cols: Int = Ui.keyVisibleCount,
     /** False when the row sits inside a container that already draws the glass. */
     glass: Boolean = true,
+    /** Room under the keys for the navigation bar; the separators run on through it. */
+    bottomTail: Dp = 0.dp,
 ) {
     // Fixed bar with thin equal-width cells — not floating chips. The cell
     // width is owned by EqualCellGrid, so KeyRow carries no viewport logic
@@ -192,7 +195,10 @@ fun KeyRow(
             cellHeight = Ui.keyMinHeight,
             separatorWidth = Ui.keySeparatorWidth,
             contentPaddingH = Ui.keyRowPaddingH,
-            contentPaddingV = Ui.keyRowPaddingV,
+            // No room above or below the keys: the separators meet the line over the row and run
+            // down to the screen's edge.
+            contentPaddingV = 0.dp,
+            tail = bottomTail,
             modifier = Modifier.fillMaxWidth(),
             // Between keys, thin lines of strong blur: the row reads as separate keys of one
             // panel. Only between keys, none along the outer edges.
@@ -261,12 +267,6 @@ private fun KeyCell(
     selected: Boolean,
     onClick: () -> Unit,
 ) {
-    val fontSize = when (key.label.length) {
-        0, 1, 2 -> 15.sp
-        3 -> 13.sp
-        4 -> 12.sp
-        else -> 11.sp
-    }
     // Two layers, one per state: the armed wash fades with the sticky Ctrl state, the press wash
     // with the finger. No material ripple, so a press never replays on top of the armed state.
     val source = remember { MutableInteractionSource() }
@@ -294,19 +294,33 @@ private fun KeyCell(
             .padding(horizontal = Ui.keyPaddingH),
         contentAlignment = Alignment.Center,
     ) {
-        Text(
-            text = key.label,
-            style = MaterialTheme.typography.labelLarge.copy(
-                fontFamily = FontFamily.Monospace,
-                fontSize = fontSize,
-                lineHeight = 16.sp,
-            ),
-            color = if (selected) MaterialTheme.colorScheme.onPrimary
-            else MaterialTheme.colorScheme.onSurface,
-            textAlign = TextAlign.Center,
-            maxLines = 1,
-            softWrap = false,
-            overflow = androidx.compose.ui.text.style.TextOverflow.Clip,
-        )
+        KeyFaceText(key.label, selected)
     }
+}
+
+/**
+ * A key's label exactly as the key row draws it. The key editor on the Keys page draws its keys
+ * with this too, so the preview is the row itself rather than a look-alike.
+ */
+@Composable
+internal fun KeyFaceText(label: String, selected: Boolean) {
+    val fontSize = when (label.length) {
+        0, 1, 2 -> 15.sp
+        3 -> 13.sp
+        4 -> 12.sp
+        else -> 11.sp
+    }
+    Text(
+        text = label,
+        style = MaterialTheme.typography.labelLarge.copy(
+            fontFamily = FontFamily.Monospace,
+            fontSize = fontSize,
+            lineHeight = 16.sp,
+        ),
+        color = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
+        textAlign = TextAlign.Center,
+        maxLines = 1,
+        softWrap = false,
+        overflow = androidx.compose.ui.text.style.TextOverflow.Clip,
+    )
 }

@@ -9,6 +9,23 @@ import androidx.compose.ui.unit.dp
  * that can drift apart.
  */
 object Ui {
+    // ---- Spacing ----------------------------------------------------------
+    // One scale for the whole interface; blocks, rows and fields take their room from it.
+    val spaceXs = 4.dp
+    val spaceS = 8.dp
+    val spaceM = 12.dp
+    val spaceL = 16.dp
+    val spaceXl = 24.dp
+
+    /** Side margin of cards, bands and fields on a page. */
+    val screenGutter = spaceL
+
+    /** Room above and below every block on a page (card, band, field): neighbours sit twice this apart. */
+    val sectionGap = spaceS
+
+    /** The least room between a row's text and its control (a switch, a chevron). */
+    val controlGap = spaceL
+
     // ---- Shapes -----------------------------------------------------------
     val menuRadius = 24.dp
     val menuShape = RoundedCornerShape(menuRadius)

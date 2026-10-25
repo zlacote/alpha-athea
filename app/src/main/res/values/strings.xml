@@ -19,7 +19,7 @@
 
     <!-- Main screen -->
     <string name="input_hint">Type a command…</string>
-    <string name="input_prompt">%1$s $</string>
+    <string name="input_prompt">%1$s$</string>
     <string name="input_hint_running">Input for the running command…</string>
     <string name="editor_title">Editor</string>
     <string name="select_text_title">Select text</string>
@@ -66,11 +66,26 @@
     <string name="settings_enter_sends_desc">Off keeps Enter for a new line</string>
     <string name="settings_auto_scroll">Jump to bottom on send</string>
     <string name="settings_auto_scroll_desc">After sending, the transcript follows the newest answer</string>
+    <string name="appearance_screen_awake">Keep the screen on</string>
+    <string name="appearance_screen_awake_off">Off</string>
+    <string name="appearance_screen_awake_running">While a command runs</string>
+    <string name="appearance_screen_awake_always">Always</string>
+    <string name="appearance_tint_default">Default: Ayana\'s own neutral tone</string>
+    <string name="appearance_tint_system">The phone\'s accent color</string>
+    <string name="appearance_tint_pick">Any color</string>
+    <string name="appearance_tint_hue">Hue</string>
+    <string name="appearance_tint_saturation">Saturation</string>
+    <string name="appearance_tint_brightness">Brightness</string>
+    <string name="appearance_wallpaper_blur">Blur, dp</string>
+    <string name="settings_long_signal">Signal when a long command ends</string>
+    <string name="settings_long_signal_desc">A short vibration; a notification while Ayana is in the background</string>
+    <string name="settings_long_after">Long means at least, s</string>
+    <string name="signal_channel">Finished commands</string>
+    <string name="signal_title">Command finished</string>
+    <string name="signal_text">%1$s: done after %2$d s</string>
     <string name="settings_section_appearance">Appearance</string>
-    <string name="appearance_keep_screen_on">Keep the screen on</string>
-    <string name="appearance_keep_screen_on_desc">The screen does not go dark while Ayana is open</string>
     <string name="appearance_tint">Color</string>
-    <string name="appearance_tint_desc">Mixed into buttons and panels: tints the glass, or the solid tone with glass off</string>
+    <string name="appearance_tint_desc">Mixed into buttons and panels: it tints the glass, or the solid tone with glass off</string>
     <string name="appearance_font">Font</string>
     <string name="appearance_font_system">Default</string>
     <string name="appearance_font_mono">Monospace</string>
@@ -146,7 +161,6 @@
         <item quantity="one">%d line</item>
         <item quantity="other">%d lines</item>
     </plurals>
-    <string name="scroll_inside">scroll inside</string>
     <!-- Glass tuning -->
     <string name="glass_section">Glass</string>
     <string name="glass_open">Glass tuning</string>

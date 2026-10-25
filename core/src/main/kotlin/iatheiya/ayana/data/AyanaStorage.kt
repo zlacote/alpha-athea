@@ -43,6 +43,14 @@ internal data class FavoritesIndex(
 
 /** User-facing application preferences. */
 
+const val AWAKE_OFF = "off"
+const val AWAKE_RUNNING = "running"
+const val AWAKE_ALWAYS = "always"
+
+const val TINT_DEFAULT = "default"
+const val TINT_SYSTEM = "system"
+const val TINT_COLOR = "color"
+
 const val FONT_SYSTEM = "system"
 const val FONT_MONO = "mono"
 const val FONT_SERIF = "serif"
@@ -64,11 +72,17 @@ data class AyanaSettings(
     val rawStream: Boolean = false,
     /** Full screen: the status bar with the clock is hidden until swiped in. */
     val immersiveMode: Boolean = false,
-    /** The screen stays on while Ayana is in front. */
-    val keepScreenOn: Boolean = false,
+    /** When the screen is kept from going dark: [AWAKE_OFF], [AWAKE_RUNNING] or [AWAKE_ALWAYS]. */
+    val screenAwake: String = AWAKE_OFF,
+    /** A vibration, or a notification when Ayana is in the background, as a long command ends. */
+    val signalLongCommands: Boolean = false,
+    /** How long a command must run, in seconds, to count as long. */
+    val longCommandSec: Int = 15,
     /** Glass surfaces on; off, every surface is one solid tone. */
     val glassEnabled: Boolean = true,
-    /** A colour mixed into the base of buttons and panels, as ARGB; null for none. */
+    /** Where the colour of buttons and panels comes from: [TINT_DEFAULT], [TINT_SYSTEM] or [TINT_COLOR]. */
+    val tintMode: String = TINT_DEFAULT,
+    /** The colour for [TINT_COLOR], as ARGB. */
     val tintArgb: Long? = null,
     /** The transcript font: one of [FONT_SYSTEM], [FONT_MONO], [FONT_SERIF], [FONT_CUSTOM]. */
     val font: String = FONT_SYSTEM,
@@ -78,6 +92,8 @@ data class AyanaSettings(
     val wallpaperVersion: Long = 0,
     /** How much the wallpaper is darkened under the text, in percent. */
     val wallpaperDimPct: Int = 45,
+    /** How much the wallpaper is blurred, in dp; 0 keeps it sharp. */
+    val wallpaperBlurDp: Int = 0,
     val outputFontSizeSp: Int = 13,
     val previewLines: Int = PREVIEW_LINES,
     val bubbleFontSizeSp: Int = 16,

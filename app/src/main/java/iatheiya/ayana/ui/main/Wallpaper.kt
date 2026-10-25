@@ -12,6 +12,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
@@ -28,14 +30,21 @@ private const val MAX_SIDE_PX = 2048
  * text stays readable. Nothing is drawn while there is none ([version] 0) or while it decodes.
  */
 @Composable
-fun Wallpaper(file: File, version: Long, dimPct: Int, modifier: Modifier = Modifier) {
+fun Wallpaper(file: File, version: Long, dimPct: Int, blurDp: Int = 0, modifier: Modifier = Modifier) {
     if (version == 0L) return
     val image by produceState<ImageBitmap?>(null, file, version) {
         value = withContext(Dispatchers.IO) { decodeWallpaper(file) }
     }
     val bitmap = image ?: return
     Box(modifier.fillMaxSize()) {
-        Image(bitmap, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+        Image(
+            bitmap,
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier
+                .fillMaxSize()
+                .then(if (blurDp > 0) Modifier.blur(blurDp.dp) else Modifier),
+        )
         Box(
             Modifier
                 .fillMaxSize()

@@ -36,7 +36,7 @@ internal fun SettingsCard(content: @Composable ColumnScope.() -> Unit) {
         color = MaterialTheme.colorScheme.surfaceContainer,
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 6.dp),
+            .padding(horizontal = Ui.screenGutter, vertical = Ui.sectionGap),
     ) {
         Column(Modifier.padding(vertical = 4.dp), content = content)
     }
@@ -48,15 +48,23 @@ internal fun SwitchRow(
     subtitle: String,
     checked: Boolean,
     onChange: (Boolean) -> Unit,
+    /** Off greys the row out and ignores taps, for a setting that cannot apply right now. */
+    enabled: Boolean = true,
 ) {
     Row(
         Modifier
             .fillMaxWidth()
-            .clickable { onChange(!checked) }
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .clickable(enabled = enabled) { onChange(!checked) }
+            .padding(horizontal = Ui.spaceL, vertical = Ui.spaceM)
+            .alpha(if (enabled) 1f else Ui.ghostAlpha),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Column(Modifier.weight(1f)) {
+        // The text always keeps clear of the switch: it wraps to the next line before it gets close.
+        Column(
+            Modifier
+                .weight(1f)
+                .padding(end = Ui.controlGap),
+        ) {
             Text(text = title, style = MaterialTheme.typography.bodyLarge)
             Text(
                 text = subtitle,
@@ -67,6 +75,7 @@ internal fun SwitchRow(
         Switch(
             checked = checked,
             onCheckedChange = onChange,
+            enabled = enabled,
             // Off-state thumb must stay visible on the dark track.
             colors = SwitchDefaults.colors(
                 uncheckedThumbColor = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -120,7 +129,7 @@ internal fun SettingsEntryGroup(content: @Composable ColumnScope.() -> Unit) {
         color = MaterialTheme.colorScheme.surfaceContainer,
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+            .padding(horizontal = Ui.screenGutter, vertical = Ui.sectionGap),
     ) {
         Column(content = content)
     }
@@ -161,7 +170,7 @@ internal fun SettingsEntryRow(
             style = MaterialTheme.typography.bodyLarge,
             modifier = Modifier
                 .weight(1f)
-                .padding(start = 16.dp),
+                .padding(start = Ui.spaceL, end = Ui.controlGap),
         )
         trailing()
     }

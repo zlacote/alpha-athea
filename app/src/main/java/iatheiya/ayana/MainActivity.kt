@@ -30,6 +30,16 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun onStart() {
+        super.onStart()
+        viewModel.setInForeground(true)
+    }
+
+    override fun onStop() {
+        viewModel.setInForeground(false)
+        super.onStop()
+    }
+
     override fun onPause() {
         // Drafts and metadata are cheap to flush here and precious to lose.
         viewModel.persistTransientState()
