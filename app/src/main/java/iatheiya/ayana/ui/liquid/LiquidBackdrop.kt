@@ -32,7 +32,7 @@ import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
-import iatheiya.ayana.ui.theme.ChromeTint
+import iatheiya.ayana.ui.theme.drawInnerRim
 import iatheiya.ayana.ui.theme.glass
 import iatheiya.ayana.ui.theme.glassFill
 import iatheiya.ayana.ui.theme.solidChrome
@@ -167,9 +167,8 @@ fun Modifier.liquidGlass(
                 }
                 clipPath(path) { drawLayer(lensLayer) }
                 drawPath(path, color = fill)
-                ChromeTint.color?.let { drawPath(path, color = it.copy(alpha = ChromeTint.GLASS_ALPHA)) }
                 drawPath(path, color = sheen)
-                if (lit) drawPath(path, color = rim, style = Stroke(width = rimWidth))
+                if (lit) drawInnerRim(path, rim, rimWidth)
                 drawContent()
             }
         }

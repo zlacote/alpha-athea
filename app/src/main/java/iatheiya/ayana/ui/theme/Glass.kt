@@ -9,7 +9,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.clipPath
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.dp
 
@@ -40,17 +42,23 @@ object Glass {
 }
 
 /**
- * The colour the user mixed into the base of buttons and panels (Appearance), or null for none.
- * Glass surfaces lay it over their fill as a light wash; with glass off it tints the solid tone.
+ * The accent the user chose (Appearance → Color), or null for none. It lights what is chosen or
+ * switched on: a switch's track, the picked option in a chooser, an armed modifier key. It does
+ * not tint surfaces (the composer, the buttons, the menus), which keep their own neutral material.
  */
-object ChromeTint {
+object AccentColor {
     var color by mutableStateOf<Color?>(null)
+}
 
-    /** How strongly the colour washes over a glass surface. */
-    internal const val GLASS_ALPHA = 0.22f
+/** Black or white, whichever reads on [background]. */
+fun contentOn(background: Color): Color = if (background.luminance() > 0.5f) Color.Black else Color.White
 
-    /** How far the solid tone moves toward the colour with glass off. */
-    internal const val SOLID_MIX = 0.35f
+/**
+ * A rim drawn inside [path] only: a stroke centred on the edge would stick out by half its width,
+ * making the surface look wider than its neighbours and biting into gaps beside it.
+ */
+internal fun DrawScope.drawInnerRim(path: Path, color: Color, width: Float) {
+    clipPath(path) { drawPath(path, color = color, style = Stroke(width = width * 2)) }
 }
 
 internal fun glassFill(strong: Boolean, clear: Boolean): Color = when {
@@ -78,8 +86,7 @@ fun Modifier.glass(
         val rimWidth = 1.dp.toPx()
         onDrawBehind {
             drawPath(path, color = fill)
-            ChromeTint.color?.let { drawPath(path, color = it.copy(alpha = ChromeTint.GLASS_ALPHA)) }
-            if (lit) drawPath(path, color = Glass.RIM, style = Stroke(width = rimWidth))
+            if (lit) drawInnerRim(path, Glass.RIM, rimWidth)
         }
     }
 }
@@ -100,8 +107,8 @@ fun Modifier.solidChrome(
     val path = shape.createOutline(size, layoutDirection, this).toPath()
     val rimWidth = 1.dp.toPx()
     onDrawBehind {
-        drawPath(path, color = ChromeTint.color?.let { lerp(color, it, ChromeTint.SOLID_MIX) } ?: color)
-        if (lit) drawPath(path, color = Glass.RIM, style = Stroke(width = rimWidth))
+        drawPath(path, color = color)
+        if (lit) drawInnerRim(path, Glass.RIM, rimWidth)
     }
 }
 

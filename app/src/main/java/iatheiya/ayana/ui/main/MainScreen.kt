@@ -38,7 +38,8 @@ import iatheiya.ayana.ui.theme.withFamily
 import iatheiya.ayana.data.FONT_MONO
 import iatheiya.ayana.data.FONT_SERIF
 import iatheiya.ayana.ui.liquid.GlassTuning
-import iatheiya.ayana.ui.theme.ChromeTint
+import iatheiya.ayana.ui.theme.AccentColor
+import iatheiya.ayana.ui.theme.SearchHighlight
 import iatheiya.ayana.ui.theme.LocalTranscriptFont
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -49,6 +50,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -176,7 +178,8 @@ private fun MainScreenRoutes(viewModel: MainViewModel, state: UiState) {
     LaunchedEffect(Unit) { snapshotFlow { GlassTuning.enabled }.collect { viewModel.setGlassEnabled(it) } }
     val systemTint = systemAccent()
     SideEffect {
-        ChromeTint.color = when (settings.tintMode) {
+        systemTint?.let { SearchHighlight.background = it }
+        AccentColor.color = when (settings.tintMode) {
             TINT_SYSTEM -> systemTint
             TINT_COLOR -> settings.tintArgb?.let { Color(it) }
             else -> null
@@ -694,12 +697,14 @@ private fun BottomBar(
     // corner of the screen.
     val keyRowShown = state.workspace.settings.keyRowVisible && state.workspace.search == null
     val current = state.workspace.sessions.firstOrNull { it.id == state.workspace.currentSessionId }
-    // With the key row shown, the composer and the keys are one glass container: rounded on top,
-    // flat at the bottom, one lens over both, so they refract the same content as one surface.
+    // With the key row shown, or while searching, the panel and the keys are one glass container:
+    // rounded on top, flat at the bottom, one lens over both, so they refract as one surface.
+    val searching = state.workspace.search != null
+    val docked = keyRowShown || searching
     // It spills just past the left, right and bottom screen edges, so its rim lies off screen there
     // and only the rounded top edge shows one. Only just: the further out, the less of the bend at
     // its ends is on screen.
-    val container = if (keyRowShown) {
+    val container = if (docked) {
         Modifier
             .padding(top = 10.dp)
             .bleedPastEdges(DOCK_BLEED)
@@ -719,6 +724,7 @@ private fun BottomBar(
             search = state.workspace.search,
             onSearchQueryChange = viewModel::updateSearchQuery,
             onSearchNext = viewModel::nextSearchMatch,
+            onSearchPrevious = viewModel::previousSearchMatch,
             onExitSearch = viewModel::exitSearch,
             enterSends = state.workspace.settings.enterSends,
             selection = state.composerSelection,
@@ -765,6 +771,9 @@ private fun BottomBar(
                 cols = state.workspace.settings.keyCols,
                 glass = false,
             )
+        } else if (searching) {
+            // No key row under the search: the container still runs down to the screen's edge.
+            Spacer(Modifier.height(navigationBarTail()))
         }
     }
 }

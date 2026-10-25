@@ -22,8 +22,8 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.OpenInFull
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -90,6 +90,7 @@ fun InputBar(
     search: SearchState?,
     onSearchQueryChange: (String) -> Unit,
     onSearchNext: () -> Unit,
+    onSearchPrevious: () -> Unit = {},
     onExitSearch: () -> Unit,
     enterSends: Boolean,
     selection: TextRange?,
@@ -135,8 +136,8 @@ fun InputBar(
             matchCount = search.matchBlockIds.size,
             onQueryChange = onSearchQueryChange,
             onNext = onSearchNext,
+            onPrevious = onSearchPrevious,
             onExit = onExitSearch,
-            backdrop = composerBackdrop,
             onPanelBounds = onPanelBounds,
             modifier = modifier,
         )
@@ -335,6 +336,11 @@ private fun DraftPanel(
     }
 }
 
+/**
+ * Search in the session, built like the composer: it sits on the bottom edge in the same shared
+ * container, rounded on top only, as wide and as tall, and grows with a longer query. The field
+ * takes the whole start (no search icon), and the matches are walked up or down.
+ */
 @Composable
 private fun SearchPanel(
     query: String,
@@ -342,46 +348,40 @@ private fun SearchPanel(
     matchCount: Int,
     onQueryChange: (String) -> Unit,
     onNext: () -> Unit,
+    onPrevious: () -> Unit,
     onExit: () -> Unit,
-    backdrop: LiquidBackdrop?,
     onPanelBounds: (Rect) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Surface(
-        shape = Ui.panelShape,
-        color = Color.Transparent,
-        modifier = modifier
+    Row(
+        modifier
             .fillMaxWidth()
-            .barPadding()
-            .liquidGlass(backdrop, Ui.panelShape, Ui.panelRadius)
-            .onGloballyPositioned { onPanelBounds(it.boundsInRoot()) },
+            .onGloballyPositioned { onPanelBounds(it.boundsInRoot()) }
+            .padding(horizontal = DOCKED_PADDING_H, vertical = 4.dp),
+        verticalAlignment = Alignment.Bottom,
     ) {
-        Row(
-            Modifier.padding(horizontal = 6.dp, vertical = 4.dp),
-            verticalAlignment = Alignment.CenterVertically,
+        Box(
+            Modifier
+                .weight(1f)
+                .heightIn(min = Ui.composerButtonSize)
+                .padding(start = Ui.spaceM, end = Ui.spaceXs),
+            contentAlignment = Alignment.CenterStart,
         ) {
-            Icon(
-                Icons.Default.Search,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 6.dp),
-            )
-            // Same height and type as the composer. A long hint shrinks; the field never widens.
-            Box(Modifier.weight(1f).heightIn(min = 40.dp), contentAlignment = Alignment.CenterStart) {
-                BasicTextField(
-                    value = query,
-                    onValueChange = onQueryChange,
-                    modifier = Modifier.fillMaxWidth(),
-                    textStyle = messageStyle().copy(color = MaterialTheme.colorScheme.onSurface),
-                    cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(
-                        capitalization = KeyboardCapitalization.None,
-                        keyboardType = KeyboardType.Text,
-                        imeAction = ImeAction.Search,
-                    ),
-                    keyboardActions = KeyboardActions(onSearch = { onNext() }),
-                    decorationBox = { inner ->
+            BasicTextField(
+                value = query,
+                onValueChange = onQueryChange,
+                modifier = Modifier.fillMaxWidth(),
+                textStyle = messageStyle().copy(color = MaterialTheme.colorScheme.onSurface),
+                cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                maxLines = 6,
+                keyboardOptions = KeyboardOptions(
+                    capitalization = KeyboardCapitalization.None,
+                    keyboardType = KeyboardType.Text,
+                    imeAction = ImeAction.Search,
+                ),
+                keyboardActions = KeyboardActions(onSearch = { onNext() }),
+                decorationBox = { inner ->
+                    Box(contentAlignment = Alignment.CenterStart) {
                         if (query.isEmpty()) {
                             FittingText(
                                 text = stringResource(R.string.search_in_session_hint),
@@ -390,23 +390,32 @@ private fun SearchPanel(
                             )
                         }
                         inner()
-                    },
-                )
-            }
+                    }
+                },
+            )
+        }
+        Row(Modifier.heightIn(min = Ui.composerButtonSize), verticalAlignment = Alignment.CenterVertically) {
             Text(
-                text = "${matchIndex + 1}/$matchCount",
+                text = if (matchCount == 0) "0/0" else "${matchIndex + 1}/$matchCount",
                 style = MaterialTheme.typography.labelMedium.copy(fontFamily = FontFamily.Monospace),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 4.dp),
+                modifier = Modifier.padding(horizontal = Ui.spaceXs),
             )
-            IconButton(onClick = onNext) {
+            IconButton(onClick = onPrevious, modifier = Modifier.size(Ui.composerButtonSize)) {
                 Icon(
-                    Icons.Default.KeyboardArrowDown,
-                    contentDescription = null,
+                    Icons.Default.KeyboardArrowUp,
+                    contentDescription = stringResource(R.string.cd_search_previous),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            IconButton(onClick = onExit) {
+            IconButton(onClick = onNext, modifier = Modifier.size(Ui.composerButtonSize)) {
+                Icon(
+                    Icons.Default.KeyboardArrowDown,
+                    contentDescription = stringResource(R.string.cd_search_next),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            IconButton(onClick = onExit, modifier = Modifier.size(Ui.composerButtonSize)) {
                 Icon(
                     Icons.Default.Close,
                     contentDescription = stringResource(R.string.cd_close),

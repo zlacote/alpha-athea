@@ -26,14 +26,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import iatheiya.ayana.ui.liquid.LocalLiquidBackdrop
 import iatheiya.ayana.ui.liquid.liquidGlass
-import iatheiya.ayana.ui.theme.ChromeTint
 import iatheiya.ayana.ui.theme.Ui
 
 /**
@@ -132,11 +130,7 @@ fun AyanaDropdownMenu(
             onDismissRequest = onDismissRequest,
             offset = offset,
             shape = Ui.menuShape,
-            // A popup window cannot see the screen under it, so it cannot be glass; it takes the
-            // solid tone, with the chosen colour mixed in like every other surface.
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh.let { base ->
-                ChromeTint.color?.let { lerp(base, it, ChromeTint.SOLID_MIX) } ?: base
-            },
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
             modifier = Modifier.widthIn(min = Ui.menuMinWidth),
             content = content,
         )

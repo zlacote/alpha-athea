@@ -22,7 +22,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import iatheiya.ayana.ui.theme.AccentColor
 import iatheiya.ayana.ui.theme.Ui
+import iatheiya.ayana.ui.theme.contentOn
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
@@ -77,7 +79,10 @@ internal fun SwitchRow(
             onCheckedChange = onChange,
             enabled = enabled,
             // Off-state thumb must stay visible on the dark track.
+            // A switch that is on is lit with the accent colour, when one is chosen.
             colors = SwitchDefaults.colors(
+                checkedTrackColor = AccentColor.color ?: MaterialTheme.colorScheme.primary,
+                checkedThumbColor = AccentColor.color?.let(::contentOn) ?: MaterialTheme.colorScheme.onPrimary,
                 uncheckedThumbColor = MaterialTheme.colorScheme.onSurfaceVariant,
                 uncheckedTrackColor = MaterialTheme.colorScheme.outline,
                 uncheckedBorderColor = Color.Transparent,

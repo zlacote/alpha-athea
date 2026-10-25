@@ -33,7 +33,9 @@ import iatheiya.ayana.ui.common.pressWash
 import iatheiya.ayana.ui.liquid.LocalLiquidBackdrop
 import iatheiya.ayana.ui.liquid.backdropGap
 import iatheiya.ayana.ui.liquid.liquidGlass
+import iatheiya.ayana.ui.theme.AccentColor
 import iatheiya.ayana.ui.theme.Ui
+import iatheiya.ayana.ui.theme.contentOn
 import iatheiya.ayana.util.isCtrlCombinable
 import iatheiya.ayana.util.toControlChar
 
@@ -281,7 +283,7 @@ private fun KeyCell(
             .fillMaxSize()
             // The armed fill is the bright accent, not the container tone: the container tone is
             // the same grey the solid key row uses with glass off, so it would vanish there.
-            .background(MaterialTheme.colorScheme.primary.copy(alpha = armed))
+            .background(keyArmedFill().copy(alpha = armed))
             .background(pressWash(source))
             .clickable(
                 interactionSource = source,
@@ -317,10 +319,14 @@ internal fun KeyFaceText(label: String, selected: Boolean) {
             fontSize = fontSize,
             lineHeight = 16.sp,
         ),
-        color = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
+        color = if (selected) contentOn(keyArmedFill()) else MaterialTheme.colorScheme.onSurface,
         textAlign = TextAlign.Center,
         maxLines = 1,
         softWrap = false,
         overflow = androidx.compose.ui.text.style.TextOverflow.Clip,
     )
 }
+
+/** The fill of an armed (or carried) key: the chosen accent, or white without one. */
+@Composable
+internal fun keyArmedFill(): Color = AccentColor.color ?: MaterialTheme.colorScheme.primary

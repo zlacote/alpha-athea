@@ -10,6 +10,8 @@
     <string name="cd_more">More options</string>
     <string name="cd_back">Back</string>
     <string name="cd_close">Close</string>
+    <string name="cd_search_previous">Previous match</string>
+    <string name="cd_search_next">Next match</string>
     <string name="cd_send">Send</string>
     <string name="cd_expand_editor">Expand editor</string>
     <string name="cd_scroll_down">Scroll to bottom</string>
@@ -86,7 +88,7 @@
     <string name="signal_text">%1$s: done after %2$d s</string>
     <string name="settings_section_appearance">Appearance</string>
     <string name="appearance_tint">Color</string>
-    <string name="appearance_tint_desc">A color in the base of buttons and panels; off, they have none</string>
+    <string name="appearance_tint_desc">Lights switches, chosen options and armed keys</string>
     <string name="appearance_font">Font</string>
     <string name="appearance_font_system">Default</string>
     <string name="appearance_font_mono">Monospace</string>

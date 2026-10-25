@@ -464,6 +464,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         workspace.nextSearchMatch()?.let { _scrollRequests.tryEmit(it) }
     }
 
+    fun previousSearchMatch() {
+        workspace.previousSearchMatch()?.let { _scrollRequests.tryEmit(it) }
+    }
+
     // ------------------------------------------------------ block interactions
 
     fun toggleBlockCollapsed(blockId: String) = workspace.toggleBlock(blockId)

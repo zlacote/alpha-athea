@@ -4,6 +4,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
@@ -85,8 +88,16 @@ fun messageStyle(): TextStyle {
     return LocalTranscriptFont.current?.let { style.copy(fontFamily = it) } ?: style
 }
 
-val HighlightColor = Color(0xFFBB8009)
-val OnHighlightColor = Color(0xFFECECEC)
+/**
+ * How search matches are marked: the phone's own accent where Android has one (set at start from
+ * the system), amber before that. The text on it is black or white, whichever reads.
+ */
+object SearchHighlight {
+    var background by mutableStateOf(Color(0xFFBB8009))
+}
+
+val HighlightColor: Color get() = SearchHighlight.background
+val OnHighlightColor: Color get() = contentOn(SearchHighlight.background)
 
 @Composable
 fun AyanaTheme(content: @Composable () -> Unit) {

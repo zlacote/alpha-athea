@@ -355,7 +355,7 @@ private fun KeyCellFace(key: CustomKey, highlighted: Boolean, modifier: Modifier
     Box(
         modifier
             .fillMaxSize()
-            .background(if (highlighted) MaterialTheme.colorScheme.primary else Color.Transparent),
+            .background(if (highlighted) keyArmedFill() else Color.Transparent),
         contentAlignment = Alignment.Center,
     ) {
         KeyFaceText(

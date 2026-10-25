@@ -532,6 +532,16 @@ class Workspace(
         return search.matchBlockIds[nextIndex]
     }
 
+    /** The match before the current one, wrapping round to the last. */
+    fun previousSearchMatch(): String? {
+        val search = _state.value.search ?: return null
+        if (search.matchBlockIds.isEmpty()) return null
+        val size = search.matchBlockIds.size
+        val previousIndex = (search.index - 1 + size) % size
+        _state.update { st -> st.copy(search = st.search?.copy(index = previousIndex)) }
+        return search.matchBlockIds[previousIndex]
+    }
+
     // ------------------------------------------------------- block interaction
 
     fun toggleBlock(blockId: String) {
