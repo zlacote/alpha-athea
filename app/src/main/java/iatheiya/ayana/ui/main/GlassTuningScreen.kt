@@ -48,6 +48,7 @@ import iatheiya.ayana.ui.liquid.GlassTuning
 import iatheiya.ayana.ui.liquid.liquidBackdrop
 import iatheiya.ayana.ui.liquid.liquidGlass
 import iatheiya.ayana.ui.liquid.rememberLiquidBackdrop
+import iatheiya.ayana.ui.theme.AccentColor
 import iatheiya.ayana.ui.theme.Ui
 
 /** Height of the photo sample. */
@@ -90,6 +91,18 @@ fun GlassTuningScreen(
                         subtitle = stringResource(R.string.glass_toggle_desc),
                         checked = GlassTuning.enabled,
                         onChange = { GlassTuning.enabled = it },
+                    )
+                    SettingsDivider()
+                    // The accent colour from Appearance washed over the glass too. Without a colour
+                    // chosen there is nothing to tint with, so the switch waits.
+                    SwitchRow(
+                        title = stringResource(R.string.glass_tint),
+                        subtitle = stringResource(
+                            if (AccentColor.color != null) R.string.glass_tint_desc else R.string.glass_tint_needs_color,
+                        ),
+                        checked = AccentColor.tintsGlass,
+                        onChange = { AccentColor.tintsGlass = it },
+                        enabled = AccentColor.color != null,
                     )
                 }
             }

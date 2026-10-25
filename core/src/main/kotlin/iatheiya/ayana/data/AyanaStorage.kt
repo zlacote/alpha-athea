@@ -82,10 +82,14 @@ data class AyanaSettings(
     val longCommandSec: Int = 15,
     /** Glass surfaces on; off, every surface is one solid tone. */
     val glassEnabled: Boolean = true,
+    /** The accent colour also tints the glass (and the solid tone with glass off). */
+    val glassTinted: Boolean = false,
     /** Where the colour of buttons and panels comes from: [TINT_DEFAULT], [TINT_SYSTEM] or [TINT_COLOR]. */
     val tintMode: String = TINT_DEFAULT,
     /** The colour for [TINT_COLOR], as ARGB. */
     val tintArgb: Long? = null,
+    /** The accent shown softened toward the dark surfaces instead of exactly as chosen. */
+    val tintSoft: Boolean = false,
     /** The transcript font: one of [FONT_SYSTEM], [FONT_MONO], [FONT_SERIF], [FONT_CUSTOM]. */
     val font: String = FONT_SYSTEM,
     /** Bumped each time a custom font file is picked; 0 while there is none. */

@@ -329,4 +329,4 @@ internal fun KeyFaceText(label: String, selected: Boolean) {
 
 /** The fill of an armed (or carried) key: the chosen accent, or white without one. */
 @Composable
-internal fun keyArmedFill(): Color = AccentColor.color ?: MaterialTheme.colorScheme.primary
+internal fun keyArmedFill(): Color = AccentColor.shown ?: MaterialTheme.colorScheme.primary

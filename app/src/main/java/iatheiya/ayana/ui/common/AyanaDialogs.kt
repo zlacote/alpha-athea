@@ -54,6 +54,7 @@ fun AyanaDialogContainer(
         // AlertDialog's own `text` slot has no ColumnScope receiver, so the
         // content lambda gets one from a Column instead of being called bare.
         text = {
+            KeepImmersive()
             Column { content() }
         },
         confirmButton = confirm,

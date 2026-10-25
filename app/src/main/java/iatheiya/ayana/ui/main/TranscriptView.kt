@@ -63,6 +63,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
@@ -93,7 +94,9 @@ import iatheiya.ayana.session.SearchState
 import iatheiya.ayana.session.SessionView
 import iatheiya.ayana.ui.common.ContextMenuRequest
 import iatheiya.ayana.ui.common.LocalContextMenu
+import iatheiya.ayana.ui.theme.AccentColor
 import iatheiya.ayana.ui.theme.CodeStyle
+import iatheiya.ayana.ui.theme.contentOn
 import iatheiya.ayana.ui.theme.HighlightColor
 import iatheiya.ayana.ui.theme.OnHighlightColor
 import iatheiya.ayana.ui.theme.Ui
@@ -103,8 +106,6 @@ import iatheiya.ayana.ui.text.toAnnotated
 import iatheiya.ayana.ui.theme.messageStyle
 import iatheiya.ayana.util.trimCommand
 import kotlinx.coroutines.flow.Flow
-
-private const val TAIL_LINES = 5
 
 /** Share of the viewport one page key scrolls. */
 private const val PAGE_FRACTION = 0.85f
@@ -487,6 +488,10 @@ private fun CommandBubble(
     onFavorite: () -> Unit,
 ) {
     val bubbleStyle = messageStyle()
+    // Sent messages wear the accent colour (softened, as everywhere) when one is chosen; without
+    // one they are glass.
+    val bubbleFill = AccentColor.shown
+    val bubbleText = bubbleFill?.let(::contentOn) ?: MaterialTheme.colorScheme.onSecondaryContainer
     val contextMenu = LocalContextMenu.current
     // Read here: the menu's items are composed in the screen's menu layer, not in this bubble.
     val copyLabel = stringResource(R.string.copy)
@@ -539,7 +544,13 @@ private fun CommandBubble(
                         )
                     },
                 )
-                .glass(Ui.bubbleShape),
+                .then(
+                    if (bubbleFill != null) {
+                        Modifier.clip(Ui.bubbleShape).background(bubbleFill)
+                    } else {
+                        Modifier.glass(Ui.bubbleShape)
+                    },
+                ),
         ) {
             Column(Modifier.padding(start = Ui.bubblePaddingH, end = Ui.bubblePaddingH, top = Ui.bubblePaddingTop, bottom = Ui.bubblePaddingBottom)) {
                 if (collapsed && collapsible) {
@@ -548,7 +559,7 @@ private fun CommandBubble(
                     Text(
                         text = text,
                         style = bubbleStyle,
-                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                        color = bubbleText,
                         maxLines = previewLines,
                         overflow = androidx.compose.ui.text.style.TextOverflow.Clip,
                         modifier = Modifier.fadeOutBottom(Ui.tailFadeHeight),
@@ -575,14 +586,14 @@ private fun CommandBubble(
                             Text(
                                 text = text,
                                 style = bubbleStyle,
-                                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                color = bubbleText,
                             )
                         }
                     } else {
                         Text(
                             text = text,
                             style = bubbleStyle,
-                            color = MaterialTheme.colorScheme.onSecondaryContainer,
+                            color = bubbleText,
                         )
                     }
                     if (collapsible) {
@@ -591,7 +602,7 @@ private fun CommandBubble(
                         Icon(
                             Icons.Default.KeyboardArrowDown,
                             contentDescription = stringResource(R.string.cd_collapse),
-                            tint = MaterialTheme.colorScheme.onSecondaryContainer
+                            tint = bubbleText
                                 .copy(alpha = Ui.chevronAlphaCollapsedPreview),
                             modifier = Modifier
                                 .align(Alignment.CenterHorizontally)
@@ -649,20 +660,21 @@ private fun OutputPanel(
         }
         // Fast line count without allocating list (huge text 1.2M would allocate 20k strings)
         val lineCount = plainText.count { it == '\n' } + 1
-        val collapsible = lineCount > TAIL_LINES && !block.running
+        // Folds to the same number of lines as a message (Settings → Output).
+        val collapsible = lineCount > previewLines && !block.running
 
         if (collapsed && collapsible) {
             val allLines = plainText.lines()
             // Fade at the bottom: suggests more content, tap to expand. The text itself fades out, so
             // a wallpaper behind it is not covered by a black band.
             Text(
-                text = allLines.takeLast(TAIL_LINES).joinToString("\n"),
+                text = allLines.takeLast(previewLines).joinToString("\n"),
                 style = codeStyle(),
                 color = MaterialTheme.colorScheme.onBackground,
                 modifier = Modifier.fadeOutBottom(Ui.fadeHeight),
             )
         } else if (virtualizeEnabled && lineCount > Ui.hugeLinesThreshold) {
-            // Large output: internal scroll only when toggle on; threshold is TAIL_LINES*4.
+            // Large output: internal scroll only when toggle on.
             VirtualizedOutput(annotated = displayAnnotated, query = query, jumpToBottom = jumpToBottom)
             if (block.running) {
                 BlinkingCursor()

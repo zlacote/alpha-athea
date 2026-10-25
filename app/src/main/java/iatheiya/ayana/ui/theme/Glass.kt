@@ -11,6 +11,7 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.clipPath
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.dp
@@ -48,7 +49,30 @@ object Glass {
  */
 object AccentColor {
     var color by mutableStateOf<Color?>(null)
+
+    /** Glass → "Tint the glass": the accent also washes over glass surfaces and the solid tone. */
+    var tintsGlass by mutableStateOf(false)
+
+    /** Appearance → Color → Soft: the accent shown softened toward the dark surfaces. */
+    var softened by mutableStateOf(false)
+
+    /**
+     * The accent as everything shows it: exactly the chosen colour, or, in the soft mode, that
+     * colour softened toward the dark surfaces, which reads gentler.
+     */
+    val shown: Color? get() = color?.let { if (softened) lerp(SOFT_BASE, it, SOFT_MIX) else it }
+
+    /** How far the glass wash and the solid tone move toward the accent when they are tinted. */
+    internal const val GLASS_ALPHA = 0.22f
+    internal const val SOLID_MIX = 0.35f
+
+    private val SOFT_BASE = Color(0xFF141414)
+    private const val SOFT_MIX = 0.45f
 }
+
+/** The accent wash for glass, when the glass is set to take it; null otherwise. */
+internal fun glassWash(): Color? =
+    AccentColor.color?.takeIf { AccentColor.tintsGlass }?.copy(alpha = AccentColor.GLASS_ALPHA)
 
 /** Black or white, whichever reads on [background]. */
 fun contentOn(background: Color): Color = if (background.luminance() > 0.5f) Color.Black else Color.White
@@ -86,6 +110,7 @@ fun Modifier.glass(
         val rimWidth = 1.dp.toPx()
         onDrawBehind {
             drawPath(path, color = fill)
+            glassWash()?.let { drawPath(path, color = it) }
             if (lit) drawInnerRim(path, Glass.RIM, rimWidth)
         }
     }
@@ -107,7 +132,8 @@ fun Modifier.solidChrome(
     val path = shape.createOutline(size, layoutDirection, this).toPath()
     val rimWidth = 1.dp.toPx()
     onDrawBehind {
-        drawPath(path, color = color)
+        val tint = AccentColor.color?.takeIf { AccentColor.tintsGlass }
+        drawPath(path, color = tint?.let { lerp(color, it, AccentColor.SOLID_MIX) } ?: color)
         if (lit) drawInnerRim(path, Glass.RIM, rimWidth)
     }
 }

@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import iatheiya.ayana.ui.theme.drawInnerRim
+import iatheiya.ayana.ui.theme.glassWash
 import iatheiya.ayana.ui.theme.glass
 import iatheiya.ayana.ui.theme.glassFill
 import iatheiya.ayana.ui.theme.solidChrome
@@ -167,6 +168,7 @@ fun Modifier.liquidGlass(
                 }
                 clipPath(path) { drawLayer(lensLayer) }
                 drawPath(path, color = fill)
+                glassWash()?.let { drawPath(path, color = it) }
                 drawPath(path, color = sheen)
                 if (lit) drawInnerRim(path, rim, rimWidth)
                 drawContent()

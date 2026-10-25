@@ -581,6 +581,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun setGlassEnabled(value: Boolean) = workspace.updateSettings { it.copy(glassEnabled = value) }
 
+    fun setTintSoft(value: Boolean) = workspace.updateSettings { it.copy(tintSoft = value) }
+
+    fun setGlassTinted(value: Boolean) = workspace.updateSettings { it.copy(glassTinted = value) }
+
     fun setTint(mode: String, argb: Long?) = workspace.updateSettings {
         it.copy(tintMode = mode, tintArgb = argb ?: it.tintArgb)
     }

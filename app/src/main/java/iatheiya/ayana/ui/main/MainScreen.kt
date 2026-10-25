@@ -68,7 +68,10 @@ import androidx.compose.material.icons.filled.InsertLink
 import androidx.compose.material.icons.filled.TextFields
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.Icon
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.LocalRippleConfiguration
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.RippleConfiguration
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -108,6 +111,7 @@ import iatheiya.ayana.ui.common.AyanaDialogContainer
 import iatheiya.ayana.ui.common.ContextMenuLayer
 import iatheiya.ayana.ui.common.ContextMenuState
 import iatheiya.ayana.ui.common.LocalContextMenu
+import iatheiya.ayana.ui.common.LocalImmersive
 import iatheiya.ayana.ui.liquid.LiquidBackdrop
 import iatheiya.ayana.ui.liquid.LocalLiquidBackdrop
 import iatheiya.ayana.ui.liquid.liquidBackdrop
@@ -120,6 +124,7 @@ import iatheiya.ayana.ui.theme.Ui
 import iatheiya.ayana.util.copyToClipboard
 import kotlinx.coroutines.launch
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(viewModel: MainViewModel) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -138,7 +143,13 @@ fun MainScreen(viewModel: MainViewModel) {
         colorScheme = MaterialTheme.colorScheme,
         typography = remember(font, baseTypography) { baseTypography.withFamily(font) },
     ) {
-        CompositionLocalProvider(LocalTranscriptFont provides font) {
+        // A press lights up in the accent colour, when one is chosen.
+        val ripple = AccentColor.shown?.let { RippleConfiguration(color = it) } ?: LocalRippleConfiguration.current
+        CompositionLocalProvider(
+            LocalTranscriptFont provides font,
+            LocalRippleConfiguration provides ripple,
+            LocalImmersive provides settings.immersiveMode,
+        ) {
             MainScreenRoutes(viewModel, state)
         }
     }
@@ -176,9 +187,13 @@ private fun MainScreenRoutes(viewModel: MainViewModel, state: UiState) {
     // settings so it survives a restart: the stored value is applied, and every change is stored.
     LaunchedEffect(settings.glassEnabled) { GlassTuning.enabled = settings.glassEnabled }
     LaunchedEffect(Unit) { snapshotFlow { GlassTuning.enabled }.collect { viewModel.setGlassEnabled(it) } }
+    // The same for tinting the glass with the accent (a switch on the Glass screen).
+    LaunchedEffect(settings.glassTinted) { AccentColor.tintsGlass = settings.glassTinted }
+    LaunchedEffect(Unit) { snapshotFlow { AccentColor.tintsGlass }.collect { viewModel.setGlassTinted(it) } }
     val systemTint = systemAccent()
     SideEffect {
         systemTint?.let { SearchHighlight.background = it }
+        AccentColor.softened = settings.tintSoft
         AccentColor.color = when (settings.tintMode) {
             TINT_SYSTEM -> systemTint
             TINT_COLOR -> settings.tintArgb?.let { Color(it) }
@@ -259,6 +274,7 @@ private fun MainScreenRoutes(viewModel: MainViewModel, state: UiState) {
                 screenAwake = settings.screenAwake,
                 tintMode = settings.tintMode,
                 tintArgb = settings.tintArgb,
+                tintSoft = settings.tintSoft,
                 font = settings.font,
                 hasCustomFont = settings.customFontVersion != 0L,
                 hasWallpaper = settings.wallpaperVersion != 0L,
@@ -272,6 +288,7 @@ private fun MainScreenRoutes(viewModel: MainViewModel, state: UiState) {
                 onImmersiveModeChange = viewModel::setImmersiveMode,
                 onScreenAwakeChange = viewModel::setScreenAwake,
                 onTintChange = viewModel::setTint,
+                onTintSoftChange = viewModel::setTintSoft,
                 onFontChange = viewModel::setFont,
                 onFontPicked = { uri -> viewModel.importCustomFont(uri, appContext) },
                 onWallpaperPicked = { uri -> viewModel.importWallpaper(uri, appContext) },

@@ -40,7 +40,9 @@ internal fun SettingsCard(content: @Composable ColumnScope.() -> Unit) {
             .fillMaxWidth()
             .padding(horizontal = Ui.screenGutter, vertical = Ui.sectionGap),
     ) {
-        Column(Modifier.padding(vertical = 4.dp), content = content)
+        // No padding of its own: the first and last rows reach the rounded edges, so pressing
+        // them lights the whole row, corners included (the rows carry their own padding).
+        Column(content = content)
     }
 }
 
@@ -81,8 +83,8 @@ internal fun SwitchRow(
             // Off-state thumb must stay visible on the dark track.
             // A switch that is on is lit with the accent colour, when one is chosen.
             colors = SwitchDefaults.colors(
-                checkedTrackColor = AccentColor.color ?: MaterialTheme.colorScheme.primary,
-                checkedThumbColor = AccentColor.color?.let(::contentOn) ?: MaterialTheme.colorScheme.onPrimary,
+                checkedTrackColor = AccentColor.shown ?: MaterialTheme.colorScheme.primary,
+                checkedThumbColor = AccentColor.shown?.let(::contentOn) ?: MaterialTheme.colorScheme.onPrimary,
                 uncheckedThumbColor = MaterialTheme.colorScheme.onSurfaceVariant,
                 uncheckedTrackColor = MaterialTheme.colorScheme.outline,
                 uncheckedBorderColor = Color.Transparent,

@@ -73,6 +73,7 @@ data class AppearanceState(
     val screenAwake: String,
     val tintMode: String,
     val tintArgb: Long?,
+    val tintSoft: Boolean,
     val font: String,
     val hasCustomFont: Boolean,
     val hasWallpaper: Boolean,
@@ -88,6 +89,7 @@ class AppearanceActions(
     val onImmersiveModeChange: (Boolean) -> Unit,
     val onScreenAwakeChange: (String) -> Unit,
     val onTintChange: (mode: String, argb: Long?) -> Unit,
+    val onTintSoftChange: (Boolean) -> Unit,
     val onFontChange: (String) -> Unit,
     val onFontPicked: (Uri) -> Unit,
     val onWallpaperPicked: (Uri) -> Unit,
@@ -351,6 +353,16 @@ private fun TintChooser(state: AppearanceState, actions: AppearanceActions) {
                 mark = { Icon(Icons.Default.Add, contentDescription = null, tint = Color.Black, modifier = Modifier.size(18.dp)) },
             ) { picking = true }
         }
+    }
+    if (on) {
+        SettingsDivider()
+        // The chosen colour exactly, by default; or softened toward the dark surfaces.
+        SwitchRow(
+            title = stringResource(R.string.appearance_tint_soft),
+            subtitle = stringResource(R.string.appearance_tint_soft_desc),
+            checked = state.tintSoft,
+            onChange = actions.onTintSoftChange,
+        )
     }
     if (picking) {
         ColorPickerDialog(
