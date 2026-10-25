@@ -106,6 +106,12 @@ fun KeysScreen(
                     )
                 }
 
+                Text(
+                    text = stringResource(R.string.keys_edit_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = Ui.screenGutter + Ui.spaceS, vertical = Ui.spaceXs),
+                )
                 // The editable grid is drawn as the live row itself: the same material (glass, or
                 // the solid tone with glass off, with the chosen colour), the same labels and
                 // separators, across the full width.

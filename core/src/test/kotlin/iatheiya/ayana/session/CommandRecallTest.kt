@@ -11,45 +11,80 @@ class CommandRecallTest {
     @Test
     fun `up walks from the newest command to the oldest and then stops`() {
         val recall = CommandRecall()
-        assertEquals("make", recall.step(history, "", older = true))
-        assertEquals("git status", recall.step(history, "make", older = true))
-        assertEquals("ls", recall.step(history, "git status", older = true))
-        assertNull(recall.step(history, "ls", older = true))
+        assertEquals("make", recall.up(history, ""))
+        assertEquals("git status", recall.up(history, "make"))
+        assertEquals("ls", recall.up(history, "git status"))
+        assertNull(recall.up(history, "ls"))
     }
 
     @Test
-    fun `down past the newest command restores the draft that was being typed`() {
+    fun `down walks back to the empty field`() {
         val recall = CommandRecall()
-        assertEquals("make", recall.step(history, "echo wip", older = true))
-        assertEquals("echo wip", recall.step(history, "make", older = false))
-        assertNull(recall.step(history, "echo wip", older = false))
-    }
-
-    @Test
-    fun `down does nothing before the walk has started`() {
-        assertNull(CommandRecall().step(history, "draft", older = false))
-    }
-
-    @Test
-    fun `an empty history never moves`() {
-        assertNull(CommandRecall().step(emptyList(), "", older = true))
-    }
-
-    @Test
-    fun `reset starts the walk again from the newest command`() {
-        val recall = CommandRecall()
-        recall.step(history, "", older = true)
-        recall.step(history, "make", older = true)
-        recall.reset()
-        assertEquals("make", recall.step(history, "", older = true))
+        recall.up(history, "")
+        recall.up(history, "make")
+        assertEquals("make", recall.down(history, "git status"))
+        assertEquals("", recall.down(history, "make"))
+        assertNull(recall.down(history, ""))
     }
 
     @Test
     fun `each command comes up once, at its newest place`() {
         val recall = CommandRecall()
         val repeated = listOf("one", "one", "two", "one", "one")
-        assertEquals("one", recall.step(repeated, "", older = true))
-        assertEquals("two", recall.step(repeated, "one", older = true))
-        assertNull(recall.step(repeated, "two", older = true))
+        assertEquals("one", recall.up(repeated, ""))
+        assertEquals("two", recall.up(repeated, "one"))
+        assertNull(recall.up(repeated, "two"))
+    }
+
+    @Test
+    fun `down sets written drafts aside and up finds them all, newest first`() {
+        val recall = CommandRecall()
+        assertEquals("", recall.down(history, "8"))
+        assertEquals("", recall.down(history, "7"))
+        assertEquals("7", recall.up(history, ""))
+        assertEquals("8", recall.up(history, "7"))
+        assertEquals("make", recall.up(history, "8"))
+    }
+
+    @Test
+    fun `up on a written draft keeps it, so an earlier draft is not lost`() {
+        val recall = CommandRecall()
+        recall.down(history, "8")
+        // "7" is typed and Up pressed at once: 7 is set aside, and the walk shows 8.
+        assertEquals("8", recall.up(history, "7"))
+        assertEquals("7", recall.down(history, "8"))
+        assertEquals("", recall.down(history, "7"))
+    }
+
+    @Test
+    fun `empty presses set nothing aside`() {
+        val recall = CommandRecall()
+        recall.down(history, "7")
+        assertNull(recall.down(history, ""))
+        recall.down(history, "6")
+        assertEquals("6", recall.up(history, ""))
+        assertEquals("7", recall.up(history, "6"))
+        assertEquals("make", recall.up(history, "7"))
+    }
+
+    @Test
+    fun `sending drops the drafts set aside`() {
+        val recall = CommandRecall()
+        recall.down(history, "draft")
+        recall.sent()
+        assertEquals("make", recall.up(history, ""))
+    }
+
+    @Test
+    fun `without setting aside the live draft comes back as in a shell`() {
+        val recall = CommandRecall().apply { setsAside = false }
+        assertEquals("make", recall.up(history, "echo wip"))
+        assertEquals("echo wip", recall.down(history, "make"))
+        assertNull(recall.down(history, "echo wip"))
+    }
+
+    @Test
+    fun `an empty history never moves`() {
+        assertNull(CommandRecall().up(emptyList(), ""))
     }
 }

@@ -86,8 +86,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _state = MutableStateFlow(UiState())
     val state: StateFlow<UiState> = _state
 
-    /** Walks the commands sent in a session with the up and down keys. */
-    private val recall = CommandRecall()
 
     // Declared before init: the workspace collector below may run at once (Main.immediate).
     private val signal = LongCommandSignal(application)
@@ -211,12 +209,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     // ----------------------------------------------------------------- sessions
 
     fun newSession() {
-        recall.reset()
+        currentRecall()?.reset()
         workspace.newSession()
     }
 
     fun selectSession(id: Long) {
-        recall.reset()
+        currentRecall()?.reset()
         workspace.selectSession(id)
     }
 
@@ -252,13 +250,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     // ------------------------------------------------------------------- input
 
     fun updateDraft(text: String) {
-        recall.reset()
+        currentRecall()?.reset()
         workspace.updateDraft(text)
     }
 
     fun sendDraft() {
-        recall.reset()
-        _state.value.workspace.currentSessionId?.let { setAside.remove(it) }
+        currentRecall()?.sent()
         if (workspace.sendDraft()) jumpIfEnabled()
     }
 
@@ -326,29 +323,23 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun setComposerSelection(selection: TextRange) = _state.update { it.copy(composerSelection = selection) }
 
-    /**
-     * Drafts set aside with Down, per session, oldest first. They are this session's own (Up in
-     * another session does not see them) and are dropped once something is sent.
-     */
-    private val setAside = HashMap<Long, MutableList<String>>()
+    /** Each session walks its own drafts (and the shared history) with its own recall. */
+    private val recalls = HashMap<Long, CommandRecall>()
 
-    /**
-     * Up walks back through the drafts set aside here, newest first, then through the commands
-     * sent in any session. Down walks forward again; on the live draft, if it holds text (and the
-     * setting is on), it sets that text aside and clears the field.
-     */
+    private fun currentRecall(): CommandRecall? {
+        val id = _state.value.workspace.currentSessionId ?: return null
+        return recalls.getOrPut(id) { CommandRecall() }
+    }
+
+    /** Up and Down at an idle prompt; see [CommandRecall] for what they walk through. */
     private fun recallCommand(older: Boolean) {
         val state = _state.value.workspace
         val session = state.sessions.firstOrNull { it.id == state.currentSessionId } ?: return
+        val recall = currentRecall() ?: return
+        recall.setsAside = state.settings.downSetsDraftAside
         val draft = session.draft.orEmpty()
-        val aside = setAside.getOrPut(session.id) { mutableListOf() }
-        if (!older && recall.atLive && draft.isNotBlank() && state.settings.downSetsDraftAside) {
-            aside.add(draft)
-            workspace.updateDraft("")
-            _state.update { it.copy(composerSelection = null) }
-            return
-        }
-        val text = recall.step(workspace.commandHistory() + aside, draft, older) ?: return
+        val history = workspace.commandHistory()
+        val text = (if (older) recall.up(history, draft) else recall.down(history, draft)) ?: return
         workspace.updateDraft(text)
         _state.update { it.copy(composerSelection = null) }
     }

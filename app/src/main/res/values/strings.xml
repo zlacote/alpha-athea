@@ -130,6 +130,7 @@
     <string name="keys_sticky">Sticky</string>
     <string name="keys_lock">Lock</string>
     <string name="keys_mode">Action</string>
+    <string name="keys_edit_hint">Tap a key to edit it, hold it to move it</string>
     <string name="keys_list_title">Buttons</string>
     <string name="keys_rows">Rows</string>
     <string name="keys_cols">Columns</string>

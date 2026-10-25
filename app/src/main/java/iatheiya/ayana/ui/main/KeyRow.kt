@@ -307,17 +307,17 @@ private fun KeyCell(
 @Composable
 internal fun KeyFaceText(label: String, selected: Boolean) {
     val fontSize = when (label.length) {
-        0, 1, 2 -> 15.sp
-        3 -> 13.sp
-        4 -> 12.sp
-        else -> 11.sp
+        0, 1, 2 -> 17.sp
+        3 -> 15.sp
+        4 -> 14.sp
+        else -> 12.sp
     }
     Text(
         text = label,
         style = MaterialTheme.typography.labelLarge.copy(
             fontFamily = FontFamily.Monospace,
             fontSize = fontSize,
-            lineHeight = 16.sp,
+            lineHeight = 18.sp,
         ),
         color = if (selected) contentOn(keyArmedFill()) else MaterialTheme.colorScheme.onSurface,
         textAlign = TextAlign.Center,
