@@ -33,11 +33,8 @@
         android:strokeWidth="3"
         android:strokeLineCap="round"
         android:pathData="M37.5,46 A18,18 0 0,1 49,36.6" />
-    <!-- The cursor. -->
+    <!-- The cursor, a block as in a terminal. -->
     <path
-        android:fillColor="#00000000"
-        android:strokeColor="#FFF4F1FF"
-        android:strokeWidth="5.5"
-        android:strokeLineCap="round"
-        android:pathData="M55,47 L55,62" />
+        android:fillColor="#FFF4F1FF"
+        android:pathData="M50.5,45 h6 a2,2 0 0 1 2,2 v14 a2,2 0 0 1 -2,2 h-6 a2,2 0 0 1 -2,-2 v-14 a2,2 0 0 1 2,-2 z" />
 </vector>
