@@ -13,6 +13,7 @@ import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -63,7 +64,7 @@ import iatheiya.ayana.ui.theme.glass
 import iatheiya.ayana.ui.theme.messageStyle
 
 /** The drawn send circle, kept smaller than its touch target so it sits inside the field. */
-private val SEND_BUTTON_SIZE = 28.dp
+private val SEND_BUTTON_SIZE = 31.dp
 
 /** Space the buttons occupy at the tail of the field, shared by every
  *  layout that reserves room for them. */
@@ -85,6 +86,11 @@ fun InputBar(
     selection: TextRange?,
     onSelectionChange: (TextRange) -> Unit,
     composerBackdrop: LiquidBackdrop? = null,
+    /** The shell's working directory (`~` for home), shown as the prompt while the field is empty. */
+    directory: String? = null,
+    running: Boolean = false,
+    /** True when the key row sits right below: the panel spans the width and its bottom edge goes flat to meet it. */
+    docked: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     if (search == null) {
@@ -99,6 +105,9 @@ fun InputBar(
             selection = selection,
             onSelectionChange = onSelectionChange,
             backdrop = composerBackdrop,
+            directory = directory,
+            running = running,
+            docked = docked,
             modifier = modifier,
         )
     } else {
@@ -122,6 +131,9 @@ private fun Modifier.barPadding(): Modifier =
         .padding(horizontal = 16.dp)
         .padding(top = 10.dp, bottom = 8.dp)
 
+/** Rounded on top only: the panel's flat bottom continues straight into the key row below it. */
+private val DockedPanelShape = RoundedCornerShape(topStart = Ui.panelRadius, topEnd = Ui.panelRadius)
+
 /**
  * One morphing panel, chat-app style:
  *  - short text: slim single row, buttons vertically centered beside it;
@@ -141,6 +153,9 @@ private fun DraftPanel(
     selection: TextRange?,
     onSelectionChange: (TextRange) -> Unit,
     backdrop: LiquidBackdrop?,
+    directory: String?,
+    running: Boolean,
+    docked: Boolean,
     modifier: Modifier = Modifier,
 ) {
     var lineCount by remember { mutableStateOf(1) }
@@ -151,15 +166,16 @@ private fun DraftPanel(
     // fits in the wide one - without the latch the panel flip-flops.
     val compact = !grown
 
+    val shape = if (docked) DockedPanelShape else Ui.panelShape
     Surface(
-        shape = Ui.panelShape,
+        shape = shape,
         color = Color.Transparent,
         modifier = modifier
             .fillMaxWidth()
-            .barPadding()
-            .liquidGlass(backdrop, Ui.panelShape, Ui.panelRadius, strong = true),
+            .then(if (docked) Modifier.padding(top = 10.dp) else Modifier.barPadding())
+            .liquidGlass(backdrop, shape, Ui.panelRadius, strong = true),
     ) {
-        Column(Modifier.padding(horizontal = 4.dp, vertical = 4.dp)) {
+        Column(Modifier.padding(horizontal = if (docked) 8.dp else 4.dp, vertical = 4.dp)) {
             Box {
                 BasicTextField(
                     value = TextFieldValue(
@@ -204,9 +220,21 @@ private fun DraftPanel(
                             contentAlignment = Alignment.CenterStart,
                         ) {
                             if (draft.isEmpty()) {
+                                // The live prompt, like a terminal shows it: the shell's real working
+                                // directory, updated after every command. While a command runs, the
+                                // field feeds that program instead, and the hint says so.
                                 Text(
-                                    stringResource(R.string.input_hint),
-                                    style = messageStyle(),
+                                    if (running) {
+                                        stringResource(R.string.input_hint_running)
+                                    } else {
+                                        stringResource(R.string.input_prompt, directory ?: "")
+                                            .trimStart()
+                                    },
+                                    style = if (running) {
+                                        messageStyle()
+                                    } else {
+                                        messageStyle().copy(fontFamily = FontFamily.Monospace)
+                                    },
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     maxLines = 1,
                                     // Optically centered — 2dp lift is clearly visible

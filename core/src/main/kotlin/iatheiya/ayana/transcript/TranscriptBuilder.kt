@@ -55,6 +55,14 @@ class TranscriptBuilder(
     var previewLines: Int = previewLines
         private set
 
+    /** The shell's working directory as of its last prompt; null until the shell reports one. */
+    var workingDirectory: String? = null
+        private set
+
+    fun applyWorkingDirectory(path: String) {
+        workingDirectory = path
+    }
+
     fun applyPreviewLines(lines: Int) {
         previewLines = lines.coerceIn(1, 10)
     }

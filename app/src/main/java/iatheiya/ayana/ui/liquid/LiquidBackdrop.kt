@@ -114,6 +114,8 @@ fun Modifier.liquidGlass(
     strong: Boolean = false,
     clear: Boolean = false,
     flat: Boolean = false,
+    /** Read at draw time: scales the lens, so a surface can animate it without recomposing. */
+    lensBoost: () -> Float = { 1f },
 ): Modifier {
     // A render effect is only drawn through an offscreen buffer; without it the lens is dropped.
     val lensLayer = rememberGraphicsLayer().apply {
@@ -153,7 +155,7 @@ fun Modifier.liquidGlass(
                     }
                 }
                 if (lensEffect != null) {
-                    val effect = lensEffect.effectFor(size, radiusPx, flat)
+                    val effect = lensEffect.effectFor(size, radiusPx, flat, lensBoost())
                     if (lensLayer.renderEffect != effect) lensLayer.renderEffect = effect
                 }
                 clipPath(path) { drawLayer(lensLayer) }

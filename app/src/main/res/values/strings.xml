@@ -19,6 +19,8 @@
 
     <!-- Main screen -->
     <string name="input_hint">Type a command…</string>
+    <string name="input_prompt">%1$s $</string>
+    <string name="input_hint_running">Input for the running command…</string>
     <string name="editor_title">Editor</string>
     <string name="select_text_title">Select text</string>
     <string name="search_in_session_hint">Search in session</string>
@@ -88,7 +90,6 @@
     <string name="keys_list_title">Buttons</string>
     <string name="keys_rows">Rows</string>
     <string name="keys_cols">Columns</string>
-    <string name="keys_edit_hint">Tap to edit, hold to drag</string>
     <string name="keys_remove">Remove</string>
     <string name="settings_keys_section">Keys</string>
     <string name="settings_keys_add">Add key</string>
@@ -102,16 +103,10 @@
     <string name="settings_keys_kind_insert">Into editor</string>
     <string name="settings_keys_kind_ctrl">Ctrl</string>
     <string name="settings_keys_kind_alt">Alt</string>
-    <string name="settings_keys_esc_hint">Escape syntax: \E, \t, control chars as \u0003</string>
+    <string name="settings_keys_esc_hint">Special keys are typed as escapes: \\e is Esc, \\t Tab, \\r Enter, \\xHH any code. Home, for example, is \\e[H.</string>
+    <string name="keys_reference">Key codes reference</string>
     <string name="settings_diag_section">Diagnostics</string>
     <string name="settings_diag_copy">Copy logs to clipboard</string>
-    <string name="builder_title">Key builder</string>
-    <string name="builder_hint">Tap keys below to build a sequence</string>
-    <string name="builder_ctrl">CTRL</string>
-    <string name="builder_backspace">⌫</string>
-    <string name="builder_clear">Clear</string>
-    <string name="builder_save">Save key</string>
-    <string name="builder_open">Open key builder</string>
     <string name="attach_add">Attach file</string>
     <string name="attach_chooser_title">What to do with the file?</string>
     <string name="attach_copy">Copy into terminal folder</string>
@@ -161,7 +156,7 @@
     <string name="settings_attach_sends_now_desc">Off: the command goes into the input on a new line</string>
     <string name="settings_glow_section">Glow</string>
     <string name="settings_glow">Glow while a command runs</string>
-    <string name="settings_glow_desc">A soft light rises from the bottom edge</string>
+    <string name="settings_glow_desc">A soft light glows down from the top edge</string>
     <string name="settings_glow_strength">Strength, %</string>
     <string name="settings_glow_height">Height, dp</string>
     <string name="settings_glow_width">Width, %</string>

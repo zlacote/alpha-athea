@@ -19,6 +19,8 @@ data class SessionView(
     val rawText: String,
     /** The screen of a full-screen program while it runs; null otherwise. */
     val fullScreen: ScreenSnapshot? = null,
+    /** The shell's working directory with the home folder shown as `~`; null until reported. */
+    val directory: String? = null,
 )
 
 /** Search within one session transcript. */

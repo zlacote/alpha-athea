@@ -7,6 +7,9 @@
 #
 #   D;<code>  - the previous command finished with this exit code
 #
+# It also reports the working directory with OSC 7 at every prompt, which
+# Ayana shows as the prompt in its own input field.
+#
 # The mark is invisible to the user; the Ayana stream parser uses it to
 # locate real command boundaries. Prompt marks A/B are deliberately NOT
 # emitted: Ayana renders its own input surface and keeps the prompt
@@ -22,4 +25,5 @@ set +o emacs 2>/dev/null || true
 set +o vi 2>/dev/null || true
 stty -echo -echonl 2>/dev/null || true
 
-PS1=$'\E]133;D;'"$?"$'\a'
+# Single-quoted inside $'...', so ${?} and ${PWD} expand at every prompt, not once here.
+PS1=$'\E]133;D;${?}\a\E]7;${PWD}\a'

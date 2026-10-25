@@ -7,5 +7,6 @@ fun StreamEvent.applyTo(builder: TranscriptBuilder) {
         is StreamEvent.Text -> builder.applyOutput(styled)
         is StreamEvent.OutputBegin -> Unit
         is StreamEvent.CommandEnd -> builder.applyCommandEnd(exitCode)
+        is StreamEvent.WorkingDirectory -> builder.applyWorkingDirectory(path)
     }
 }

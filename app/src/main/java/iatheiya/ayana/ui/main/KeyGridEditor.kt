@@ -1,9 +1,12 @@
 package iatheiya.ayana.ui.main
 
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.VectorConverter
 import androidx.compose.animation.core.animateOffsetAsState
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -16,15 +19,19 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -33,30 +40,55 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.zIndex
 import iatheiya.ayana.R
 import iatheiya.ayana.data.CustomKey
 import iatheiya.ayana.ui.theme.Ui
 import kotlin.math.roundToInt
+import kotlinx.coroutines.launch
+
+/**
+ * The key a finger is carrying in [KeyGridEditor]. The grid only leaves a gap for it; the key itself
+ * is drawn by [KeyDragGhostOverlay] at the screen level, so it floats over every other panel
+ * instead of being clipped by the grid's scroll area or hidden under the cards around it.
+ */
+@Stable
+class KeyDragGhost {
+    var key by mutableStateOf<CustomKey?>(null)
+        internal set
+
+    /** Window position of the picked-up cell, where [offset] is measured from. */
+    internal var origin by mutableStateOf(Offset.Zero)
+    internal var size by mutableStateOf(IntSize.Zero)
+    internal val offset = Animatable(Offset.Zero, Offset.VectorConverter)
+
+    /** Dragged well away from the grid: letting go here puts the key back where it was. */
+    internal var outside by mutableStateOf(false)
+}
 
 /**
  * The key grid as an editable preview: it lays the keys out exactly as the live row
  * shows them (column-major, [rows] per column) and scrolls horizontally. Hold a key
  * and drag to reorder it — the other keys slide to make room — and tap a key to open
- * its editor (where it can also be removed).
+ * its editor (where it can also be removed). Dropped far outside the grid, the key
+ * returns to its place.
  */
 @Composable
 fun KeyGridEditor(
     keys: List<CustomKey>,
     rows: Int,
     cols: Int,
+    ghost: KeyDragGhost,
     onKeysChange: (List<CustomKey>) -> Unit,
     onRename: (Int) -> Unit,
     modifier: Modifier = Modifier,
@@ -65,9 +97,9 @@ fun KeyGridEditor(
     val colsVisible = cols.coerceAtLeast(1)
     val density = LocalDensity.current
     val haptic = LocalHapticFeedback.current
+    val scope = rememberCoroutineScope()
 
     var draggedIndex by remember { mutableStateOf<Int?>(null) }
-    var dragOffset by remember { mutableStateOf(Offset.Zero) }
     var targetIndex by remember { mutableStateOf<Int?>(null) }
 
     val sep = Ui.keySeparatorWidth
@@ -123,30 +155,58 @@ fun KeyGridEditor(
                                     },
                                     label = "slot",
                                 )
+                                var cellOrigin by remember { mutableStateOf(Offset.Zero) }
+                                var cellSize by remember { mutableStateOf(IntSize.Zero) }
                                 EditableKeyCell(
                                     key = key,
-                                    dragging = dragging,
-                                    translation = if (dragging) dragOffset else animatedSlide,
+                                    // The carried key is drawn by the overlay; its own cell is the gap.
+                                    hidden = dragging,
+                                    translation = animatedSlide,
+                                    modifier = Modifier.onGloballyPositioned {
+                                        cellOrigin = it.positionInRoot()
+                                        cellSize = it.size
+                                    },
                                     onTap = { onRename(index) },
                                     onDragStart = {
+                                        if (ghost.key != null) return@EditableKeyCell
                                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                         draggedIndex = index
-                                        dragOffset = Offset.Zero
                                         targetIndex = index
+                                        ghost.origin = cellOrigin
+                                        ghost.size = cellSize
+                                        ghost.outside = false
+                                        ghost.key = key
+                                        scope.launch { ghost.offset.snapTo(Offset.Zero) }
                                     },
                                     onDrag = { delta ->
-                                        dragOffset += delta
-                                        targetIndex = targetFor(index, dragOffset, pitchXpx, pitchYpx, rowCount, keys.size)
+                                        if (draggedIndex != index) return@EditableKeyCell
+                                        val moved = ghost.offset.value + delta
+                                        scope.launch { ghost.offset.snapTo(moved) }
+                                        val outside = isFarOutside(index, moved, pitchXpx, pitchYpx, rowCount, columns.size)
+                                        ghost.outside = outside
+                                        // Out there, the others slide back: the drop would change nothing.
+                                        targetIndex = if (outside) {
+                                            index
+                                        } else {
+                                            targetFor(index, moved, pitchXpx, pitchYpx, rowCount, keys.size)
+                                        }
                                     },
                                     onDragEnd = {
-                                        val from = draggedIndex
-                                        val to = targetIndex
-                                        if (from != null && to != null && to != from) {
-                                            onKeysChange(moveItem(keys, from, to))
+                                        val from = draggedIndex ?: return@EditableKeyCell
+                                        val to = targetIndex ?: from
+                                        // The key glides into the slot it lands in (its own, when the drop
+                                        // was far outside), and only then does the list reorder.
+                                        scope.launch {
+                                            ghost.offset.animateTo(
+                                                slotOffset(to) - slotOffset(from),
+                                                tween(durationMillis = 160),
+                                            )
+                                            if (to != from) onKeysChange(moveItem(keys, from, to))
+                                            draggedIndex = null
+                                            targetIndex = null
+                                            ghost.key = null
+                                            ghost.outside = false
                                         }
-                                        draggedIndex = null
-                                        targetIndex = null
-                                        dragOffset = Offset.Zero
                                     },
                                 )
                             }
@@ -156,6 +216,57 @@ fun KeyGridEditor(
             }
         }
     }
+}
+
+/**
+ * Draws the key a finger carries, above everything under it on the screen. Placed by the screen
+ * between its content and its back button, so the key passes over the cards and stays under the
+ * back button.
+ */
+@Composable
+fun KeyDragGhostOverlay(ghost: KeyDragGhost, modifier: Modifier = Modifier) {
+    var overlayOrigin by remember { mutableStateOf(Offset.Zero) }
+    val density = LocalDensity.current
+    Box(
+        modifier
+            .fillMaxSize()
+            .onGloballyPositioned { overlayOrigin = it.positionInRoot() },
+    ) {
+        val key = ghost.key ?: return@Box
+        KeyCellFace(
+            key = key,
+            highlighted = true,
+            modifier = Modifier
+                .offset {
+                    val at = ghost.origin + ghost.offset.value - overlayOrigin
+                    IntOffset(at.x.roundToInt(), at.y.roundToInt())
+                }
+                .size(with(density) { ghost.size.width.toDp() }, with(density) { ghost.size.height.toDp() })
+                .graphicsLayer {
+                    scaleX = GHOST_SCALE
+                    scaleY = GHOST_SCALE
+                    alpha = if (ghost.outside) GHOST_OUTSIDE_ALPHA else 1f
+                },
+        )
+    }
+}
+
+private const val GHOST_SCALE = 1.08f
+private const val GHOST_OUTSIDE_ALPHA = 0.55f
+
+/** More than one whole cell beyond the grid's edge, on any side. */
+private fun isFarOutside(
+    from: Int,
+    offset: Offset,
+    pitchX: Float,
+    pitchY: Float,
+    rows: Int,
+    columns: Int,
+): Boolean {
+    if (pitchX <= 0f || pitchY <= 0f) return false
+    val row = from % rows + offset.y / pitchY
+    val column = from / rows + offset.x / pitchX
+    return row < -1f || row > rows || column < -1f || column > columns
 }
 
 /** Where a key dragged from [from] by [offset] lands, in the column-major grid. */
@@ -192,32 +303,23 @@ private fun <T> moveItem(list: List<T>, from: Int, to: Int): List<T> {
 @Composable
 private fun EditableKeyCell(
     key: CustomKey,
-    dragging: Boolean,
+    hidden: Boolean,
     translation: Offset,
     onTap: () -> Unit,
     onDragStart: () -> Unit,
     onDrag: (Offset) -> Unit,
     onDragEnd: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
-    Box(
-        Modifier
-            .fillMaxSize()
-            .zIndex(if (dragging) 1f else 0f)
+    KeyCellFace(
+        key = key,
+        highlighted = false,
+        modifier = modifier
             .graphicsLayer {
                 translationX = translation.x
                 translationY = translation.y
-                val s = if (dragging) 1.06f else 1f
-                scaleX = s
-                scaleY = s
+                alpha = if (hidden) 0f else 1f
             }
-            .clip(Ui.smallShape)
-            .background(
-                if (dragging) {
-                    MaterialTheme.colorScheme.primaryContainer
-                } else {
-                    MaterialTheme.colorScheme.surfaceContainerHigh
-                },
-            )
             // Long-press to pick up and drag; a single tap opens the editor at once (no
             // double-tap, so the tap never waits to see whether a second one is coming).
             .pointerInput(key) {
@@ -234,6 +336,23 @@ private fun EditableKeyCell(
             .pointerInput(key) {
                 detectTapGestures(onTap = { onTap() })
             },
+    )
+}
+
+/** How one key looks in the editor, in its cell or carried by a finger. */
+@Composable
+private fun KeyCellFace(key: CustomKey, highlighted: Boolean, modifier: Modifier = Modifier) {
+    Box(
+        modifier
+            .fillMaxSize()
+            .clip(Ui.smallShape)
+            .background(
+                if (highlighted) {
+                    MaterialTheme.colorScheme.primaryContainer
+                } else {
+                    MaterialTheme.colorScheme.surfaceContainerHigh
+                },
+            ),
         contentAlignment = Alignment.Center,
     ) {
         Text(

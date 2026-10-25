@@ -14,6 +14,7 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.calculateZoom
+import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -93,6 +94,9 @@ import kotlinx.coroutines.launch
 
 private const val TAIL_LINES = 5
 
+/** Share of the viewport one page key scrolls. */
+private const val PAGE_FRACTION = 0.85f
+
 /** How far a pinch must scale before the font moves one step, so a slow pinch still lands. */
 private const val ZOOM_STEP_IN = 1.08f
 private const val ZOOM_STEP_OUT = 1f / ZOOM_STEP_IN
@@ -140,6 +144,7 @@ fun TranscriptView(
     search: SearchState?,
     scrollRequests: Flow<String>,
     jumpToBottom: Flow<Unit>,
+    pageScroll: Flow<Int>,
     previewLines: Int,
     contentTopPadding: Dp,
     contentBottomPadding: Dp = Ui.contentPaddingV,
@@ -287,6 +292,14 @@ fun TranscriptView(
             jumpToBottom.collect {
                 val last = itemCount - 1
                 if (last >= 0) try { listState.animateScrollToEnd(last) } catch (_: Exception) {}
+            }
+        }
+
+        // The page keys at an idle prompt: scroll most of a screen, keeping a few lines for context.
+        LaunchedEffect(session.id) {
+            pageScroll.collect { direction ->
+                val viewport = listState.layoutInfo.viewportEndOffset - listState.layoutInfo.viewportStartOffset
+                listState.animateScrollBy(direction * viewport * PAGE_FRACTION)
             }
         }
 

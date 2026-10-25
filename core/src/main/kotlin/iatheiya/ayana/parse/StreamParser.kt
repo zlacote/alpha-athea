@@ -19,6 +19,9 @@ sealed interface StreamEvent {
 
     /** The running command finished (OSC 133;D), exit code when reported. */
     data class CommandEnd(val exitCode: Int?) : StreamEvent
+
+    /** The shell's working directory, reported at every prompt (OSC 7). */
+    data class WorkingDirectory(val path: String) : StreamEvent
 }
 
 /**
@@ -165,6 +168,10 @@ class StreamParser {
     // ------------------------------------------------------------------ marks
 
     private fun handleOsc(payload: String) {
+        if (payload.startsWith("7;")) {
+            directoryFrom(payload.substring(2))?.let { events.add(StreamEvent.WorkingDirectory(it)) }
+            return
+        }
         val parts = payload.split(';')
         if (parts.firstOrNull()?.toIntOrNull() != 133) return
         finishLine()
@@ -174,6 +181,16 @@ class StreamParser {
             "D" -> events.add(StreamEvent.CommandEnd(parts.getOrNull(2)?.toIntOrNull()))
             else -> Unit // "A" and "B" prompt marks carry nothing Ayana shows
         }
+    }
+
+    /** A plain path, or the path of a `file://host/path` URL as other shells send it. */
+    private fun directoryFrom(value: String): String? {
+        val path = if (value.startsWith("file://")) {
+            value.removePrefix("file://").let { rest -> rest.substring(rest.indexOf('/').coerceAtLeast(0)) }
+        } else {
+            value
+        }
+        return path.takeIf { it.startsWith("/") }
     }
 
     // ---------------------------------------------------------------- helpers

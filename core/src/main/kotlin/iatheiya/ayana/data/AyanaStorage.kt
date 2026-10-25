@@ -69,7 +69,7 @@ data class AyanaSettings(
     val favoriteReturnsHome: Boolean = true,
     /** Tapping a favorite runs it at once instead of inserting it into the composer. */
     val favoriteSendsImmediately: Boolean = false,
-    /** The light that rises from the bottom edge while a command runs. */
+    /** The light that glows down from the top edge while a command runs. */
     val glowEnabled: Boolean = true,
     /** Peak brightness of the glow, in percent. */
     val glowStrengthPct: Int = 50,

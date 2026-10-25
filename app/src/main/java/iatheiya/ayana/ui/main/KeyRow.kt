@@ -51,14 +51,19 @@ enum class KeyActionKind {
 }
 
 /**
- * The four cursor keys. A running program gets their bytes; an idle prompt uses them to walk the
- * sent commands and to move the caret in the composer.
+ * The navigation keys. A running program gets their bytes. An idle prompt uses them itself: up and
+ * down walk the sent commands, left, right, home and end move the caret in the composer, and the
+ * page keys scroll the transcript.
  */
 enum class CursorKey(val sequence: String) {
     UP("\u001B[A"),
     DOWN("\u001B[B"),
     RIGHT("\u001B[C"),
-    LEFT("\u001B[D");
+    LEFT("\u001B[D"),
+    HOME("\u001B[H"),
+    END("\u001B[F"),
+    PAGE_UP("\u001B[5~"),
+    PAGE_DOWN("\u001B[6~");
 
     companion object {
         /** The cursor key whose bytes are [payload], or null for any other key. */
@@ -90,13 +95,27 @@ object DefaultKeys {
     val DOWN = TerminalKey("↓", KeyActionKind.SEND_TO_TERMINAL, CursorKey.DOWN.sequence)
     val LEFT = TerminalKey("←", KeyActionKind.SEND_TO_TERMINAL, CursorKey.LEFT.sequence)
     val RIGHT = TerminalKey("→", KeyActionKind.SEND_TO_TERMINAL, CursorKey.RIGHT.sequence)
+    val HOME = TerminalKey("HOME", KeyActionKind.SEND_TO_TERMINAL, CursorKey.HOME.sequence)
+    val END = TerminalKey("END", KeyActionKind.SEND_TO_TERMINAL, CursorKey.END.sequence)
+    val PAGE_UP = TerminalKey("PGUP", KeyActionKind.SEND_TO_TERMINAL, CursorKey.PAGE_UP.sequence)
+    val PAGE_DOWN = TerminalKey("PGDN", KeyActionKind.SEND_TO_TERMINAL, CursorKey.PAGE_DOWN.sequence)
     val SLASH = TerminalKey("/", KeyActionKind.INSERT_INTO_DRAFT, "/")
-    val PIPE = TerminalKey("|", KeyActionKind.INSERT_INTO_DRAFT, "|")
     val DASH = TerminalKey("-", KeyActionKind.INSERT_INTO_DRAFT, "-")
 
-    // Ctrl and Alt are modifiers, not dedicated ^C/^L caps: hold Ctrl (or Alt), then
-    // the next key — from the row or the keyboard — combines (e.g. Ctrl then c = ^C).
-    val row = listOf(CTRL, ALT, ESC, TAB, UP, DOWN, LEFT, RIGHT, SLASH, PIPE, DASH)
+    // The Termux layout on two rows of seven, with the arrows as an inverted T:
+    //   ESC  /     -    HOME  ↑  END  PGUP
+    //   TAB  CTRL  ALT  ←     ↓  →    PGDN
+    // The grid is column-major, so the list runs down each column in turn. Ctrl and Alt are
+    // modifiers: press one, then the next key, from the row or the keyboard, combines with it.
+    val row = listOf(
+        ESC, TAB,
+        SLASH, CTRL,
+        DASH, ALT,
+        HOME, LEFT,
+        UP, DOWN,
+        END, RIGHT,
+        PAGE_UP, PAGE_DOWN,
+    )
 }
 
 /** The key row as the user sees it: their stored keys, or the built-in row until they change it. */

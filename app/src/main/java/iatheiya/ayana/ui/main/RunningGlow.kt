@@ -26,7 +26,7 @@ import iatheiya.ayana.data.AyanaSettings
 import iatheiya.ayana.ui.theme.Ui
 
 /**
- * A soft light that rises from the bottom edge while a command runs. Its strength, height, width
+ * A soft light that glows down from the top edge while a command runs. Its strength, height, width
  * and pulse come from the settings. It is not drawn at all when the glow is switched off.
  */
 @Composable
@@ -80,6 +80,6 @@ private fun GlowPulse(presence: Float, settings: AyanaSettings, modifier: Modifi
                     blendMode = BlendMode.DstIn,
                 )
             }
-            .background(Brush.verticalGradient(0f to Color.Transparent, 1f to glow)),
+            .background(Brush.verticalGradient(0f to glow, 1f to Color.Transparent)),
     )
 }

@@ -39,6 +39,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -47,6 +48,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -278,6 +280,18 @@ private fun MainScreenBody(viewModel: MainViewModel, state: UiState, composerBac
 
     val current = state.workspace.sessions.firstOrNull { it.id == state.workspace.currentSessionId }
 
+    // The composer's caret handle lives in its own popup window, above the drawer. As soon as the
+    // drawer starts to open, the composer lets go of focus, so the handle (and the keyboard) go away
+    // instead of floating over the sessions list.
+    val focusManager = LocalFocusManager.current
+    LaunchedEffect(drawerState) {
+        snapshotFlow {
+            drawerState.currentValue != DrawerValue.Closed ||
+                drawerState.targetValue != DrawerValue.Closed ||
+                drawerState.isAnimationRunning
+        }.collect { opening -> if (opening) focusManager.clearFocus() }
+    }
+
     ModalNavigationDrawer(
         drawerState = drawerState,
         // Drawer swipes must not fight with fullscreen overlays.
@@ -337,6 +351,7 @@ private fun MainScreenBody(viewModel: MainViewModel, state: UiState, composerBac
                                 search = state.workspace.search,
                                 scrollRequests = viewModel.scrollRequests,
                                 jumpToBottom = viewModel.jumpToBottom,
+                                pageScroll = viewModel.pageScroll,
                                 previewLines = state.workspace.settings.previewLines,
                                 contentTopPadding = statusBarTop + Ui.topBarContentTop,
                                 contentBottomPadding = overlayBottom,
@@ -375,14 +390,6 @@ private fun MainScreenBody(viewModel: MainViewModel, state: UiState, composerBac
                         .onSizeChanged { bottomBarHeight = with(density) { it.height.toDp() } },
                 )
 
-                RunningGlow(
-                    running = current?.running == true,
-                    settings = state.workspace.settings,
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .navigationBarsPadding(),
-                )
-
                 // Top scrim: same gradient as before, now sibling of Column
                 // so it sits above transcript but below TopBar.
                 Box(
@@ -396,6 +403,14 @@ private fun MainScreenBody(viewModel: MainViewModel, state: UiState, composerBac
                                 1f to Color.Transparent,
                             )
                         ),
+                )
+
+                // The light of a running command comes down from the top edge, over the scrim and
+                // under the top buttons.
+                RunningGlow(
+                    running = current?.running == true,
+                    settings = state.workspace.settings,
+                    modifier = Modifier.align(Alignment.TopCenter),
                 )
 
                 // TopBar overlay — its internal menu scrim is now full-screen
@@ -474,6 +489,8 @@ private fun BottomBar(
     // One column aligned to the bottom edge: the composer sits directly above
     // the key row. Without this modifier both children fell to the top-start
     // corner of the screen.
+    val keyRowShown = state.workspace.settings.keyRowVisible && state.workspace.search == null
+    val current = state.workspace.sessions.firstOrNull { it.id == state.workspace.currentSessionId }
     Column(modifier = modifier) {
         InputBar(
             draft = draft,
@@ -490,8 +507,11 @@ private fun BottomBar(
             selection = state.composerSelection,
             onSelectionChange = viewModel::setComposerSelection,
             composerBackdrop = composerBackdrop,
+            directory = current?.directory,
+            running = current?.running == true,
+            docked = keyRowShown,
         )
-        if (state.workspace.settings.keyRowVisible && state.workspace.search == null) {
+        if (keyRowShown) {
             val keys = remember(state.workspace.customKeys) {
                 effectiveKeyRow(state.workspace.customKeys).map { it.toTerminalKey() }
             }

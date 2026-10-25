@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -29,6 +28,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import iatheiya.ayana.R
 import iatheiya.ayana.data.CustomKey
+import iatheiya.ayana.util.unescapeKeySequence
 import iatheiya.ayana.ui.common.AyanaScaffold
 import iatheiya.ayana.ui.common.AyanaScrollHeader
 import iatheiya.ayana.ui.theme.Ui
@@ -55,6 +55,7 @@ fun KeysScreen(
     var buffer by remember { mutableStateOf("") }
     var mode by remember { mutableStateOf(KeyMode.SEND) }
     var editIndex by remember { mutableStateOf<Int?>(null) }
+    val ghost = remember { KeyDragGhost() }
     val locked = if (keyRowVisible) {
         Modifier
     } else {
@@ -65,7 +66,11 @@ fun KeysScreen(
         }
     }
 
-    AyanaScaffold(onBack = onBack, modifier = modifier) {
+    AyanaScaffold(
+        onBack = onBack,
+        modifier = modifier,
+        overlay = { KeyDragGhostOverlay(ghost) },
+    ) {
         Column(
             Modifier
                 .fillMaxSize()
@@ -98,28 +103,26 @@ fun KeysScreen(
                     )
                 }
 
-                // The editable preview: the grid exactly as the composer shows it.
-                Text(
-                    text = stringResource(R.string.keys_edit_hint),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp),
-                )
-                KeyGridEditor(
-                    keys = keys,
-                    rows = keyRows,
-                    cols = keyCols,
-                    onKeysChange = onKeysChange,
-                    onRename = { editIndex = it },
-                )
+                // The editable grid sits on its own card, so the part that is changed by hand
+                // reads as one surface, the same shape as the live row it previews.
+                SettingsCard {
+                    KeyGridEditor(
+                        keys = keys,
+                        rows = keyRows,
+                        cols = keyCols,
+                        ghost = ghost,
+                        onKeysChange = onKeysChange,
+                        onRename = { editIndex = it },
+                    )
+                }
 
-                // One add area: type the sequence by hand or tap the keyboard below it. The mode
-                // dropdown decides what the finished key does — drop into the editor, send at
-                // once, arm as a one-shot modifier (sticky) or latch until pressed again (lock).
+                // One add area: the sequence is typed by hand (escapes for special keys), and the
+                // action list decides what the finished key does.
                 OutlinedTextField(
                     value = buffer,
                     onValueChange = { buffer = it },
                     label = { Text(stringResource(R.string.settings_keys_payload)) },
+                    singleLine = true,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 8.dp),
@@ -131,29 +134,28 @@ fun KeysScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    KeyModeDropdown(mode = mode, onModeChange = { mode = it })
-                    Spacer(Modifier.weight(1f))
+                    KeyModeDropdown(
+                        mode = mode,
+                        onModeChange = { mode = it },
+                        modifier = Modifier.weight(1f),
+                    )
                     Button(
                         onClick = {
-                            // Send/sticky/lock run the sequence (carriage return appended); only
-                            // "into editor" drops the raw text in. withMode sets the flags.
-                            val send = mode != KeyMode.INSERT
                             val key = CustomKey(
-                                label = visibleSequence(buffer).take(12),
-                                payload = if (send) buffer + "\r" else buffer,
+                                label = visibleSequence(unescapeKeySequence(buffer)).take(12),
+                                payload = keyPayload(buffer, mode),
                             ).withMode(mode)
                             onKeysChange(keys + key)
                             buffer = ""
                         },
                         enabled = buffer.isNotEmpty(),
+                        // Level with the field's box, below the room its floating label takes.
+                        modifier = Modifier.padding(top = 8.dp),
                     ) {
                         Text(stringResource(R.string.keys_add))
                     }
                 }
-                KeyBuilderPad(
-                    onAppend = { buffer += it },
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
-                )
+                KeyEscapeHelp(Modifier.padding(horizontal = 20.dp, vertical = 8.dp))
             }
 
             // Default button at the very end, centred and bare, like the Glass screen.

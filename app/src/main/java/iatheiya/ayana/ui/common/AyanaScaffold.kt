@@ -1,6 +1,7 @@
 package iatheiya.ayana.ui.common
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Spacer
@@ -40,6 +41,8 @@ fun AyanaScaffold(
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
     backIcon: ImageVector = Icons.AutoMirrored.Filled.ArrowBack,
+    /** Drawn above the content and below the back button, e.g. a key being dragged. */
+    overlay: @Composable BoxScope.() -> Unit = {},
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val backdrop = rememberLiquidBackdrop()
@@ -60,6 +63,7 @@ fun AyanaScaffold(
                 ) {
                     content()
                 }
+                overlay()
                 Box(
                     Modifier
                         .fillMaxWidth()

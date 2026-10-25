@@ -639,12 +639,23 @@ class Workspace(
             running = snapshot.running,
             rawText = snapshot.rawText,
             fullScreen = pipe.screen?.takeIf { it.altActive }?.snapshot(),
+            directory = pipe.builder.workingDirectory?.let(::abbreviateHome),
         )
         _state.update { st ->
             val sessions = st.sessions.toMutableList()
             val index = sessions.indexOfFirst { it.id == id }
             if (index >= 0) sessions[index] = view else sessions.add(view)
             st.copy(sessions = sessions)
+        }
+    }
+
+    /** `~` for the shell's home folder, as shells show it in their prompt. */
+    private fun abbreviateHome(path: String): String {
+        val home = storage.shellHome().absolutePath.trimEnd('/')
+        return when {
+            path == home -> "~"
+            path.startsWith("$home/") -> "~" + path.substring(home.length)
+            else -> path
         }
     }
 

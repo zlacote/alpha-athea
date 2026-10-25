@@ -98,6 +98,25 @@ class StreamParserTest {
     }
 
     @Test
+    fun `working directory mark is reported and hidden`() {
+        val events = feedAll("out\n\u001B]7;/data/home/src\u0007")
+        assertEquals("out\n", texts(events))
+        assertEquals(
+            listOf("/data/home/src"),
+            events.filterIsInstance<StreamEvent.WorkingDirectory>().map { it.path },
+        )
+    }
+
+    @Test
+    fun `working directory url form keeps only the path`() {
+        val events = feedAll("\u001B]7;file://phone/sdcard/Download\u0007")
+        assertEquals(
+            listOf("/sdcard/Download"),
+            events.filterIsInstance<StreamEvent.WorkingDirectory>().map { it.path },
+        )
+    }
+
+    @Test
     fun `output begin mark is emitted`() {
         val events = feedAll("\u001B]133;C\u0007out\n")
         assertEquals(

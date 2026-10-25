@@ -91,6 +91,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _scrollRequests = dropOldestSharedFlow<String>(extraBufferCapacity = 8)
     val scrollRequests: SharedFlow<String> = _scrollRequests.asSharedFlow()
 
+    /** One-shot requests to scroll the transcript by a page: -1 up, 1 down (the page keys at an idle prompt). */
+    private val _pageScroll = dropOldestSharedFlow<Int>(extraBufferCapacity = 4)
+    val pageScroll: SharedFlow<Int> = _pageScroll.asSharedFlow()
+
     /** One-shot requests to force the transcript to its very bottom. */
     private val _jumpToBottom = dropOldestSharedFlow<Unit>(extraBufferCapacity = 4)
     val jumpToBottom: SharedFlow<Unit> = _jumpToBottom.asSharedFlow()
@@ -210,11 +214,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             sendDirectText(key.sequence)
             return
         }
+        val draftLength = session.draft.orEmpty().length
         when (key) {
             CursorKey.UP -> recallCommand(older = true)
             CursorKey.DOWN -> recallCommand(older = false)
             CursorKey.LEFT -> moveCaret(-1)
             CursorKey.RIGHT -> moveCaret(1)
+            CursorKey.HOME -> _state.update { it.copy(composerSelection = TextRange(0)) }
+            CursorKey.END -> _state.update { it.copy(composerSelection = TextRange(draftLength)) }
+            CursorKey.PAGE_UP -> _pageScroll.tryEmit(-1)
+            CursorKey.PAGE_DOWN -> _pageScroll.tryEmit(1)
         }
     }
 
