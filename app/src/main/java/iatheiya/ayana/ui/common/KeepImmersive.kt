@@ -1,5 +1,7 @@
 package iatheiya.ayana.ui.common
 
+import android.view.View
+import android.view.Window
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.staticCompositionLocalOf
@@ -21,10 +23,13 @@ fun KeepImmersive() {
     if (!LocalImmersive.current) return
     val window = (LocalView.current.parent as? DialogWindowProvider)?.window ?: return
     val view = LocalView.current
-    SideEffect {
-        WindowCompat.getInsetsController(window, view).apply {
-            systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-            hide(WindowInsetsCompat.Type.statusBars())
-        }
+    SideEffect { setStatusBarHidden(window, view, hidden = true) }
+}
+
+/** Hides the status bar of [window] (a swipe from the top brings it back for a moment), or shows it. */
+fun setStatusBarHidden(window: Window, view: View, hidden: Boolean) {
+    WindowCompat.getInsetsController(window, view).apply {
+        systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        if (hidden) hide(WindowInsetsCompat.Type.statusBars()) else show(WindowInsetsCompat.Type.statusBars())
     }
 }

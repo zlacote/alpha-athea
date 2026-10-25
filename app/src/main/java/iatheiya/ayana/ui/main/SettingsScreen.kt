@@ -5,11 +5,8 @@ import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.provider.Settings
 import androidx.core.app.ActivityCompat
-import androidx.core.content.ContextCompat
-import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.compose.BackHandler
@@ -51,6 +48,7 @@ import iatheiya.ayana.R
 import iatheiya.ayana.ui.common.AyanaScaffold
 import iatheiya.ayana.ui.common.AyanaScrollHeader
 import iatheiya.ayana.util.AyanaLog
+import iatheiya.ayana.util.notificationsAllowed
 import iatheiya.ayana.util.copyToClipboard
 import java.io.File
 
@@ -280,7 +278,7 @@ internal fun SettingsScreen(
                         onChange = { on ->
                             when {
                                 !on -> onSignalLongCommandsChange(false)
-                                notificationsAllowed(context) -> onSignalLongCommandsChange(true)
+                                context.notificationsAllowed() -> onSignalLongCommandsChange(true)
                                 notificationsAsked && !mayAskAgain(context) -> {
                                     onWaitForNotificationSettings()
                                     openNotificationSettings(context)
@@ -349,11 +347,6 @@ private fun copyDiagnostics(context: Context) {
         android.widget.Toast.LENGTH_SHORT,
     ).show()
 }
-
-private fun notificationsAllowed(context: Context): Boolean =
-    Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
-        ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) ==
-        PackageManager.PERMISSION_GRANTED
 
 /** False once the user has refused for good: Android then answers at once, without a dialog. */
 private fun mayAskAgain(context: Context): Boolean {

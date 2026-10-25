@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.FileOpen
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.font.FontWeight
 import iatheiya.ayana.ui.common.AyanaChoiceSheet
@@ -80,6 +79,7 @@ data class AppearanceState(
     val wallpaperDimPct: Int,
     val wallpaperBlurDp: Int,
     val pinchZoomEnabled: Boolean,
+    val greetingAnimated: Boolean,
     val outputFontSizeSp: Int,
     val bubbleFontSizeSp: Int,
 )
@@ -97,6 +97,7 @@ class AppearanceActions(
     val onWallpaperDimChange: (Int) -> Unit,
     val onWallpaperBlurChange: (Int) -> Unit,
     val onPinchZoomEnabledChange: (Boolean) -> Unit,
+    val onGreetingAnimatedChange: (Boolean) -> Unit,
     val onOutputFontSizeChange: (Int) -> Unit,
     val onBubbleFontSizeChange: (Int) -> Unit,
     val onOpenGlassTuning: () -> Unit,
@@ -202,7 +203,7 @@ internal fun AppearancePane(state: AppearanceState, actions: AppearanceActions, 
                 add(SheetChoice(FONT_MONO, stringResource(R.string.appearance_font_mono)))
                 add(SheetChoice(FONT_SERIF, stringResource(R.string.appearance_font_serif)))
                 if (state.hasCustomFont) add(SheetChoice(FONT_CUSTOM, stringResource(R.string.appearance_font_custom)))
-                add(SheetChoice(PICK_FONT_FILE, stringResource(R.string.appearance_font_change), Icons.Default.FileOpen))
+                add(SheetChoice(PICK_FONT_FILE, stringResource(R.string.appearance_font_change), Icons.Default.Add))
             }
             var choosingFont by remember { mutableStateOf(false) }
             ChoiceSettingRow(
@@ -241,6 +242,13 @@ internal fun AppearancePane(state: AppearanceState, actions: AppearanceActions, 
                 subtitle = stringResource(R.string.settings_pinch_zoom_desc),
                 checked = state.pinchZoomEnabled,
                 onChange = actions.onPinchZoomEnabledChange,
+            )
+            SettingsDivider()
+            SwitchRow(
+                title = stringResource(R.string.appearance_greeting_animated),
+                subtitle = stringResource(R.string.appearance_greeting_animated_desc),
+                checked = state.greetingAnimated,
+                onChange = actions.onGreetingAnimatedChange,
             )
         }
 

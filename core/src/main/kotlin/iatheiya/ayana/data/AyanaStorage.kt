@@ -43,6 +43,8 @@ internal data class FavoritesIndex(
 
 /** User-facing application preferences. */
 
+const val INTRO_UNSET = -1L
+
 const val AWAKE_OFF = "off"
 const val AWAKE_RUNNING = "running"
 const val AWAKE_ALWAYS = "always"
@@ -70,6 +72,13 @@ data class AyanaSettings(
     val enterSends: Boolean = true,
     val autoScrollOnSend: Boolean = true,
     val rawStream: Boolean = false,
+    /**
+     * The session made at the very first start, whose greeting shimmers until it fills up;
+     * [INTRO_UNSET] until Ayana has decided, 0 for none.
+     */
+    val introSessionId: Long = INTRO_UNSET,
+    /** The name on every empty chat shimmers, not only on the first one. */
+    val greetingAnimated: Boolean = false,
     /** Full screen: the status bar with the clock is hidden until swiped in. */
     val immersiveMode: Boolean = false,
     /** When the screen is kept from going dark: [AWAKE_OFF], [AWAKE_RUNNING] or [AWAKE_ALWAYS]. */

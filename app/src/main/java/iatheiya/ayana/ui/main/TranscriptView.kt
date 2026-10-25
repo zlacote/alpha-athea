@@ -51,8 +51,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.FastOutSlowInEasing
 import kotlinx.coroutines.delay
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -82,7 +80,6 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -95,7 +92,6 @@ import iatheiya.ayana.session.SessionView
 import iatheiya.ayana.ui.common.ContextMenuRequest
 import iatheiya.ayana.ui.common.LocalContextMenu
 import iatheiya.ayana.ui.theme.AccentColor
-import iatheiya.ayana.ui.theme.CodeStyle
 import iatheiya.ayana.ui.theme.contentOn
 import iatheiya.ayana.ui.theme.HighlightColor
 import iatheiya.ayana.ui.theme.OnHighlightColor
@@ -164,6 +160,8 @@ fun TranscriptView(
     /** Whether the transcript is scrolled up from its end; the composer shows a jump-down button then. */
     onJumpAvailableChange: (Boolean) -> Unit = {},
     pinchZoomEnabled: Boolean,
+    /** The name on the empty chat shimmers (the first session's greeting, or always if chosen). */
+    greetingAnimated: Boolean = false,
     virtualizeLargeOutput: Boolean = false,
     onTranscriptFontZoom: (Float) -> Unit,
     onToggleBlock: (String) -> Unit,
@@ -196,7 +194,7 @@ fun TranscriptView(
 
         // An empty chat greets the same way in either view.
         if (session.blocks.isEmpty() && session.rawText.isBlank()) {
-            EmptyGreeting(Modifier.align(Alignment.Center))
+            EmptyGreeting(animated = greetingAnimated, modifier = Modifier.align(Alignment.Center))
             return@BoxWithConstraints
         }
 
@@ -333,7 +331,7 @@ fun TranscriptView(
         val currentMatchId = search?.matchBlockIds?.getOrNull(search.index)
 
         if (views.isEmpty()) {
-            EmptyGreeting(Modifier.align(Alignment.Center))
+            EmptyGreeting(animated = greetingAnimated, modifier = Modifier.align(Alignment.Center))
             return@BoxWithConstraints
         }
 
@@ -428,37 +426,29 @@ fun TranscriptView(
     }
 }
 
-/** The greeting's light sweep plays once per start of the app, not on every empty chat. */
-private object GreetingSweep {
-    var played = false
-}
-
 @Composable
-private fun EmptyGreeting(modifier: Modifier = Modifier) {
-    // When the app starts, a soft band of light runs once across the name, then it rests.
-    val sweep = remember { Animatable(if (GreetingSweep.played) 1f else 0f) }
-    LaunchedEffect(Unit) {
-        if (!GreetingSweep.played) {
-            GreetingSweep.played = true
-            delay(SWEEP_DELAY_MS)
-            sweep.animateTo(1f, tween(SWEEP_MS, easing = FastOutSlowInEasing))
-        }
-    }
+private fun EmptyGreeting(animated: Boolean, modifier: Modifier = Modifier) {
     val base = MaterialTheme.colorScheme.onBackground
-    val glow = MaterialTheme.colorScheme.primary
+    // A soft rainbow flows through the name without end: the colours repeat as one seamless
+    // band, so the loop has no seam and no jump.
+    val flow = if (animated) {
+        val transition = rememberInfiniteTransition(label = "greeting")
+        transition.animateFloat(
+            initialValue = 0f,
+            targetValue = 1f,
+            animationSpec = infiniteRepeatable(tween(GREETING_FLOW_MS, easing = LinearEasing)),
+            label = "greetingFlow",
+        ).value
+    } else {
+        null
+    }
     Column(
         modifier = modifier.padding(horizontal = 32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(
             text = stringResource(R.string.greeting_title),
-            style = MaterialTheme.typography.headlineSmall.copy(
-                brush = if (sweep.value >= 1f) {
-                    null
-                } else {
-                    sweepBrush(sweep.value, base.copy(alpha = SWEEP_BASE_ALPHA), glow)
-                },
-            ),
+            style = MaterialTheme.typography.headlineSmall.copy(brush = flow?.let(::greetingBrush)),
             color = base,
         )
         Spacer(Modifier.height(8.dp))
@@ -909,7 +899,7 @@ private fun RawStreamView(
     LaunchedEffect(text.length) { scroll.scrollTo(scroll.maxValue) }
     SelectionContainer {
         Text(
-            text = buildHighlighted(text.ifEmpty { " " }, query),
+            text = AnnotatedString(text.ifEmpty { " " }).withSearchHighlights(query),
             style = codeStyle(),
             color = MaterialTheme.colorScheme.onBackground,
             modifier = modifier
@@ -941,25 +931,6 @@ private fun BlinkingCursor() {
     )
 }
 
-private fun buildHighlighted(text: String, query: String?): AnnotatedString =
-    buildAnnotatedString {
-        append(text)
-        if (query.isNullOrBlank()) return@buildAnnotatedString
-        val lower = text.lowercase()
-        val needle = query.lowercase()
-        var from = 0
-        while (true) {
-            val idx = lower.indexOf(needle, from)
-            if (idx < 0) break
-            addStyle(
-                SpanStyle(background = HighlightColor, color = OnHighlightColor),
-                idx,
-                idx + needle.length,
-            )
-            from = idx + needle.length
-        }
-    }
-
 /** Fades the last [height] of the content out to transparent: what is behind shows through, untouched. */
 private fun Modifier.fadeOutBottom(height: Dp): Modifier =
     graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
@@ -975,24 +946,29 @@ private fun Modifier.fadeOutBottom(height: Dp): Modifier =
             )
         }
 
-private const val SWEEP_DELAY_MS = 250L
-private const val SWEEP_MS = 1600
-private const val SWEEP_BASE_ALPHA = 0.55f
+/** One pass of the colours through the name. */
+private const val GREETING_FLOW_MS = 6000
 
-/** A bright band at [progress] (0 left of the text, 1 past its right end) over a dimmer base. */
-private fun sweepBrush(progress: Float, base: Color, glow: Color): Brush {
-    val centre = -0.3f + progress * 1.6f
+/** Soft, muted rainbow: rose, apricot, sage, mist blue, lavender, and rose again to close the loop. */
+private val GREETING_COLORS = listOf(
+    Color(0xFFE6B8C9),
+    Color(0xFFE8CDAE),
+    Color(0xFFD3E2B8),
+    Color(0xFFB8D6E0),
+    Color(0xFFC7BCE6),
+    Color(0xFFE6B8C9),
+)
+
+/** The band of colours, shifted by [flow] (0..1) of its own width, repeating across the text. */
+private fun greetingBrush(flow: Float): Brush {
+    val start = -GREETING_BAND_PX * flow
     return Brush.linearGradient(
-        0f to base,
-        (centre - 0.25f).coerceIn(0f, 1f) to base,
-        centre.coerceIn(0f, 1f) to glow,
-        (centre + 0.25f).coerceIn(0f, 1f) to base,
-        1f to base,
-        start = Offset(0f, 0f),
-        end = Offset(SWEEP_WIDTH_PX, 0f),
-        tileMode = TileMode.Clamp,
+        colors = GREETING_COLORS,
+        start = Offset(start, 0f),
+        end = Offset(start + GREETING_BAND_PX, 0f),
+        tileMode = TileMode.Repeated,
     )
 }
 
-/** About the width of the name at the greeting's size, so the band crosses it at an even pace. */
-private const val SWEEP_WIDTH_PX = 360f
+/** About one and a half times the name's width, so a few colours show at once. */
+private const val GREETING_BAND_PX = 520f

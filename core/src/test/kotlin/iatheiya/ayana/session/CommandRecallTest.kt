@@ -43,4 +43,13 @@ class CommandRecallTest {
         recall.reset()
         assertEquals("make", recall.step(history, "", older = true))
     }
+
+    @Test
+    fun `each command comes up once, at its newest place`() {
+        val recall = CommandRecall()
+        val repeated = listOf("one", "one", "two", "one", "one")
+        assertEquals("one", recall.step(repeated, "", older = true))
+        assertEquals("two", recall.step(repeated, "one", older = true))
+        assertNull(recall.step(repeated, "two", older = true))
+    }
 }

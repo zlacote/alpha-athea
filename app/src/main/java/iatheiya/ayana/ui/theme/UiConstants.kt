@@ -55,6 +55,25 @@ object Ui {
 
     // ---- Composer ---------------------------------------------------------
     val composerButtonSize = 38.dp
+
+    // ---- Composer metrics --------------------------------------------------
+    // One set for every field built like the composer (the composer, search, the Keys field) and
+    // for the buttons that match it, so their sizes and gaps cannot drift apart.
+
+    /** The drawn circle of the send button, and of the jump-down button above it. */
+    val sendCircleSize = composerButtonSize
+
+    /** A docked panel's inner side padding. */
+    val composerPaddingH = 8.dp
+
+    /** From the panel's inner edge to the button row's last button. */
+    val composerButtonRowEnd = 4.dp
+
+    /** From the panel's edge to the send circle's edge. */
+    val sendButtonInset = composerPaddingH + composerButtonRowEnd
+
+    /** The least height of a one-line field, so its buttons sit in it with room. */
+    val composerFieldMinHeight = 44.dp
     val composerButtonSpace = 52.dp
     val composerButtonRowHeight = 44.dp
     val composerFieldEndGrown = 8.dp

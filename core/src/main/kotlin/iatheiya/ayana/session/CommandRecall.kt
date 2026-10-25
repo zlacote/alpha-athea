@@ -2,8 +2,9 @@ package iatheiya.ayana.session
 
 /**
  * Up and down through the commands sent in a session, newest first, the way a shell walks its
- * history. The draft being typed is kept while the walk is on, and restored when the walk comes
- * back down past the newest command.
+ * history. Each command comes up once, where it was last sent: repeats, in a row or from earlier,
+ * add nothing to walk through. The draft being typed is kept while the walk is on, and restored
+ * when the walk comes back down past the newest command.
  */
 class CommandRecall {
 
@@ -17,6 +18,11 @@ class CommandRecall {
      * [history] is oldest first.
      */
     fun step(history: List<String>, draft: String, older: Boolean): String? {
+        val distinct = distinctByLastUse(history)
+        return walk(distinct, draft, older)
+    }
+
+    private fun walk(history: List<String>, draft: String, older: Boolean): String? {
         if (older) {
             if (steps == history.size) return null
             if (steps == 0) liveDraft = draft
@@ -26,6 +32,12 @@ class CommandRecall {
             steps--
         }
         return if (steps == 0) liveDraft else history[history.size - steps]
+    }
+
+    /** [history] (oldest first) with each command kept only at its newest place, still oldest first. */
+    private fun distinctByLastUse(history: List<String>): List<String> {
+        val seen = HashSet<String>()
+        return history.asReversed().filter { seen.add(it) }.asReversed()
     }
 
     /** Ends the walk: the user is editing a draft again. */

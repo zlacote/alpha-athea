@@ -11,7 +11,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
-import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -120,7 +120,7 @@ internal fun KeyModeField(
             readOnly = true,
             singleLine = true,
             label = { Text(stringResource(R.string.keys_mode)) },
-            trailingIcon = { Icon(Icons.Filled.ArrowDropDown, contentDescription = null) },
+            trailingIcon = { Icon(Icons.Default.KeyboardArrowDown, contentDescription = null) },
             modifier = Modifier.fillMaxWidth(),
         )
         // A read-only field still takes the tap for its caret; this cover opens the chooser instead.
@@ -132,15 +132,19 @@ internal fun KeyModeField(
                 .clickable { choosing = true },
         )
     }
-    if (choosing) {
-        AyanaChoiceSheet(
-            title = stringResource(R.string.keys_mode),
-            choices = KeyMode.entries.map { SheetChoice(it, keyModeLabel(it)) },
-            selected = mode,
-            onPick = onModeChange,
-            onDismiss = { choosing = false },
-        )
-    }
+    if (choosing) KeyModeSheet(mode = mode, onPick = onModeChange, onDismiss = { choosing = false })
+}
+
+/** The chooser of a key's action: the same sheet every option in the app uses. */
+@Composable
+internal fun KeyModeSheet(mode: KeyMode, onPick: (KeyMode) -> Unit, onDismiss: () -> Unit) {
+    AyanaChoiceSheet(
+        title = stringResource(R.string.keys_mode),
+        choices = KeyMode.entries.map { SheetChoice(it, keyModeLabel(it)) },
+        selected = mode,
+        onPick = onPick,
+        onDismiss = onDismiss,
+    )
 }
 
 /** The outlined field's box starts below the room its floating label takes. */

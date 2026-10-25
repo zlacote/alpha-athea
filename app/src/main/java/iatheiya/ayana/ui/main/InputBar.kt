@@ -43,6 +43,8 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.res.stringResource
@@ -68,12 +70,9 @@ import iatheiya.ayana.ui.theme.glass
 import iatheiya.ayana.ui.theme.messageStyle
 
 /** The drawn send circle, kept smaller than its touch target so it sits inside the field. */
-internal val SEND_BUTTON_SIZE = 38.dp
 
-private val DOCKED_PADDING_H = 8.dp
 private val FLOATING_PADDING_H = 4.dp
 private val FLOATING_MARGIN_H = 16.dp
-private val BUTTON_ROW_END = 4.dp
 
 /** Space the buttons occupy at the tail of the field, shared by every
  *  layout that reserves room for them. */
@@ -204,7 +203,7 @@ private fun DraftPanel(
             )
             .onGloballyPositioned { onPanelBounds(it.boundsInRoot()) },
     ) {
-        Column(Modifier.padding(horizontal = if (docked) DOCKED_PADDING_H else FLOATING_PADDING_H, vertical = 4.dp)) {
+        Column(Modifier.padding(horizontal = if (docked) Ui.composerPaddingH else FLOATING_PADDING_H, vertical = 4.dp)) {
             Box {
                 BasicTextField(
                     value = TextFieldValue(
@@ -301,7 +300,7 @@ private fun DraftPanel(
                 Row(
                     Modifier
                         .align(if (compact) Alignment.CenterEnd else Alignment.BottomEnd)
-                        .padding(end = BUTTON_ROW_END, bottom = if (compact) 0.dp else 4.dp),
+                        .padding(end = Ui.composerButtonRowEnd, bottom = if (compact) 0.dp else 4.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     if (!compact) {
@@ -353,18 +352,30 @@ private fun SearchPanel(
     onPanelBounds: (Rect) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Row(
+    // Like the composer: one line sits beside the buttons; once the query wraps, the field takes
+    // the whole width and the buttons move to a row of their own under it (and stay there until
+    // the query is cleared, so a query just at the edge does not flip back and forth).
+    var lineCount by remember { mutableStateOf(1) }
+    var grown by remember { mutableStateOf(false) }
+    if (query.isEmpty()) grown = false
+    if (lineCount > 1) grown = true
+    var buttonsWidthPx by remember { mutableStateOf(0) }
+    val buttonsWidth = with(LocalDensity.current) { buttonsWidthPx.toDp() }
+    Box(
         modifier
             .fillMaxWidth()
             .onGloballyPositioned { onPanelBounds(it.boundsInRoot()) }
-            .padding(horizontal = DOCKED_PADDING_H, vertical = 4.dp),
-        verticalAlignment = Alignment.Bottom,
+            .padding(horizontal = Ui.composerPaddingH, vertical = 4.dp),
     ) {
         Box(
             Modifier
-                .weight(1f)
-                .heightIn(min = Ui.composerButtonSize)
-                .padding(start = Ui.spaceM, end = Ui.spaceXs),
+                .fillMaxWidth()
+                .heightIn(min = Ui.composerFieldMinHeight)
+                .padding(
+                    start = Ui.spaceM,
+                    end = if (grown) Ui.spaceM else buttonsWidth + Ui.spaceXs,
+                    bottom = if (grown) Ui.composerFieldMinHeight else 0.dp,
+                ),
             contentAlignment = Alignment.CenterStart,
         ) {
             BasicTextField(
@@ -374,6 +385,7 @@ private fun SearchPanel(
                 textStyle = messageStyle().copy(color = MaterialTheme.colorScheme.onSurface),
                 cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
                 maxLines = 6,
+                onTextLayout = { lineCount = it.lineCount },
                 keyboardOptions = KeyboardOptions(
                     capitalization = KeyboardCapitalization.None,
                     keyboardType = KeyboardType.Text,
@@ -394,7 +406,13 @@ private fun SearchPanel(
                 },
             )
         }
-        Row(Modifier.heightIn(min = Ui.composerButtonSize), verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            Modifier
+                .align(if (grown) Alignment.BottomEnd else Alignment.CenterEnd)
+                .heightIn(min = Ui.composerFieldMinHeight)
+                .onSizeChanged { buttonsWidthPx = it.width },
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             Text(
                 text = if (matchCount == 0) "0/0" else "${matchIndex + 1}/$matchCount",
                 style = MaterialTheme.typography.labelMedium.copy(fontFamily = FontFamily.Monospace),
@@ -497,7 +515,7 @@ internal fun SendCircleButton(
     IconButton(onClick = onClick, enabled = enabled, modifier = modifier.size(Ui.composerButtonSize)) {
         Box(
             Modifier
-                .size(SEND_BUTTON_SIZE)
+                .size(Ui.sendCircleSize)
                 .onGloballyPositioned { onBounds(it.boundsInRoot()) }
                 .clip(CircleShape)
                 .background(background),

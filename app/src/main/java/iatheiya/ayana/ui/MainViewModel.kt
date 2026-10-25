@@ -14,6 +14,7 @@ import iatheiya.ayana.data.AyanaStorage
 import iatheiya.ayana.data.AyanaSettings
 import iatheiya.ayana.data.CustomKey
 import iatheiya.ayana.data.FONT_CUSTOM
+import iatheiya.ayana.data.INTRO_UNSET
 import iatheiya.ayana.engine.NativeShellEngine
 import iatheiya.ayana.session.Attachments
 import iatheiya.ayana.session.CommandRecall
@@ -26,6 +27,7 @@ import iatheiya.ayana.session.WorkspaceState
 import iatheiya.ayana.ui.main.CursorKey
 import iatheiya.ayana.ui.main.FORM_FEED
 import iatheiya.ayana.util.AyanaLog
+import iatheiya.ayana.util.notificationsAllowed
 import iatheiya.ayana.util.dropOldestSharedFlow
 import iatheiya.ayana.util.shellQuote
 import java.io.File
@@ -115,6 +117,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val jumpToBottom: SharedFlow<Unit> = _jumpToBottom.asSharedFlow()
 
     init {
+        rememberIntroSession()
         viewModelScope.launch {
             workspace.state.collect { projection ->
                 _state.update { it.copy(workspace = projection) }
@@ -179,6 +182,19 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
     }
+
+    /**
+     * Once, at the very first start: the session Ayana opens with is the one whose greeting
+     * shimmers. A start with sessions already used (an update) has no such session.
+     */
+    private fun rememberIntroSession() {
+        val ws = workspace.state.value
+        if (ws.settings.introSessionId != INTRO_UNSET) return
+        val first = ws.sessions.singleOrNull()?.takeIf { it.blocks.isEmpty() }
+        workspace.updateSettings { it.copy(introSessionId = first?.id ?: 0L) }
+    }
+
+    fun setGreetingAnimated(value: Boolean) = workspace.updateSettings { it.copy(greetingAnimated = value) }
 
     private fun createEngine(app: Application, shellPath: String): TerminalEngine =
         NativeShellEngine(
@@ -545,7 +561,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
      * it; only a return from the settings the user was sent to, to turn the signal on, does.
      */
     fun syncNotificationPermission() {
-        val granted = notificationsAllowed()
+        val granted = getApplication<Application>().notificationsAllowed()
         val settings = workspace.state.value.settings
         if (signalWaitsForSettings) {
             signalWaitsForSettings = false
@@ -554,13 +570,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             workspace.updateSettings { it.copy(signalLongCommands = false) }
         }
     }
-
-    private fun notificationsAllowed(): Boolean =
-        android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.TIRAMISU ||
-            androidx.core.content.ContextCompat.checkSelfPermission(
-                getApplication(),
-                android.Manifest.permission.POST_NOTIFICATIONS,
-            ) == android.content.pm.PackageManager.PERMISSION_GRANTED
 
     fun setLongCommandSec(sec: Int) = workspace.updateSettings { it.copy(longCommandSec = sec) }
 
@@ -575,7 +584,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         storage.customFontFile().delete()
         iatheiya.ayana.ui.liquid.GlassTuning.reset()
         workspace.setCustomKeys(emptyList())
-        workspace.updateSettings { AyanaSettings(shellPath = it.shellPath, notificationsAsked = it.notificationsAsked) }
+        workspace.updateSettings { AyanaSettings(shellPath = it.shellPath, notificationsAsked = it.notificationsAsked, introSessionId = it.introSessionId) }
     }
 
 

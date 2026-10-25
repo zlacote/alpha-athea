@@ -6,8 +6,6 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.ui.graphics.SolidColor
-import iatheiya.ayana.ui.common.AyanaChoiceSheet
-import iatheiya.ayana.ui.common.SheetChoice
 import iatheiya.ayana.ui.theme.messageStyle
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -174,8 +172,6 @@ fun KeysScreen(
 
 private val KEY_BLOCK_RADIUS = 20.dp
 
-/** As tall as the composer on the main screen, so the send button sits in it the same way. */
-private val KEY_FIELD_MIN_HEIGHT = 44.dp
 private val KeyFieldShape = RoundedCornerShape(topStart = KEY_BLOCK_RADIUS, topEnd = KEY_BLOCK_RADIUS)
 private val KeyActionShape = RoundedCornerShape(bottomStart = KEY_BLOCK_RADIUS, bottomEnd = KEY_BLOCK_RADIUS)
 
@@ -198,7 +194,7 @@ private fun KeyAddBlock(
             Modifier
                 .fillMaxWidth()
                 .liquidGlass(null, KeyFieldShape, KEY_BLOCK_RADIUS)
-                .padding(start = Ui.spaceL, end = Ui.spaceXs, top = Ui.spaceXs, bottom = Ui.spaceXs),
+                .padding(start = Ui.spaceL, end = Ui.sendButtonInset, top = Ui.spaceXs, bottom = Ui.spaceXs),
         ) {
             BasicTextField(
                 value = text,
@@ -209,10 +205,10 @@ private fun KeyAddBlock(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(end = Ui.composerButtonSize + Ui.spaceXs)
-                    .heightIn(min = KEY_FIELD_MIN_HEIGHT)
+                    .heightIn(min = Ui.composerFieldMinHeight)
                     .align(Alignment.CenterStart),
                 decorationBox = { inner ->
-                    Box(Modifier.heightIn(min = KEY_FIELD_MIN_HEIGHT), contentAlignment = Alignment.CenterStart) {
+                    Box(Modifier.heightIn(min = Ui.composerFieldMinHeight), contentAlignment = Alignment.CenterStart) {
                         if (text.isEmpty()) {
                             Text(
                                 stringResource(R.string.settings_keys_payload),
@@ -230,7 +226,7 @@ private fun KeyAddBlock(
                 // Centred on a one-line field; on a taller one it stays by the last line.
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .padding(bottom = (KEY_FIELD_MIN_HEIGHT - Ui.composerButtonSize) / 2),
+                    .padding(bottom = (Ui.composerFieldMinHeight - Ui.composerButtonSize) / 2),
             )
         }
         SettingsDivider()
@@ -243,13 +239,5 @@ private fun KeyAddBlock(
             )
         }
     }
-    if (choosing) {
-        AyanaChoiceSheet(
-            title = stringResource(R.string.keys_mode),
-            choices = KeyMode.entries.map { SheetChoice(it, keyModeLabel(it)) },
-            selected = mode,
-            onPick = onModeChange,
-            onDismiss = { choosing = false },
-        )
-    }
+    if (choosing) KeyModeSheet(mode = mode, onPick = onModeChange, onDismiss = { choosing = false })
 }

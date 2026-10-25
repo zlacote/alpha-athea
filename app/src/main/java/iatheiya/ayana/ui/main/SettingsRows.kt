@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -197,8 +198,8 @@ internal fun SettingsDivider() {
 }
 
 /**
- * A setting chosen from a few options: its name, and its current value with a chevron. Tapping it
- * raises the options from the bottom (see [iatheiya.ayana.ui.common.AyanaChoiceSheet]).
+ * A setting chosen from a few options: its name, and its current value with a down arrow (the
+ * options come up from the bottom, they do not open a page). Tapping it raises them (see [iatheiya.ayana.ui.common.AyanaChoiceSheet]).
  */
 @Composable
 internal fun ChoiceSettingRow(title: String, value: String, onClick: () -> Unit) {
@@ -222,7 +223,7 @@ internal fun ChoiceSettingRow(title: String, value: String, onClick: () -> Unit)
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Icon(
-            Icons.AutoMirrored.Filled.KeyboardArrowRight,
+            Icons.Default.KeyboardArrowDown,
             contentDescription = null,
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
         )

@@ -92,6 +92,8 @@
     <string name="appearance_tint">Color</string>
     <string name="appearance_tint_desc">Lights switches, chosen options and armed keys</string>
     <string name="appearance_font">Font</string>
+    <string name="appearance_greeting_animated">Shimmering greeting</string>
+    <string name="appearance_greeting_animated_desc">The name on every empty chat flows with soft colors, not only on the first one</string>
     <string name="appearance_font_system">Default</string>
     <string name="appearance_font_mono">Monospace</string>
     <string name="appearance_font_serif">Serif</string>

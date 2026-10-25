@@ -99,9 +99,6 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.core.view.WindowCompat
-import androidx.core.view.WindowInsetsCompat
-import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import iatheiya.ayana.R
 import iatheiya.ayana.ui.MainViewModel
@@ -112,6 +109,7 @@ import iatheiya.ayana.ui.common.ContextMenuLayer
 import iatheiya.ayana.ui.common.ContextMenuState
 import iatheiya.ayana.ui.common.LocalContextMenu
 import iatheiya.ayana.ui.common.LocalImmersive
+import iatheiya.ayana.ui.common.setStatusBarHidden
 import iatheiya.ayana.ui.liquid.LiquidBackdrop
 import iatheiya.ayana.ui.liquid.LocalLiquidBackdrop
 import iatheiya.ayana.ui.liquid.liquidBackdrop
@@ -207,10 +205,7 @@ private fun MainScreenRoutes(viewModel: MainViewModel, state: UiState) {
     val immersive = settings.immersiveMode
     LaunchedEffect(activity, immersive) {
         val window = activity?.window ?: return@LaunchedEffect
-        WindowCompat.getInsetsController(window, window.decorView).apply {
-            systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-            if (immersive) hide(WindowInsetsCompat.Type.statusBars()) else show(WindowInsetsCompat.Type.statusBars())
-        }
+        setStatusBarHidden(window, window.decorView, hidden = immersive)
     }
     fun closeSettings() {
         scope.launch {
@@ -281,6 +276,7 @@ private fun MainScreenRoutes(viewModel: MainViewModel, state: UiState) {
                 wallpaperDimPct = settings.wallpaperDimPct,
                 wallpaperBlurDp = settings.wallpaperBlurDp,
                 pinchZoomEnabled = settings.pinchZoomEnabled,
+                greetingAnimated = settings.greetingAnimated,
                 outputFontSizeSp = settings.outputFontSizeSp,
                 bubbleFontSizeSp = settings.bubbleFontSizeSp,
             ),
@@ -296,6 +292,7 @@ private fun MainScreenRoutes(viewModel: MainViewModel, state: UiState) {
                 onWallpaperDimChange = viewModel::setWallpaperDim,
                 onWallpaperBlurChange = viewModel::setWallpaperBlur,
                 onPinchZoomEnabledChange = viewModel::setPinchZoomEnabled,
+                onGreetingAnimatedChange = viewModel::setGreetingAnimated,
                 onOutputFontSizeChange = viewModel::setOutputFontSize,
                 onBubbleFontSizeChange = viewModel::setBubbleFontSize,
                 onOpenGlassTuning = { viewModel.setShowGlassTuning(true) },
@@ -560,6 +557,7 @@ private fun MainScreenBody(viewModel: MainViewModel, state: UiState, composerBac
                                 contentBottomPadding = overlayBottom,
                                 onJumpAvailableChange = { jumpAvailable = it },
                                 pinchZoomEnabled = state.workspace.settings.pinchZoomEnabled,
+                                greetingAnimated = settings.greetingAnimated || current.id == settings.introSessionId,
                                 virtualizeLargeOutput = state.workspace.settings.virtualizeLargeOutput,
                                 onTranscriptFontZoom = viewModel::onTranscriptFontZoom,
                                 onToggleBlock = viewModel::toggleBlockCollapsed,
@@ -831,7 +829,7 @@ private fun JumpDownButton(visible: Boolean, centreX: Float, panelTop: Float, or
         enter = fadeIn(tween(160)) + scaleIn(tween(200), initialScale = 0.7f),
         exit = fadeOut(tween(120)) + scaleOut(tween(160), targetScale = 0.7f),
         modifier = Modifier.offset {
-            val size = SEND_BUTTON_SIZE.roundToPx()
+            val size = Ui.sendCircleSize.roundToPx()
             IntOffset(
                 (centreX - origin.x - size / 2f).roundToInt(),
                 (panelTop - origin.y - JUMP_GAP.toPx() - size).roundToInt(),
@@ -841,9 +839,9 @@ private fun JumpDownButton(visible: Boolean, centreX: Float, panelTop: Float, or
         val source = remember { MutableInteractionSource() }
         Box(
             Modifier
-                .size(SEND_BUTTON_SIZE)
+                .size(Ui.sendCircleSize)
                 .clip(CircleShape)
-                .liquidGlass(LocalLiquidBackdrop.current, CircleShape, SEND_BUTTON_SIZE / 2)
+                .liquidGlass(LocalLiquidBackdrop.current, CircleShape, Ui.sendCircleSize / 2)
                 .background(pressWash(source))
                 .clickable(interactionSource = source, indication = null, onClick = onClick),
             contentAlignment = Alignment.Center,

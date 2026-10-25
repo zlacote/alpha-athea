@@ -1,11 +1,9 @@
 package iatheiya.ayana.ui
 
-import android.Manifest
 import android.annotation.SuppressLint
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
@@ -13,9 +11,9 @@ import android.os.VibratorManager
 import androidx.core.app.NotificationChannelCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
-import androidx.core.content.ContextCompat
 import iatheiya.ayana.MainActivity
 import iatheiya.ayana.R
+import iatheiya.ayana.util.notificationsAllowed
 
 /**
  * Tells the user that a long command has ended: a short double vibration, and, while Ayana is in
@@ -40,13 +38,7 @@ class LongCommandSignal(private val context: Context) {
     @SuppressLint("MissingPermission") // checked just below for the versions that need it
     private fun notify(sessionName: String, seconds: Long) {
         val manager = NotificationManagerCompat.from(context)
-        if (!manager.areNotificationsEnabled()) return
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
-            PackageManager.PERMISSION_GRANTED
-        ) {
-            return
-        }
+        if (!manager.areNotificationsEnabled() || !context.notificationsAllowed()) return
         manager.createNotificationChannel(
             NotificationChannelCompat.Builder(CHANNEL, NotificationManagerCompat.IMPORTANCE_DEFAULT)
                 .setName(context.getString(R.string.signal_channel))
