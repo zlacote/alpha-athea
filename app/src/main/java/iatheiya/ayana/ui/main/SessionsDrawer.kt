@@ -39,6 +39,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -57,7 +58,9 @@ import iatheiya.ayana.ui.common.AyanaPill
 import iatheiya.ayana.ui.common.AyanaPillIcon
 import iatheiya.ayana.ui.common.rememberAyanaMenu
 import iatheiya.ayana.ui.liquid.LocalLiquidBackdrop
+import iatheiya.ayana.ui.liquid.liquidBackdrop
 import iatheiya.ayana.ui.liquid.liquidGlass
+import iatheiya.ayana.ui.liquid.rememberLiquidBackdrop
 import iatheiya.ayana.ui.theme.Glass
 import iatheiya.ayana.ui.theme.Ui
 
@@ -81,6 +84,11 @@ fun SessionsDrawerContent(
     val ordered = remember(sessions) {
         sessions.sortedByDescending { it.pinned }
     }
+
+    // The bottom pill must refract the sessions scrolling above it, not the main page behind the
+    // whole drawer. So the sessions list records into its own backdrop and only the pill samples
+    // it; the drawer Surface keeps sampling the main backdrop for its overall frost.
+    val sessionsBackdrop = rememberLiquidBackdrop()
 
     // Surface (not a bare background) so inner text picks up the proper
     // content color instead of the default dark one.
@@ -117,6 +125,7 @@ fun SessionsDrawerContent(
                 Column(
                     Modifier
                         .fillMaxSize()
+                        .liquidBackdrop(sessionsBackdrop)
                         .verticalScroll(rememberScrollState())
                         .padding(bottom = 104.dp),
                 ) {
@@ -149,23 +158,26 @@ fun SessionsDrawerContent(
                         ),
                 )
 
-                // Tier 2: compact pill — identical to TopBar right pill,
-                // now left-aligned as requested.
-                AyanaPill(
-                    modifier = Modifier
-                        .align(Alignment.BottomStart)
-                        .padding(start = 14.dp, bottom = 16.dp),
-                ) {
-                    AyanaPillIcon(
-                        icon = Icons.Default.Settings,
-                        contentDescription = stringResource(R.string.settings),
-                        onClick = onSettings,
-                    )
-                    AyanaPillIcon(
-                        icon = Icons.Outlined.StarBorder,
-                        contentDescription = stringResource(R.string.favorites),
-                        onClick = onOpenFavorites,
-                    )
+                // Tier 2: compact pill — identical to TopBar right pill, now left-aligned. It
+                // refracts the sessions list (its own backdrop above), not the main page behind
+                // the drawer, so scrolling the sessions moves what the glass bends.
+                CompositionLocalProvider(LocalLiquidBackdrop provides sessionsBackdrop) {
+                    AyanaPill(
+                        modifier = Modifier
+                            .align(Alignment.BottomStart)
+                            .padding(start = 14.dp, bottom = 16.dp),
+                    ) {
+                        AyanaPillIcon(
+                            icon = Icons.Default.Settings,
+                            contentDescription = stringResource(R.string.settings),
+                            onClick = onSettings,
+                        )
+                        AyanaPillIcon(
+                            icon = Icons.Outlined.StarBorder,
+                            contentDescription = stringResource(R.string.favorites),
+                            onClick = onOpenFavorites,
+                        )
+                    }
                 }
             }
         }

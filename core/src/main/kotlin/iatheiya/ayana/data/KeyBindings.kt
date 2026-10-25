@@ -13,6 +13,8 @@ data class CustomKey(
     val kind: KeyKind = KeyKind.SEND,
     /** A sticky key latches when pressed and prefixes its payload onto the next key, like a modifier. */
     val sticky: Boolean = false,
+    /** A locked sticky key stays armed for every following key until it is pressed again. */
+    val lock: Boolean = false,
 )
 
 @Serializable

@@ -62,8 +62,8 @@ import iatheiya.ayana.ui.liquid.liquidGlass
 import iatheiya.ayana.ui.theme.glass
 import iatheiya.ayana.ui.theme.messageStyle
 
-/** The send circle sits well inside the field rather than filling its height. */
-private val SEND_BUTTON_SIZE = 32.dp
+/** The drawn send circle, kept smaller than its touch target so it sits inside the field. */
+private val SEND_BUTTON_SIZE = 28.dp
 
 /** Space the buttons occupy at the tail of the field, shared by every
  *  layout that reserves room for them. */
@@ -276,16 +276,23 @@ private fun DraftPanel(
                     IconButton(
                         onClick = onSend,
                         enabled = hasText,
-                        modifier = Modifier
-                            .size(SEND_BUTTON_SIZE)
-                            .clip(CircleShape)
-                            .background(sendBackground),
+                        modifier = Modifier.size(Ui.composerButtonSize),
                     ) {
-                        Icon(
-                            Icons.Default.ArrowUpward,
-                            contentDescription = stringResource(R.string.cd_send),
-                            tint = sendTint,
-                        )
+                        // The drawn circle is smaller than the touch target, so it sits a few
+                        // pixels inside the field instead of filling it edge to edge.
+                        androidx.compose.foundation.layout.Box(
+                            Modifier
+                                .size(SEND_BUTTON_SIZE)
+                                .clip(CircleShape)
+                                .background(sendBackground),
+                            contentAlignment = androidx.compose.ui.Alignment.Center,
+                        ) {
+                            Icon(
+                                Icons.Default.ArrowUpward,
+                                contentDescription = stringResource(R.string.cd_send),
+                                tint = sendTint,
+                            )
+                        }
                     }
                 }
                 if (!compact) {

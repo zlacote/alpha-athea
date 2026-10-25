@@ -135,16 +135,14 @@ fun AyanaDropdownMenu(
             content = content,
         )
     } else {
-        // Grows out of the top-right corner (the overflow button sits there),
-        // so the menu reads as flowing from the button instead of appearing flat.
+        // A quick fade, no scale: a growing scale would also move the sampled position every
+        // frame, so the lens would slowly "zoom into place" over the animation. Appearing at
+        // full size lets the lens refract correctly from the first frame — the magnified rim is
+        // the reveal.
         androidx.compose.animation.AnimatedVisibility(
             visible = expanded,
-            enter = androidx.compose.animation.scaleIn(
-                transformOrigin = androidx.compose.ui.graphics.TransformOrigin(1f, 0f),
-            ) + androidx.compose.animation.fadeIn(),
-            exit = androidx.compose.animation.scaleOut(
-                transformOrigin = androidx.compose.ui.graphics.TransformOrigin(1f, 0f),
-            ) + androidx.compose.animation.fadeOut(),
+            enter = androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(90)),
+            exit = androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(90)),
         ) {
             // The same chrome material as the buttons: liquid glass when glass is on,
             // the one solid tone when it is off. Drawn straight onto a clipped Box (no

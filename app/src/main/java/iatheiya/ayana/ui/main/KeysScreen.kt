@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -30,7 +29,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import iatheiya.ayana.R
 import iatheiya.ayana.data.CustomKey
-import iatheiya.ayana.data.KeyKind
 import iatheiya.ayana.ui.common.AyanaScaffold
 import iatheiya.ayana.ui.common.AyanaScrollHeader
 import iatheiya.ayana.ui.theme.Ui
@@ -55,8 +53,7 @@ fun KeysScreen(
     modifier: Modifier = Modifier,
 ) {
     var buffer by remember { mutableStateOf("") }
-    var sendNow by remember { mutableStateOf(false) }
-    var sticky by remember { mutableStateOf(false) }
+    var mode by remember { mutableStateOf(KeyMode.SEND) }
     var editIndex by remember { mutableStateOf<Int?>(null) }
     val locked = if (keyRowVisible) {
         Modifier
@@ -116,8 +113,9 @@ fun KeysScreen(
                     onRename = { editIndex = it },
                 )
 
-                // One add area: type the sequence by hand or tap the keyboard below it. Without
-                // "send now" the key drops its text into the composer; with it, it runs at once.
+                // One add area: type the sequence by hand or tap the keyboard below it. The mode
+                // dropdown decides what the finished key does — drop into the editor, send at
+                // once, arm as a one-shot modifier (sticky) or latch until pressed again (lock).
                 OutlinedTextField(
                     value = buffer,
                     onValueChange = { buffer = it },
@@ -133,24 +131,17 @@ fun KeysScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    FilterChip(
-                        selected = sendNow,
-                        onClick = { sendNow = !sendNow },
-                        label = { Text(stringResource(R.string.keys_send_now)) },
-                    )
-                    FilterChip(
-                        selected = sticky,
-                        onClick = { sticky = !sticky },
-                        label = { Text(stringResource(R.string.keys_sticky)) },
-                    )
+                    KeyModeDropdown(mode = mode, onModeChange = { mode = it })
                     Spacer(Modifier.weight(1f))
                     Button(
                         onClick = {
-                            val key = if (sendNow) {
-                                CustomKey(label = visibleSequence(buffer).take(12), payload = buffer + "\r", kind = KeyKind.SEND, sticky = sticky)
-                            } else {
-                                CustomKey(label = visibleSequence(buffer).take(12), payload = buffer, kind = KeyKind.INSERT, sticky = sticky)
-                            }
+                            // Send/sticky/lock run the sequence (carriage return appended); only
+                            // "into editor" drops the raw text in. withMode sets the flags.
+                            val send = mode != KeyMode.INSERT
+                            val key = CustomKey(
+                                label = visibleSequence(buffer).take(12),
+                                payload = if (send) buffer + "\r" else buffer,
+                            ).withMode(mode)
                             onKeysChange(keys + key)
                             buffer = ""
                         },

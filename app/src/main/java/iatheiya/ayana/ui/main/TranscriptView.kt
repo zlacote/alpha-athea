@@ -11,7 +11,9 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -59,6 +61,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
@@ -90,6 +93,33 @@ import kotlinx.coroutines.launch
 
 private const val TAIL_LINES = 5
 
+/** How far a pinch must scale before the font moves one step, so a slow pinch still lands. */
+private const val ZOOM_STEP_IN = 1.08f
+private const val ZOOM_STEP_OUT = 1f / ZOOM_STEP_IN
+
+/**
+ * Two-finger pinch anywhere on the transcript, over bubbles and output alike. It listens on the
+ * initial pass, before the children: a bubble's long-press handler would otherwise swallow the
+ * fingers. Only gestures with two or more pointers are taken; single taps and scrolls pass through.
+ */
+private fun Modifier.pinchToZoom(onZoom: (Float) -> Unit): Modifier = pointerInput(onZoom) {
+    awaitEachGesture {
+        awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+        var accumulated = 1f
+        do {
+            val event = awaitPointerEvent(PointerEventPass.Initial)
+            if (event.changes.count { it.pressed } >= 2) {
+                accumulated *= event.calculateZoom()
+                if (accumulated >= ZOOM_STEP_IN || accumulated <= ZOOM_STEP_OUT) {
+                    onZoom(accumulated)
+                    accumulated = 1f
+                }
+                event.changes.forEach { it.consume() }
+            }
+        } while (event.changes.any { it.pressed })
+    }
+}
+
 private sealed interface DisplayItem {
     data class Block(val view: BlockView) : DisplayItem
     data class Chunk(
@@ -115,7 +145,7 @@ fun TranscriptView(
     contentBottomPadding: Dp = Ui.contentPaddingV,
     pinchZoomEnabled: Boolean,
     virtualizeLargeOutput: Boolean = false,
-    onOutputFontZoom: (Float) -> Unit,
+    onTranscriptFontZoom: (Float) -> Unit,
     onToggleBlock: (String) -> Unit,
     onRevealBlock: (String) -> Unit,
     onLocateBlock: (String) -> Int,
@@ -280,17 +310,7 @@ fun TranscriptView(
             state = listState,
             modifier = Modifier
                 .fillMaxSize()
-                .then(
-                    if (pinchZoomEnabled) {
-                        Modifier.pointerInput(Unit) {
-                            detectTransformGestures { _, _, zoom, _ ->
-                                if (zoom != 1f) onOutputFontZoom(zoom)
-                            }
-                        }
-                    } else {
-                        Modifier
-                    }
-                ),
+                .then(if (pinchZoomEnabled) Modifier.pinchToZoom(onTranscriptFontZoom) else Modifier),
             contentPadding = PaddingValues(
                 top = contentTopPadding + Ui.contentPaddingV,
                 bottom = contentBottomPadding,

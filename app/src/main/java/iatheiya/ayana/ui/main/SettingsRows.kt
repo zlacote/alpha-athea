@@ -1,16 +1,21 @@
 package iatheiya.ayana.ui.main
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material3.FilterChip
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -22,6 +27,7 @@ import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.draw.clip
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -191,6 +197,80 @@ internal fun SettingsDivider() {
     )
 }
 
+/**
+ * What a key does, as a single choice the user picks from one list — instead of a "kind" plus
+ * separate sticky flags. Four behaviours: drop text into the editor, send at once, arm as a
+ * one-shot modifier (sticky), or latch until pressed again (lock).
+ */
+internal enum class KeyMode { INSERT, SEND, STICKY, LOCK }
+
+@Composable
+internal fun keyModeLabel(mode: KeyMode): String = when (mode) {
+    KeyMode.INSERT -> stringResource(R.string.settings_keys_kind_insert)
+    KeyMode.SEND -> stringResource(R.string.settings_keys_kind_send)
+    KeyMode.STICKY -> stringResource(R.string.keys_sticky)
+    KeyMode.LOCK -> stringResource(R.string.keys_lock)
+}
+
+/** The mode a stored key represents, read back from its kind + sticky/lock flags. */
+internal fun CustomKey.keyMode(): KeyMode = when {
+    sticky && lock -> KeyMode.LOCK
+    sticky -> KeyMode.STICKY
+    kind == KeyKind.INSERT -> KeyMode.INSERT
+    else -> KeyMode.SEND
+}
+
+/** The same key with its behaviour set to [mode]: the one place mode maps onto kind + flags. */
+internal fun CustomKey.withMode(mode: KeyMode): CustomKey = when (mode) {
+    KeyMode.INSERT -> copy(kind = KeyKind.INSERT, sticky = false, lock = false)
+    KeyMode.SEND -> copy(kind = KeyKind.SEND, sticky = false, lock = false)
+    KeyMode.STICKY -> copy(kind = KeyKind.SEND, sticky = true, lock = false)
+    KeyMode.LOCK -> copy(kind = KeyKind.SEND, sticky = true, lock = true)
+}
+
+/** The one place a key's behaviour is chosen: tap the field, a list flows out, pick one. */
+@Composable
+internal fun KeyModeDropdown(
+    mode: KeyMode,
+    onModeChange: (KeyMode) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var open by remember { mutableStateOf(false) }
+    Box(modifier) {
+        Row(
+            Modifier
+                .clip(RoundedCornerShape(12.dp))
+                .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                .clickable { open = true }
+                .padding(start = 14.dp, end = 8.dp, top = 10.dp, bottom = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(keyModeLabel(mode), style = MaterialTheme.typography.bodyLarge)
+            Icon(
+                Icons.Filled.ArrowDropDown,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        DropdownMenu(
+            expanded = open,
+            onDismissRequest = { open = false },
+            shape = Ui.menuShape,
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+        ) {
+            KeyMode.entries.forEach { candidate ->
+                DropdownMenuItem(
+                    text = { Text(keyModeLabel(candidate)) },
+                    onClick = {
+                        onModeChange(candidate)
+                        open = false
+                    },
+                )
+            }
+        }
+    }
+}
+
 @Composable
 internal fun KeyEditorDialog(
     initial: CustomKey,
@@ -200,8 +280,7 @@ internal fun KeyEditorDialog(
 ) {
     var label by remember { mutableStateOf(initial.label) }
     var payload by remember { mutableStateOf(initial.payload) }
-    var kind by remember { mutableStateOf(initial.kind) }
-    var sticky by remember { mutableStateOf(initial.sticky) }
+    var mode by remember { mutableStateOf(initial.keyMode()) }
 
     AyanaDialogContainer(
         title = stringResource(R.string.settings_keys_edit_title),
@@ -222,32 +301,12 @@ internal fun KeyEditorDialog(
                     modifier = Modifier.fillMaxWidth(),
                 )
                 Text(
-                    text = stringResource(R.string.settings_keys_kind),
+                    text = stringResource(R.string.keys_mode),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 10.dp, bottom = 4.dp),
                 )
-                Row {
-                    // Just the two meaningful actions: a modifier like Ctrl belongs in the sequence
-                    // itself (built from the keyboard), not as an opaque key "kind".
-                    listOf(
-                        KeyKind.SEND to stringResource(R.string.settings_keys_kind_send),
-                        KeyKind.INSERT to stringResource(R.string.settings_keys_kind_insert),
-                    ).forEach { (candidate, text) ->
-                        FilterChip(
-                            selected = kind == candidate,
-                            onClick = { kind = candidate },
-                            label = { Text(text) },
-                            modifier = Modifier.padding(end = 6.dp),
-                        )
-                    }
-                    // A sticky key latches and prefixes the next key, like a modifier.
-                    FilterChip(
-                        selected = sticky,
-                        onClick = { sticky = !sticky },
-                        label = { Text(stringResource(R.string.keys_sticky)) },
-                    )
-                }
+                KeyModeDropdown(mode = mode, onModeChange = { mode = it })
                 Text(
                     text = stringResource(R.string.settings_keys_esc_hint),
                     style = MaterialTheme.typography.bodySmall,
@@ -256,8 +315,14 @@ internal fun KeyEditorDialog(
                 )
             }
         },
+        // The dialog lays out its own buttons so Delete can sit on the far left,
+        // away from Cancel and Save on the right. The container's slots are emptied.
+        dismiss = {},
         confirm = {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
                 if (onDelete != null) {
                     TextButton(onClick = onDelete) {
                         Text(
@@ -266,14 +331,13 @@ internal fun KeyEditorDialog(
                         )
                     }
                 }
+                Spacer(Modifier.weight(1f))
+                TextButton(onClick = onDismiss) {
+                    Text(stringResource(R.string.dialog_cancel))
+                }
                 TextButton(onClick = {
                     onSave(
-                        initial.copy(
-                            label = label.trim(),
-                            payload = payload,
-                            kind = kind,
-                            sticky = sticky,
-                        )
+                        initial.copy(label = label.trim(), payload = payload).withMode(mode)
                     )
                 }) {
                     Text(stringResource(R.string.dialog_save))

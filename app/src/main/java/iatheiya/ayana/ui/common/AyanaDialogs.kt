@@ -32,6 +32,14 @@ fun AyanaDialogContainer(
     modifier: Modifier = Modifier,
     confirm: @Composable () -> Unit,
     content: @Composable ColumnScope.() -> Unit,
+    // The dialog's bottom buttons. The default is just a Cancel; a dialog that needs its own
+    // row (e.g. a destructive action on the far left) passes an empty lambda and lays the
+    // buttons out inside its own [content] instead.
+    dismiss: @Composable () -> Unit = {
+        TextButton(onClick = onDismiss) {
+            Text(stringResource(R.string.dialog_cancel))
+        }
+    },
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -49,11 +57,7 @@ fun AyanaDialogContainer(
             Column { content() }
         },
         confirmButton = confirm,
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.dialog_cancel))
-            }
-        },
+        dismissButton = dismiss,
         modifier = modifier,
     )
 }

@@ -48,6 +48,8 @@ data class UiState(
     val stickyAlt: Boolean = false,
     /** Payload latched by a sticky key, to prefix the next key; null when none is armed. */
     val stickyPrefix: String? = null,
+    /** True when the armed [stickyPrefix] came from a locked key, so it survives each key until pressed again. */
+    val stickyLock: Boolean = false,
     /** Selection in the composer; null means a caret at the end of the draft. */
     val composerSelection: TextRange? = null,
     val showSettings: Boolean = false,
@@ -243,11 +245,23 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun consumeStickyAlt() = _state.update { it.copy(stickyAlt = false) }
 
-    /** A sticky key latched [payload] as the prefix for the next key; pressing it again clears it. */
-    fun toggleStickyPrefix(payload: String) =
-        _state.update { it.copy(stickyPrefix = if (it.stickyPrefix == payload) null else payload) }
+    /**
+     * A sticky key latched [payload] as the prefix for the next key; pressing it again clears it.
+     * A [lock] key stays armed for every following key (until pressed again); a plain sticky key
+     * is cleared once the next key has consumed it.
+     */
+    fun toggleStickyPrefix(payload: String, lock: Boolean) =
+        _state.update {
+            if (it.stickyPrefix == payload) {
+                it.copy(stickyPrefix = null, stickyLock = false)
+            } else {
+                it.copy(stickyPrefix = payload, stickyLock = lock)
+            }
+        }
 
-    fun consumeStickyPrefix() = _state.update { it.copy(stickyPrefix = null) }
+    /** Clears the armed prefix after a key used it — unless it was locked, which stays armed. */
+    fun consumeStickyPrefix() =
+        _state.update { if (it.stickyLock) it else it.copy(stickyPrefix = null) }
 
     /**
      * The composer's text changed. With a modifier armed, a single new character is taken as a
@@ -424,10 +438,28 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun setBubbleFontSize(sizeSp: Int) = workspace.updateSettings { it.copy(bubbleFontSizeSp = sizeSp) }
 
-    /** Pinch on the transcript: scale the output font live. */
-    fun onOutputFontZoom(factor: Float) {
-        if (!workspace.state.value.settings.pinchZoomEnabled) return
-        workspace.updateSettings { it.copy(outputFontSizeSp = (it.outputFontSizeSp * factor).toInt()) }
+    /**
+     * Pinch on the transcript: scale both fonts together — the answers (output) and the user's own
+     * command bubbles — so the whole conversation grows and shrinks as one, from anywhere on it.
+     */
+    fun onTranscriptFontZoom(factor: Float) {
+        if (!workspace.state.value.settings.pinchZoomEnabled || factor == 1f) return
+        workspace.updateSettings {
+            it.copy(
+                outputFontSizeSp = zoomStep(it.outputFontSizeSp, factor),
+                bubbleFontSizeSp = zoomStep(it.bubbleFontSizeSp, factor),
+            )
+        }
+    }
+
+    /** Scales [size] by [factor], moving at least one sp in the pinch direction; the workspace clamps the range. */
+    private fun zoomStep(size: Int, factor: Float): Int {
+        val scaled = kotlin.math.round(size * factor).toInt()
+        return when {
+            scaled != size -> scaled
+            factor > 1f -> size + 1
+            else -> size - 1
+        }
     }
 
     // ----------------------------------------------------------- lifecycle

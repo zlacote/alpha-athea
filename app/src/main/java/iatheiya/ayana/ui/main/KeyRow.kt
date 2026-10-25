@@ -77,6 +77,8 @@ data class TerminalKey(
     val payload: String = "",
     /** A sticky key latches when pressed and prefixes its payload onto the next key. */
     val sticky: Boolean = false,
+    /** A locked sticky key stays armed for every following key until it is pressed again. */
+    val lock: Boolean = false,
 )
 
 object DefaultKeys {
@@ -111,6 +113,7 @@ fun CustomKey.toTerminalKey(): TerminalKey = TerminalKey(
     },
     payload = payload,
     sticky = sticky,
+    lock = lock,
 )
 
 private fun TerminalKey.toCustomKey(): CustomKey = CustomKey(
@@ -139,7 +142,7 @@ fun KeyRow(
     onConsumeStickyCtrl: () -> Unit,
     onToggleStickyAlt: () -> Unit,
     onConsumeStickyAlt: () -> Unit,
-    onToggleStickyPrefix: (String) -> Unit,
+    onToggleStickyPrefix: (payload: String, lock: Boolean) -> Unit,
     onConsumeStickyPrefix: () -> Unit,
     modifier: Modifier = Modifier,
     rows: Int = 1,
@@ -179,7 +182,7 @@ fun KeyRow(
                     // A sticky key does not fire itself: it latches its payload as the prefix the
                     // next key will carry (a user-made modifier). Pressing it again unlatches.
                     if (key.sticky) {
-                        onToggleStickyPrefix(key.payload)
+                        onToggleStickyPrefix(key.payload, key.lock)
                         return@KeyCell
                     }
                     when (key.kind) {

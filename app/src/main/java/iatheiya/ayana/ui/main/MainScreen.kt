@@ -342,7 +342,7 @@ private fun MainScreenBody(viewModel: MainViewModel, state: UiState, composerBac
                                 contentBottomPadding = overlayBottom,
                                 pinchZoomEnabled = state.workspace.settings.pinchZoomEnabled,
                                 virtualizeLargeOutput = state.workspace.settings.virtualizeLargeOutput,
-                                onOutputFontZoom = viewModel::onOutputFontZoom,
+                                onTranscriptFontZoom = viewModel::onTranscriptFontZoom,
                                 onToggleBlock = viewModel::toggleBlockCollapsed,
                                 onRevealBlock = viewModel::revealBlock,
                                 onLocateBlock = { blockId ->
