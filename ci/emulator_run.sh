@@ -120,4 +120,11 @@ if [ -n "$CRASHED" ] || grep -q "FATAL EXCEPTION" "$LOG_DIR/logcat.txt" 2>/dev/n
   exit 1
 fi
 
+# The settings light is a shader; the debug build compiles it at start and logs the outcome.
+if grep -q "light shader failed" "$LOG_DIR/logcat.txt" 2>/dev/null; then
+  echo "The light shader does not compile:" >&2
+  grep -A 20 "light shader failed" "$LOG_DIR/logcat.txt" | head -n 40 >&2 || true
+  exit 1
+fi
+
 exit 0

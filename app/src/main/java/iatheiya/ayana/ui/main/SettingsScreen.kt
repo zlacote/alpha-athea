@@ -1,5 +1,10 @@
 package iatheiya.ayana.ui.main
 
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
+import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.filled.RestartAlt
+import androidx.compose.material.icons.filled.Android
+import androidx.compose.material.icons.filled.Build
 import iatheiya.ayana.ui.common.AyanaLight
 import iatheiya.ayana.BuildConfig
 import androidx.compose.foundation.layout.size
@@ -33,7 +38,6 @@ import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
@@ -58,7 +62,7 @@ import iatheiya.ayana.util.copyToClipboard
 import java.io.File
 
 /** Which room of the settings is on screen: the entry list or one of its sub-rooms. */
-internal enum class SettingsPane { ROOT, INPUT, OUTPUT, APPEARANCE, FAVORITES }
+internal enum class SettingsPane { ROOT, INPUT, OUTPUT, APPEARANCE, FAVORITES, ADVANCED }
 
 @Composable
 internal fun SettingsScreen(
@@ -159,48 +163,13 @@ internal fun SettingsScreen(
 
                 SettingsCard {
                     SettingsEntryRow(
-                        icon = Icons.Default.BugReport,
-                        title = stringResource(R.string.settings_diag_section),
-                        onClick = { copyDiagnostics(context) },
-                        // An action, not a room: it carries a copy affordance, not a chevron.
-                        trailing = {
-                            Icon(
-                                Icons.Default.ContentCopy,
-                                contentDescription = stringResource(R.string.settings_diag_copy),
-                                tint = MaterialTheme.colorScheme.primary,
-                            )
-                        },
+                        icon = Icons.Default.Build,
+                        title = stringResource(R.string.settings_advanced),
+                        onClick = { onPaneChange(SettingsPane.ADVANCED) },
                     )
                 }
 
-                // The one way back to the defaults, for every room at once: at the very end,
-                // centred and bare. It asks first, as it undoes a lot.
-                var confirmReset by remember { mutableStateOf(false) }
-                Box(
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(top = Ui.spaceS),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    TextButton(onClick = { confirmReset = true }) {
-                        Text(stringResource(R.string.glass_reset))
-                    }
-                }
                 AboutFooter()
-                if (confirmReset) {
-                    AyanaConfirmDialog(
-                        title = stringResource(R.string.reset_all_title),
-                        text = stringResource(R.string.reset_all_text),
-                        onConfirm = {
-                            confirmReset = false
-                            onResetAll()
-                        },
-                        onDismiss = { confirmReset = false },
-                        confirmLabel = stringResource(R.string.reset_all_confirm),
-                        confirmTinted = true,
-                    )
-                }
-
                 Spacer(Modifier.height(24.dp))
             }
 
@@ -342,8 +311,91 @@ internal fun SettingsScreen(
                 }
                 Spacer(Modifier.height(24.dp))
             }
+
+            SettingsPane.ADVANCED -> Column(
+                Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState()),
+            ) {
+                AyanaScrollHeader(stringResource(R.string.settings_advanced))
+                SettingsCard {
+                    SettingsEntryRow(
+                        icon = Icons.Outlined.Info,
+                        title = stringResource(R.string.settings_version),
+                        onClick = { context.copyToClipboard(BuildConfig.VERSION_NAME, "ayana-version") },
+                        trailing = {
+                            Text(
+                                BuildConfig.VERSION_NAME,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        },
+                    )
+                    SettingsDivider()
+                    SettingsEntryRow(
+                        icon = Icons.Default.BugReport,
+                        title = stringResource(R.string.settings_diag_section),
+                        onClick = { copyDiagnostics(context) },
+                        // An action, not a room: it carries a copy affordance, not a chevron.
+                        trailing = {
+                            Icon(
+                                Icons.Default.ContentCopy,
+                                contentDescription = stringResource(R.string.settings_diag_copy),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        },
+                    )
+                    SettingsDivider()
+                    SettingsEntryRow(
+                        icon = Icons.Default.Android,
+                        title = stringResource(R.string.settings_system_app),
+                        onClick = { openAppSystemSettings(context) },
+                        trailing = {
+                            Icon(
+                                Icons.AutoMirrored.Filled.OpenInNew,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        },
+                    )
+                }
+
+                // The one way back to the defaults, for every room at once. It asks first, as it
+                // undoes a lot.
+                var confirmReset by remember { mutableStateOf(false) }
+                SettingsCard {
+                    SettingsEntryRow(
+                        icon = Icons.Default.RestartAlt,
+                        title = stringResource(R.string.glass_reset),
+                        onClick = { confirmReset = true },
+                        trailing = {},
+                    )
+                }
+                if (confirmReset) {
+                    AyanaConfirmDialog(
+                        title = stringResource(R.string.reset_all_title),
+                        text = stringResource(R.string.reset_all_text),
+                        onConfirm = {
+                            confirmReset = false
+                            onResetAll()
+                        },
+                        onDismiss = { confirmReset = false },
+                        confirmLabel = stringResource(R.string.reset_all_confirm),
+                        confirmTinted = true,
+                    )
+                }
+                Spacer(Modifier.height(24.dp))
+            }
         }
     }
+}
+
+/** Ayana's own page in the system settings: permissions, notifications, storage. */
+private fun openAppSystemSettings(context: Context) {
+    context.startActivity(
+        Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, android.net.Uri.fromParts("package", context.packageName, null))
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+    )
 }
 
 /** Copies the last crash (if any) and the live log to the clipboard, then toasts. */
@@ -380,8 +432,8 @@ private fun openNotificationSettings(context: Context) {
 }
 
 /**
- * Who made Ayana and where its source lives, under the living light of its icon: the last thing
- * on the settings page.
+ * The living light of the icon, and under it where Ayana's source lives and who made it: the last
+ * thing on the settings page.
  */
 @Composable
 private fun AboutFooter() {
@@ -390,23 +442,19 @@ private fun AboutFooter() {
     Column(
         Modifier
             .fillMaxWidth()
-            .padding(top = Ui.spaceXl),
+            .padding(top = Ui.spaceL),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         AyanaLight(Modifier.size(ABOUT_LIGHT_SIZE))
-        Text(
-            text = stringResource(R.string.about_version, BuildConfig.VERSION_NAME),
-            style = MaterialTheme.typography.titleMedium,
-        )
+        TextButton(onClick = { uriHandler.openUri(url) }) {
+            Text(stringResource(R.string.about_source))
+        }
         Text(
             text = stringResource(R.string.about_author),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        TextButton(onClick = { uriHandler.openUri(url) }) {
-            Text(stringResource(R.string.about_source))
-        }
     }
 }
 
-private val ABOUT_LIGHT_SIZE = 132.dp
+private val ABOUT_LIGHT_SIZE = 264.dp

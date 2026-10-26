@@ -137,7 +137,9 @@
     <string name="attach_copy">Copy into terminal folder</string>
     <string name="attach_link">Give a symlink</string>
     <string name="settings_diag_copied">Logs copied</string>
-    <string name="about_version">Ayana %1$s</string>
+    <string name="settings_advanced">Advanced</string>
+    <string name="settings_version">Version</string>
+    <string name="settings_system_app">Ayana in system settings</string>
     <string name="about_author">by Iatheiya</string>
     <string name="about_source">Source code</string>
     <string name="about_source_url" translatable="false">https://github.com/iatheiya/alpha-ayana</string>
