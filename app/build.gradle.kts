@@ -62,6 +62,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     // AGP 9 no longer accepts android:extractNativeLibs in the manifest; the

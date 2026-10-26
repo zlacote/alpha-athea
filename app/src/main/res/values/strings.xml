@@ -137,6 +137,10 @@
     <string name="attach_copy">Copy into terminal folder</string>
     <string name="attach_link">Give a symlink</string>
     <string name="settings_diag_copied">Logs copied</string>
+    <string name="about_version">Ayana %1$s</string>
+    <string name="about_author">by Iatheiya</string>
+    <string name="about_source">Source code</string>
+    <string name="about_source_url" translatable="false">https://github.com/iatheiya/alpha-ayana</string>
     <string name="settings_font_size">Output font size</string>
     <string name="settings_preview_lines">Lines shown when folded</string>
     <string name="settings_bubble_size">Message font size</string>

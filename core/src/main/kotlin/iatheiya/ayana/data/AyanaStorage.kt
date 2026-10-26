@@ -98,7 +98,7 @@ data class AyanaSettings(
     /** The colour for [TINT_COLOR], as ARGB. */
     val tintArgb: Long? = null,
     /** The accent shown softened toward the dark surfaces instead of exactly as chosen. */
-    val tintSoft: Boolean = false,
+    val tintSoft: Boolean = true,
     /** The transcript font: one of [FONT_SYSTEM], [FONT_MONO], [FONT_SERIF], [FONT_CUSTOM]. */
     val font: String = FONT_SYSTEM,
     /** Bumped each time a custom font file is picked; 0 while there is none. */

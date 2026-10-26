@@ -1,5 +1,9 @@
 package iatheiya.ayana.ui.main
 
+import iatheiya.ayana.ui.common.AyanaLight
+import iatheiya.ayana.BuildConfig
+import androidx.compose.foundation.layout.size
+import androidx.compose.ui.platform.LocalUriHandler
 import iatheiya.ayana.util.toast
 import android.Manifest
 import android.app.Activity
@@ -182,6 +186,7 @@ internal fun SettingsScreen(
                         Text(stringResource(R.string.glass_reset))
                     }
                 }
+                AboutFooter()
                 if (confirmReset) {
                     AyanaConfirmDialog(
                         title = stringResource(R.string.reset_all_title),
@@ -373,3 +378,35 @@ private fun openNotificationSettings(context: Context) {
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
     )
 }
+
+/**
+ * Who made Ayana and where its source lives, under the living light of its icon: the last thing
+ * on the settings page.
+ */
+@Composable
+private fun AboutFooter() {
+    val uriHandler = LocalUriHandler.current
+    val url = stringResource(R.string.about_source_url)
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .padding(top = Ui.spaceXl),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        AyanaLight(Modifier.size(ABOUT_LIGHT_SIZE))
+        Text(
+            text = stringResource(R.string.about_version, BuildConfig.VERSION_NAME),
+            style = MaterialTheme.typography.titleMedium,
+        )
+        Text(
+            text = stringResource(R.string.about_author),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        TextButton(onClick = { uriHandler.openUri(url) }) {
+            Text(stringResource(R.string.about_source))
+        }
+    }
+}
+
+private val ABOUT_LIGHT_SIZE = 132.dp

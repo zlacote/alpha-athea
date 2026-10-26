@@ -1,63 +1,53 @@
 # Ayana
 
-A terminal shaped for the phone.
+A terminal for the phone.
 
-A real shell underneath. On top, every command and its answer stay together —
-to fold, find, copy and come back to.
+A real shell. Each command keeps its answer.
 
 ---
 
-## The model
+## The Model
 
-A shell session is a stream of bytes. Ayana reads it as **commands** and their
-**answers**.
+A session is a stream of bytes. Ayana reads it as **exchanges**: a command, and
+the answer it received.
 
-The shell is started with a small rc file that marks the stream with **OSC 133**:
-where a command starts and where it ends, with its exit code. Everything between
-the two marks is that command's answer. Without the marks there are no
-boundaries, and the output simply flows.
+The shell marks where each command begins and ends (OSC 133). What lies between
+is the answer, closed by its exit code. Without the marks, the output simply
+flows.
 
-So the transcript reads like a conversation: your command, then what the shell
-said back. That shape is a consequence, not the point — the point is that each
-exchange is one piece you can work with.
+Exchanges follow one another, as in a dialog. Each can be folded, searched,
+copied or kept.
 
-Programs that take over the whole screen (`vim`, `top`, `less`) get a screen of
-their own while they run, and the transcript comes back when they exit.
+Programs that draw on the whole screen — `vim`, `top`, `less` — get a screen of
+their own. The transcript returns when they exit.
 
 ## How it runs
 
-Each session writes its events to an append-only journal. On start, the journal
-is replayed through the current parser, so the same events always give the same
-transcript, and a parser fix reaches old sessions too.
+Each session is an append-only journal. On start it is replayed through the
+current parser: the same events always give the same transcript, and a parser
+fix reaches every past session.
 
-The core is plain Kotlin, with no Android in it, and carries the tests. The app
-around it holds the PTY, the screens and nothing the core depends on.
+The core is plain Kotlin and knows nothing of Android. The app adds the PTY and
+the screens.
 
-```
-core/   the stream parser, the transcript, sessions and the journal
-app/    the PTY, the screens, settings
-```
+## Why Ayana
 
-## On the phone
+A terminal assumes a keyboard and a wide screen. A phone has neither: no Esc,
+no Ctrl, no arrows, and little width.
 
-A soft keyboard has no Esc, Ctrl, Tab or arrows: a key row brings them back,
-and every key in it can be moved, renamed or replaced. Commands are written in
-a composer rather than on a line. History is shared by all sessions, and paging
-through it never loses what you were writing. A long command can wake you when
-it ends.
+Ayana starts from the phone. A key row returns the missing keys, and any key in
+it can be moved or replaced. A composer takes the place of the command line.
+History is shared by all sessions and never loses what is being written. A long
+command can signal when it ends.
 
 ## Build
-
-JDK 21, Android SDK 37, NDK 28. No Gradle wrapper is checked in; CI uses
-Gradle 9.
 
 ```bash
 gradle :core:test :app:testDebugUnitTest :app:assembleDebug
 ```
 
-`ci/emulator_run.sh` runs the debug build on an emulator: it types a command,
-reads the session journal back and watches for crashes.
+JDK 21, Android SDK 37, NDK 28, Gradle 9.
 
 ## Status
 
-Before 1.0, and it still changes often.
+Before 1.0. The current goal is the first public release.
