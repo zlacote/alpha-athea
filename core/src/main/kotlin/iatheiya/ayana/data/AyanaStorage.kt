@@ -94,7 +94,7 @@ data class AyanaSettings(
     /** The accent colour also tints the glass (and the solid tone with glass off). */
     val glassTinted: Boolean = false,
     /** Where the colour of buttons and panels comes from: [TINT_DEFAULT], [TINT_SYSTEM] or [TINT_COLOR]. */
-    val tintMode: String = TINT_DEFAULT,
+    val tintMode: String = TINT_SYSTEM,
     /** The colour for [TINT_COLOR], as ARGB. */
     val tintArgb: Long? = null,
     /** The accent shown softened toward the dark surfaces instead of exactly as chosen. */

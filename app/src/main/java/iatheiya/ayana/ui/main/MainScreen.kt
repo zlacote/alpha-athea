@@ -1,5 +1,6 @@
 package iatheiya.ayana.ui.main
 
+import iatheiya.ayana.util.toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -32,8 +33,6 @@ import androidx.compose.ui.text.font.FontFamily
 import iatheiya.ayana.data.AWAKE_ALWAYS
 import iatheiya.ayana.data.AWAKE_RUNNING
 import iatheiya.ayana.data.FONT_CUSTOM
-import iatheiya.ayana.data.TINT_COLOR
-import iatheiya.ayana.data.TINT_SYSTEM
 import iatheiya.ayana.ui.theme.withFamily
 import iatheiya.ayana.data.FONT_MONO
 import iatheiya.ayana.data.FONT_SERIF
@@ -192,11 +191,7 @@ private fun MainScreenRoutes(viewModel: MainViewModel, state: UiState) {
     SideEffect {
         systemTint?.let { SearchHighlight.background = it }
         AccentColor.softened = settings.tintSoft
-        AccentColor.color = when (settings.tintMode) {
-            TINT_SYSTEM -> systemTint
-            TINT_COLOR -> settings.tintArgb?.let { Color(it) }
-            else -> null
-        }
+        AccentColor.color = resolveTint(settings.tintMode, settings.tintArgb, systemTint)
     }
 
     // Full screen hides the status bar on every screen; a swipe from the top brings it back for
@@ -220,13 +215,9 @@ private fun MainScreenRoutes(viewModel: MainViewModel, state: UiState) {
         BackHandler { viewModel.setShowGlassTuning(false) }
         GlassTuningScreen(
             onBack = { viewModel.setShowGlassTuning(false) },
-            // The phone's accent where there is one, else the first basic colour.
             onEnableAccent = {
-                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-                    viewModel.setTint(TINT_SYSTEM, null)
-                } else {
-                    viewModel.setTint(TINT_COLOR, 0xFF5B8DEFL)
-                }
+                val (mode, argb) = tintWhenEnabled(settings.tintArgb)
+                viewModel.setTint(mode, argb)
             },
         )
         return
@@ -464,8 +455,7 @@ private fun MainScreenBody(viewModel: MainViewModel, state: UiState, composerBac
                 is WorkspaceEvent.ShellExited ->
                     context.getString(R.string.shell_exited, event.exitCode)
             }
-            android.widget.Toast.makeText(context, message, android.widget.Toast.LENGTH_SHORT)
-                .show()
+            context.toast(message)
         }
     }
 

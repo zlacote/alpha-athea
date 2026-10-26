@@ -38,8 +38,6 @@ object Glass {
     /** Fill of a selected row inside a glass panel. */
     val SELECTED = Color(0x1FFFFFFF)
 
-    /** The base composited over black: where a glass bubble fades into the canvas. */
-    val CANVAS_TINT = Color(0xFF101014)
 }
 
 /**

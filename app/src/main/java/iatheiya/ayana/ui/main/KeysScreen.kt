@@ -110,7 +110,7 @@ fun KeysScreen(
                     text = stringResource(R.string.keys_edit_hint),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = Ui.screenGutter + Ui.spaceS, vertical = Ui.spaceXs),
+                    modifier = Modifier.padding(horizontal = Ui.pageTextInset, vertical = Ui.spaceXs),
                 )
                 // The editable grid is drawn as the live row itself: the same material (glass, or
                 // the solid tone with glass off, with the chosen colour), the same labels and
@@ -148,7 +148,7 @@ fun KeysScreen(
                         buffer = ""
                     },
                 )
-                KeyEscapeHelp(Modifier.padding(horizontal = 20.dp, vertical = 8.dp))
+                KeyEscapeHelp(Modifier.padding(horizontal = Ui.pageTextInset, vertical = Ui.spaceS))
             }
 
             Spacer(Modifier.height(24.dp))
@@ -176,7 +176,7 @@ fun KeysScreen(
     }
 }
 
-private val KEY_BLOCK_RADIUS = 20.dp
+private val KEY_BLOCK_RADIUS = Ui.cardRadius
 
 private val KeyFieldShape = RoundedCornerShape(topStart = KEY_BLOCK_RADIUS, topEnd = KEY_BLOCK_RADIUS)
 private val KeyActionShape = RoundedCornerShape(bottomStart = KEY_BLOCK_RADIUS, bottomEnd = KEY_BLOCK_RADIUS)

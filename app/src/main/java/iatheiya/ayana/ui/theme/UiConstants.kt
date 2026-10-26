@@ -26,6 +26,9 @@ object Ui {
     /** The least room between a row's text and its control (a switch, a chevron). */
     val controlGap = spaceL
 
+    /** Side inset of loose text on a page (a hint, a help line) between cards. */
+    val pageTextInset = screenGutter + spaceS
+
     // ---- Shapes -----------------------------------------------------------
     val menuRadius = 24.dp
     val menuShape = RoundedCornerShape(menuRadius)
@@ -34,8 +37,11 @@ object Ui {
     val panelShape = RoundedCornerShape(panelRadius)
     val attachmentShape = RoundedCornerShape(14.dp)
     val dialogShape = RoundedCornerShape(20.dp)
+
+    /** Corners of a settings card, and of blocks built to sit among cards. */
+    val cardRadius = 20.dp
+    val cardShape = RoundedCornerShape(cardRadius)
     val pillShape = RoundedCornerShape(50.dp)
-    val smallShape = RoundedCornerShape(8.dp)
 
     // ---- Menus ------------------------------------------------------------
     val menuMinWidth = 190.dp
@@ -51,7 +57,6 @@ object Ui {
     val topBarScrimHeight = 30.dp
     val topBarContentTop = 62.dp
 
-    /** Top of the menu under the top-right pill: the pill's bottom edge plus a gap. */
 
     // ---- Composer ---------------------------------------------------------
     val composerButtonSize = 38.dp
@@ -103,28 +108,22 @@ object Ui {
     val headerPaddingH = 8.dp
     val headerPaddingV = 4.dp
     val contentPaddingV = 8.dp
-    val dividerPadding = 8.dp
 
     // ---- Fades & chevrons -------------------------------------------------
     val fadeHeight = 24.dp
     val tailFadeHeight = 26.dp
     val chevronExpandSize = 20.dp
     val chevronCollapseSize = 16.dp
-    val spacerMedium = 12.dp
 
-    // ---- Misc -------------------------------------------------------------
-    val scrollbarButtonSize = 36.dp
 
     // ---- Alphas -----------------------------------------------------------
     const val highlightAlpha = 0.08f
     const val pressWashAlpha = 0.12f
     const val glowFadeMs = 500
     const val drawerDarkenAlpha = 0.45f
-    const val virtualizedBgAlpha = 0.06f
     const val chevronAlpha = 0.5f
     const val chevronAlphaCollapsedPreview = 0.6f
     const val ghostAlpha = 0.45f
-    const val dividerAlpha = 0.28f
     const val drawerScrimA = 0.28f
     const val drawerScrimB = 0.62f
     const val drawerScrimC = 0.92f
@@ -137,5 +136,4 @@ object Ui {
     const val hugeCharsThreshold = 8000
     const val hugeLinesThreshold = 20 // TAIL_LINES 5 * 4
 
-    // ---- Throttle / caps --------------------------------------------------
 }

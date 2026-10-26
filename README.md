@@ -1,89 +1,63 @@
 # Ayana
 
-A terminal that reads like a messenger.
+A terminal shaped for the phone.
 
-Instead of a character grid, Ayana turns a shell session into a conversation:
-your commands appear as bubbles on the right, their output as blocks on the
-left. It is a real shell underneath — a PTY, a shell, your real `$PATH` — with a
-chat-shaped reading layer on top.
+A real shell underneath. On top, every command and its answer stay together —
+to fold, find, copy and come back to.
 
-The problem it solves is a phone one. A soft keyboard has no Ctrl, Esc, Tab or
-arrow keys, and a raw terminal is miserable on a small screen. Ayana adds a key
-row for exactly those keys, turns scrollback into collapsible messages, and
-replaces line editing with a composer.
+---
 
-## How a shell becomes a chat
+## The model
 
-The trick is shell integration. The app ships an rc file that makes the shell
-emit **OSC 133** markers into the output stream, and `StreamParser` recognises
-them:
+A shell session is a stream of bytes. Ayana reads it as **commands** and their
+**answers**.
 
-| Marker | Meaning | Ayana does |
-| --- | --- | --- |
-| `OSC 133;A` | prompt about to be drawn | ignored |
-| `OSC 133;B` | prompt written | ignored |
-| `OSC 133;C` | command started | opens a running output block |
-| `OSC 133;D;<code>` | command finished | closes it and records the exit code |
+The shell is started with a small rc file that marks the stream with **OSC 133**:
+where a command starts and where it ends, with its exit code. Everything between
+the two marks is that command's answer. Without the marks there are no
+boundaries, and the output simply flows.
 
-Everything between `C` and `D` becomes the body of that command's answer. A
-submission is a `CommandBlock`; the output that follows is an `OutputBlock`. No
-markers means no block boundary, which is why behaviour degrades gracefully on
-shells that do not load the rc file.
+So the transcript reads like a conversation: your command, then what the shell
+said back. That shape is a consequence, not the point — the point is that each
+exchange is one piece you can work with.
 
-Each session journals its events to disk, and a restart replays the journal
-through the current parser — so parser fixes apply retroactively to old
-sessions.
+Programs that take over the whole screen (`vim`, `top`, `less`) get a screen of
+their own while they run, and the transcript comes back when they exit.
 
-## Layers
+## How it runs
 
-Ayana is two Gradle modules. `:core` is plain Kotlin with no Android or Compose
-dependency and carries the unit tests. `:app` is the Android shell around it.
+Each session writes its events to an append-only journal. On start, the journal
+is replayed through the current parser, so the same events always give the same
+transcript, and a parser fix reaches old sessions too.
+
+The core is plain Kotlin, with no Android in it, and carries the tests. The app
+around it holds the PTY, the screens and nothing the core depends on.
 
 ```
-core/            pure JVM, tested without a device
-  terminal/      TerminalEngine — the only interface a shell backend implements
-  parse/         StreamParser — UTF-8 across chunks, SGR → styled spans, OSC 133
-  transcript/    TranscriptBuilder — events → blocks, collapse rules, raw projection
-  session/       Workspace — sessions, drafts, history, favourites, settings
-  core/journal/  SessionJournal — append-only binary log, replayed on start
-app/             Android
-  engine/        NativeShellEngine — a PTY shell via JNI
-  ui/            MainViewModel adapts Workspace to Compose; ui/main renders it
+core/   the stream parser, the transcript, sessions and the journal
+app/    the PTY, the screens, settings
 ```
 
-The core is deterministic: the same journal events always produce the same
-transcript, which is how sessions survive application restarts. Everything
-platform-specific (PTY, Compose, Android logging) sits behind an interface or in
-`app/`, so a different terminal backend replaces `engine/` without touching the
-core or the screens.
+## On the phone
 
-## Known limits
-
-- **Full-screen TUI programs are not supported.** `vim`, `top`, `less`, `fzf`
-  redraw the screen with cursor positioning and the alternate screen buffer.
-  The parser strips every escape sequence except SGR, so these render as
-  garbage. The `RAW` display mode is *not* a terminal emulator — it is the same
-  parsed stream without bubbles, so it does not help. A real grid renderer for
-  intercepted blocks is the missing piece.
-- **Interactive programs without a completion marker** (REPLs such as `python`
-  or `psql`, `tail -f`) never emit `OSC 133;D`. Their output block stays open,
-  which is reported honestly as "running".
-- **Submitting while a command runs** does not cancel it. The bytes are
-  buffered by the tty and run afterwards; the pending bubble shows immediately
-  and the running block keeps growing above it, so the transcript order still
-  matches the real stream order.
-- **`\r` overwrites are approximated.** Carriage return is treated as "discard
-  the line" rather than "overwrite from column 0", so progress bars can lose
-  their prefix.
+A soft keyboard has no Esc, Ctrl, Tab or arrows: a key row brings them back,
+and every key in it can be moved, renamed or replaced. Commands are written in
+a composer rather than on a line. History is shared by all sessions, and paging
+through it never loses what you were writing. A long command can wake you when
+it ends.
 
 ## Build
 
-Requires JDK 21, Android SDK 35, NDK 26.1.10909125. There is no Gradle wrapper
-checked in; CI installs Gradle 8.9.
+JDK 21, Android SDK 37, NDK 28. No Gradle wrapper is checked in; CI uses
+Gradle 9.
 
 ```bash
-gradle :core:test :app:testDebugUnitTest :app:assembleDebug :app:assembleRelease
+gradle :core:test :app:testDebugUnitTest :app:assembleDebug
 ```
 
-`ci/emulator_run.sh` drives the debug APK on an emulator: installs, launches,
-types a command, then reads back the session journal and watches for crashes.
+`ci/emulator_run.sh` runs the debug build on an emulator: it types a command,
+reads the session journal back and watches for crashes.
+
+## Status
+
+Before 1.0, and it still changes often.

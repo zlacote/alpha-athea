@@ -126,6 +126,23 @@ private const val PICK_FONT_FILE = "pick"
 internal fun systemAccent(): Color? =
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) dynamicDarkColorScheme(LocalContext.current).primary else null
 
+/** The colour "automatic" falls back to on a phone without an accent of its own. */
+private val FALLBACK_TINT = BASIC_TINTS.first()
+
+/** The accent colour the stored [mode] and [argb] stand for, or null while the accent is off. */
+internal fun resolveTint(mode: String, argb: Long?, system: Color?): Color? = when (mode) {
+    TINT_SYSTEM -> system ?: Color(FALLBACK_TINT)
+    TINT_COLOR -> argb?.let { Color(it) }
+    else -> null
+}
+
+/**
+ * What turning the accent on picks, wherever it is turned on: the colour chosen before, else the
+ * phone's own accent ("automatic", which falls back to blue on a phone without one).
+ */
+internal fun tintWhenEnabled(lastArgb: Long?): Pair<String, Long?> =
+    if (lastArgb != null) TINT_COLOR to lastArgb else TINT_SYSTEM to null
+
 /**
  * How Ayana looks, in one room: the screen, the surfaces (glass, glow), their colour, the text and
  * the wallpaper. The colour has a card of its own and sits outside glass on purpose: it tints the
@@ -179,10 +196,10 @@ internal fun AppearancePane(state: AppearanceState, actions: AppearanceActions, 
         }
 
         // The surfaces.
-        SettingsEntryGroup {
+        SettingsCard {
             SettingsEntryRow(
                 icon = Icons.Default.BlurOn,
-                title = stringResource(R.string.glass_open),
+                title = stringResource(R.string.glass_title),
                 onClick = actions.onOpenGlassTuning,
             )
             SettingsDivider()
@@ -322,11 +339,11 @@ private fun TintChooser(state: AppearanceState, actions: AppearanceActions) {
         subtitle = stringResource(R.string.appearance_tint_desc),
         checked = on,
         onChange = { enable ->
-            when {
-                !enable -> actions.onTintChange(TINT_DEFAULT, null)
-                state.tintArgb != null -> actions.onTintChange(TINT_COLOR, state.tintArgb)
-                system != null -> actions.onTintChange(TINT_SYSTEM, null)
-                else -> actions.onTintChange(TINT_COLOR, BASIC_TINTS.first())
+            if (enable) {
+                val (mode, argb) = tintWhenEnabled(state.tintArgb)
+                actions.onTintChange(mode, argb)
+            } else {
+                actions.onTintChange(TINT_DEFAULT, null)
             }
         },
     )

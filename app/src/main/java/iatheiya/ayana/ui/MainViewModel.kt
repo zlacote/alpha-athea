@@ -1,5 +1,6 @@
 package iatheiya.ayana.ui
 
+import iatheiya.ayana.util.toast
 import android.app.Application
 import android.content.Context
 import android.net.Uri
@@ -475,7 +476,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     /** Replaces the whole key row (used by the settings editor). */
     fun setCustomKeys(keys: List<CustomKey>) = workspace.setCustomKeys(keys)
 
-    fun resetKeysToDefaults() = workspace.setCustomKeys(emptyList())
 
     // ---------------------------------------------------------------- search
 
@@ -634,7 +634,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             workspace.updateSettings { it.copy(font = FONT_CUSTOM, customFontVersion = System.currentTimeMillis()) }
         } else {
             file.delete()
-            android.widget.Toast.makeText(context, R.string.appearance_font_unreadable, android.widget.Toast.LENGTH_SHORT).show()
+            context.toast(R.string.appearance_font_unreadable)
         }
     }
 

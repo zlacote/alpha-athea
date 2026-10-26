@@ -29,7 +29,7 @@ fun SelectTextScreen(
     modifier: Modifier = Modifier,
 ) {
     AyanaScaffold(onBack = onClose, modifier = modifier) {
-        AyanaScrollHeader(stringResource(R.string.select_text_title))
+        AyanaScrollHeader(stringResource(R.string.select_text))
         SelectionContainer(
             Modifier
                 .weight(1f)

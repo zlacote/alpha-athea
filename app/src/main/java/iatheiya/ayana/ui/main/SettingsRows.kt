@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.KeyboardArrowDown
@@ -31,11 +30,11 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 
 
-/** A card of its own, without a title: one entry or switch group drawn as one rounded block. */
+/** A card without a title: one entry, or a group of rows with a [SettingsDivider] between them. */
 @Composable
 internal fun SettingsCard(content: @Composable ColumnScope.() -> Unit) {
     Surface(
-        shape = RoundedCornerShape(20.dp),
+        shape = Ui.cardShape,
         color = MaterialTheme.colorScheme.surfaceContainer,
         modifier = Modifier
             .fillMaxWidth()
@@ -94,6 +93,7 @@ internal fun SwitchRow(
     }
 }
 
+/** A whole-number setting on a slider, its value shown at the right. */
 @Composable
 internal fun SliderRow(
     title: String,
@@ -101,45 +101,63 @@ internal fun SliderRow(
     range: ClosedFloatingPointRange<Float>,
     onChange: (Int) -> Unit,
     enabled: Boolean = true,
+) = SliderRow(
+    title = title,
+    value = value.toFloat(),
+    valueText = "$value",
+    range = range,
+    onChange = { onChange(it.toInt()) },
+    reason = null,
+    enabled = enabled,
+)
+
+/**
+ * A setting on a slider: its name, its value at the right, and the slider under them. With a
+ * [reason] the row is greyed out and says why the setting does nothing right now.
+ */
+@Composable
+internal fun SliderRow(
+    title: String,
+    value: Float,
+    valueText: String,
+    range: ClosedFloatingPointRange<Float>,
+    onChange: (Float) -> Unit,
+    reason: String? = null,
+    enabled: Boolean = reason == null,
 ) {
     Column(
         Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp)
-            .alpha(if (enabled) 1f else Ui.ghostAlpha),
+            .padding(horizontal = Ui.spaceL, vertical = Ui.spaceS),
     ) {
         Row(
-            Modifier.fillMaxWidth(),
+            Modifier
+                .fillMaxWidth()
+                .alpha(if (enabled) 1f else Ui.ghostAlpha),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(text = title, style = MaterialTheme.typography.bodyLarge)
             Text(
-                text = "$value",
+                text = valueText,
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
+        if (reason != null) {
+            Text(
+                text = reason,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
         Slider(
-            value = value.toFloat(),
-            onValueChange = { onChange(it.toInt()) },
+            value = value,
+            onValueChange = onChange,
             enabled = enabled,
             valueRange = range,
+            modifier = Modifier.alpha(if (enabled) 1f else Ui.ghostAlpha),
         )
-    }
-}
-
-/** A group of entries drawn as one rounded card; the caller puts a [SettingsDivider] between rows. */
-@Composable
-internal fun SettingsEntryGroup(content: @Composable ColumnScope.() -> Unit) {
-    Surface(
-        shape = RoundedCornerShape(20.dp),
-        color = MaterialTheme.colorScheme.surfaceContainer,
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = Ui.screenGutter, vertical = Ui.sectionGap),
-    ) {
-        Column(content = content)
     }
 }
 
@@ -165,7 +183,7 @@ internal fun SettingsEntryRow(
         Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 16.dp),
+            .padding(Ui.spaceL),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(

@@ -7,10 +7,8 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -21,7 +19,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -50,7 +47,6 @@ import iatheiya.ayana.ui.liquid.liquidBackdrop
 import iatheiya.ayana.ui.liquid.liquidGlass
 import iatheiya.ayana.ui.liquid.rememberLiquidBackdrop
 import iatheiya.ayana.ui.theme.AccentColor
-import iatheiya.ayana.ui.theme.Ui
 
 /** Height of the photo sample. */
 private val SAMPLE_HEIGHT = 240.dp
@@ -101,7 +97,7 @@ fun GlassTuningScreen(
         ) {
             // Title and master switch scroll away; their height is the photo's resting anchor.
             Column(Modifier.onSizeChanged { aboveHeightPx = it.height.toFloat() }) {
-                AyanaScrollHeader(stringResource(R.string.glass_tuning_title))
+                AyanaScrollHeader(stringResource(R.string.glass_title))
                 SettingsCard {
                     SwitchRow(
                         title = stringResource(R.string.glass_toggle),
@@ -255,10 +251,6 @@ private fun SectionTitle(title: String) {
     )
 }
 
-/**
- * One parameter. A non-null [reason] greys the slider out and says what it waits for; a
- * disabled slider cannot be dragged.
- */
 @Composable
 private fun TuningSlider(
     label: String,
@@ -266,44 +258,7 @@ private fun TuningSlider(
     range: ClosedFloatingPointRange<Float>,
     reason: String?,
     onChange: (Float) -> Unit,
-) {
-    val enabled = reason == null
-    val labelColor = if (enabled) {
-        MaterialTheme.colorScheme.onSurface
-    } else {
-        MaterialTheme.colorScheme.onSurface.copy(alpha = Ui.ghostAlpha)
-    }
-    Column(
-        Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 6.dp),
-    ) {
-        Row(
-            Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            Text(text = label, style = MaterialTheme.typography.bodyLarge, color = labelColor)
-            Text(
-                text = "%.2f".format(value),
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        if (reason != null) {
-            Text(
-                text = reason,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        Slider(
-            value = value,
-            onValueChange = onChange,
-            enabled = enabled,
-            valueRange = range,
-        )
-    }
-}
+) = SliderRow(title = label, value = value, valueText = "%.2f".format(value), range = range, onChange = onChange, reason = reason)
 
 /**
  * A generated colour scene — overlapping saturated blobs over a deep base, crossed by

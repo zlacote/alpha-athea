@@ -1,5 +1,6 @@
 package iatheiya.ayana.ui.main
 
+import iatheiya.ayana.util.toast
 import android.Manifest
 import android.app.Activity
 import android.content.Context
@@ -118,7 +119,7 @@ internal fun SettingsScreen(
             ) {
                 AyanaScrollHeader(stringResource(R.string.settings))
 
-                SettingsEntryGroup {
+                SettingsCard {
                     SettingsEntryRow(
                         icon = Icons.Default.Keyboard,
                         title = stringResource(R.string.settings_section_input),
@@ -138,7 +139,7 @@ internal fun SettingsScreen(
                     )
                 }
 
-                SettingsEntryGroup {
+                SettingsCard {
                     SettingsEntryRow(
                         icon = Icons.Default.Palette,
                         title = stringResource(R.string.settings_section_appearance),
@@ -152,7 +153,7 @@ internal fun SettingsScreen(
                     )
                 }
 
-                SettingsEntryGroup {
+                SettingsCard {
                     SettingsEntryRow(
                         icon = Icons.Default.BugReport,
                         title = stringResource(R.string.settings_diag_section),
@@ -350,11 +351,7 @@ private fun copyDiagnostics(context: Context) {
         logs
     }
     context.copyToClipboard(text, "ayana-logs")
-    android.widget.Toast.makeText(
-        context,
-        context.getString(R.string.settings_diag_copied),
-        android.widget.Toast.LENGTH_SHORT,
-    ).show()
+    context.toast(R.string.settings_diag_copied)
 }
 
 /** False once the user has refused for good: Android then answers at once, without a dialog. */

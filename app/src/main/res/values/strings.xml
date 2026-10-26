@@ -6,9 +6,7 @@
     <!-- Content descriptions -->
     <string name="cd_open_drawer">Open sessions drawer</string>
     <string name="cd_new_session">New session</string>
-    <string name="cd_search">Search in session</string>
     <string name="cd_more">More options</string>
-    <string name="cd_back">Back</string>
     <string name="cd_close">Close</string>
     <string name="cd_search_previous">Previous match</string>
     <string name="cd_search_next">Next match</string>
@@ -20,11 +18,8 @@
     <string name="greeting_hint">Ready for your command</string>
 
     <!-- Main screen -->
-    <string name="input_hint">Type a command…</string>
     <string name="input_prompt">%1$s$</string>
     <string name="input_hint_running">Input for the running command…</string>
-    <string name="editor_title">Editor</string>
-    <string name="select_text_title">Select text</string>
     <string name="search_in_session_hint">Search in session</string>
 
     <!-- Session menu -->
@@ -32,8 +27,6 @@
     <string name="menu_rename">Rename</string>
     <string name="menu_pin">Pin</string>
     <string name="menu_unpin">Unpin</string>
-    <string name="menu_display_block">Blocks view</string>
-    <string name="menu_display_raw">Raw stream</string>
     <string name="menu_delete">Delete</string>
 
     <!-- Dialogs -->
@@ -48,7 +41,6 @@
     <string name="copy">Copy</string>
     <string name="select_text">Select text</string>
     <string name="add_to_favorites">Add to favorites</string>
-    <string name="copied">Copied</string>
 
     <!-- Drawer -->
     <string name="drawer_sessions">Sessions</string>
@@ -123,30 +115,19 @@
     <string name="settings_fav_return_desc">Tapping a favorite places it and goes back to the chat</string>
     <string name="settings_fav_send">Send immediately</string>
     <string name="settings_fav_send_desc">Tapping a favorite runs it instead of inserting it</string>
-    <string name="keys_open">Keys and buttons</string>
     <string name="keys_title">Keys</string>
-    <string name="keys_add">Add</string>
-    <string name="keys_send_now">Send now</string>
     <string name="keys_sticky">Sticky</string>
     <string name="keys_lock">Lock</string>
     <string name="keys_mode">Action</string>
     <string name="keys_edit_hint">Tap a key to edit it, hold it to move it</string>
-    <string name="keys_list_title">Buttons</string>
     <string name="keys_rows">Rows</string>
     <string name="keys_cols">Columns</string>
-    <string name="keys_remove">Remove</string>
-    <string name="settings_keys_section">Keys</string>
-    <string name="settings_keys_add">Add key</string>
-    <string name="settings_keys_reset">Reset to defaults</string>
     <string name="settings_keys_unnamed">Unnamed key</string>
     <string name="settings_keys_edit_title">Edit key</string>
     <string name="settings_keys_label">Label</string>
     <string name="settings_keys_payload">Sequence / text</string>
-    <string name="settings_keys_kind">Action</string>
     <string name="settings_keys_kind_send">Send now</string>
     <string name="settings_keys_kind_insert">Into editor</string>
-    <string name="settings_keys_kind_ctrl">Ctrl</string>
-    <string name="settings_keys_kind_alt">Alt</string>
     <string name="settings_keys_esc_hint">Special keys are typed as escapes. For example, Home is \\e[H.</string>
     <string name="keys_reference">Key codes reference</string>
     <string name="settings_diag_section">Diagnostics</string>
@@ -154,9 +135,7 @@
     <string name="attach_add">Attach file</string>
     <string name="attach_chooser_title">What to do with the file?</string>
     <string name="attach_copy">Copy into terminal folder</string>
-    <string name="attach_move">Move into terminal folder</string>
     <string name="attach_link">Give a symlink</string>
-    <string name="attach_name">Give the path only</string>
     <string name="settings_diag_copied">Logs copied</string>
     <string name="settings_font_size">Output font size</string>
     <string name="settings_preview_lines">Lines shown when folded</string>
@@ -167,14 +146,8 @@
     <string name="favorites_edit">Edit</string>
     <string name="favorites_edit_title">Edit command</string>
 
-    <plurals name="output_lines">
-        <item quantity="one">%d line</item>
-        <item quantity="other">%d lines</item>
-    </plurals>
     <!-- Glass tuning -->
-    <string name="glass_section">Glass</string>
-    <string name="glass_open">Glass tuning</string>
-    <string name="glass_tuning_title">Glass</string>
+    <string name="glass_title">Glass</string>
     <string name="glass_toggle">Glass</string>
     <string name="glass_toggle_desc">Frosted, refracting surfaces</string>
     <string name="glass_blur">Blur radius</string>
@@ -200,7 +173,6 @@
     <string name="glass_group_highlight">Highlight</string>
     <string name="glass_needs_glass">needs glass on</string>
     <string name="glass_needs_bezel">needs a bezel above 0</string>
-    <string name="glass_needs_bend">needs a bend above 0</string>
     <string name="glass_needs_highlight">needs highlight strength above 0</string>
     <string name="attach_path">Insert path</string>
     <string name="settings_attach_sends_now">Send file commands at once</string>
