@@ -1,5 +1,6 @@
 package iatheiya.ayana.ui.main
 
+import iatheiya.ayana.ui.common.AyanaPage
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -13,7 +14,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import iatheiya.ayana.R
 import iatheiya.ayana.ui.common.AyanaScaffold
-import iatheiya.ayana.ui.common.AyanaScrollHeader
 
 /**
  * The glow in its own room. The switch stays on top; the sliders below wait for it and are
@@ -35,8 +35,7 @@ fun GlowScreen(
     modifier: Modifier = Modifier,
 ) {
     AyanaScaffold(onBack = onBack, modifier = modifier) {
-        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-            AyanaScrollHeader(stringResource(R.string.settings_glow_section))
+        AyanaPage(stringResource(R.string.settings_glow_section)) {
             SettingsCard {
                 SwitchRow(
                     title = stringResource(R.string.settings_glow),
@@ -80,7 +79,6 @@ fun GlowScreen(
                     )
                 }
             }
-            Spacer(Modifier.height(24.dp))
         }
     }
 }

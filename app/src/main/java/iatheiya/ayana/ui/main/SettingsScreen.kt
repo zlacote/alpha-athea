@@ -1,9 +1,12 @@
 package iatheiya.ayana.ui.main
 
+import androidx.compose.foundation.clickable
+import iatheiya.ayana.ui.common.AyanaDialogContainer
+import androidx.compose.material.icons.outlined.FavoriteBorder
+import iatheiya.ayana.ui.common.AyanaPage
 import androidx.compose.foundation.layout.Box
 import iatheiya.ayana.ui.common.SheetChoice
 import iatheiya.ayana.ui.common.AyanaToggleSheet
-import androidx.compose.material.icons.outlined.Tag
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.ui.platform.LocalDensity
@@ -63,7 +66,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import iatheiya.ayana.R
 import iatheiya.ayana.ui.common.AyanaScaffold
-import iatheiya.ayana.ui.common.AyanaScrollHeader
 import iatheiya.ayana.util.AyanaLog
 import iatheiya.ayana.util.notificationsAllowed
 import iatheiya.ayana.util.copyToClipboard
@@ -128,68 +130,43 @@ internal fun SettingsScreen(
 
     AyanaScaffold(onBack = handleBack, modifier = modifier) {
         when (pane) {
-            // The few entries sit in the middle of the page, under the header, not crowded at its top.
-            SettingsPane.ROOT -> BoxWithConstraints(Modifier.fillMaxSize()) {
-                val pageHeight = maxHeight
-                var headerHeight by remember { mutableStateOf(0.dp) }
-                val density = LocalDensity.current
-                Column(
-                    Modifier
-                        .fillMaxSize()
-                        .verticalScroll(scrollState),
-                ) {
-                    Box(Modifier.onSizeChanged { headerHeight = with(density) { it.height.toDp() } }) {
-                        AyanaScrollHeader(stringResource(R.string.settings))
-                    }
-                    Column(
-                        Modifier
-                            .fillMaxWidth()
-                            .heightIn(min = (pageHeight - headerHeight * 2).coerceAtLeast(0.dp)),
-                        verticalArrangement = Arrangement.Center,
-                    ) {
-                        SettingsCard {
-                            SettingsEntryRow(
-                                icon = Icons.Default.Keyboard,
-                                title = stringResource(R.string.settings_section_input),
-                                onClick = { onPaneChange(SettingsPane.INPUT) },
-                            )
-                            SettingsDivider()
-                            SettingsEntryRow(
-                                icon = Icons.Default.Terminal,
-                                title = stringResource(R.string.settings_section_output),
-                                onClick = { onPaneChange(SettingsPane.OUTPUT) },
-                            )
-                        }
-                        SettingsCard {
-                            SettingsEntryRow(
-                                icon = Icons.Default.Palette,
-                                title = stringResource(R.string.settings_section_appearance),
-                                onClick = { onPaneChange(SettingsPane.APPEARANCE) },
-                            )
-                            SettingsDivider()
-                            SettingsEntryRow(
-                                icon = Icons.Default.KeyboardCommandKey,
-                                title = stringResource(R.string.settings_key_row),
-                                onClick = onOpenKeys,
-                            )
-                        }
-                        SettingsCard {
-                            SettingsEntryRow(
-                                icon = Icons.Outlined.Info,
-                                title = stringResource(R.string.settings_about),
-                                onClick = { onPaneChange(SettingsPane.ABOUT) },
-                            )
-                        }
-                    }
+            SettingsPane.ROOT -> AyanaPage(stringResource(R.string.settings), scrollState) {
+                SettingsCard {
+                    SettingsEntryRow(
+                        icon = Icons.Default.Keyboard,
+                        title = stringResource(R.string.settings_section_input),
+                        onClick = { onPaneChange(SettingsPane.INPUT) },
+                    )
+                    SettingsDivider()
+                    SettingsEntryRow(
+                        icon = Icons.Default.Terminal,
+                        title = stringResource(R.string.settings_section_output),
+                        onClick = { onPaneChange(SettingsPane.OUTPUT) },
+                    )
+                }
+                SettingsCard {
+                    SettingsEntryRow(
+                        icon = Icons.Default.Palette,
+                        title = stringResource(R.string.settings_section_appearance),
+                        onClick = { onPaneChange(SettingsPane.APPEARANCE) },
+                    )
+                    SettingsDivider()
+                    SettingsEntryRow(
+                        icon = Icons.Default.KeyboardCommandKey,
+                        title = stringResource(R.string.settings_key_row),
+                        onClick = onOpenKeys,
+                    )
+                }
+                SettingsCard {
+                    SettingsEntryRow(
+                        icon = Icons.Outlined.Info,
+                        title = stringResource(R.string.settings_about),
+                        onClick = { onPaneChange(SettingsPane.ABOUT) },
+                    )
                 }
             }
 
-            SettingsPane.INPUT -> Column(
-                Modifier
-                    .fillMaxSize()
-                    .verticalScroll(rememberScrollState()),
-            ) {
-                AyanaScrollHeader(stringResource(R.string.settings_section_input))
+            SettingsPane.INPUT -> AyanaPage(stringResource(R.string.settings_section_input)) {
                 SettingsCard {
                     SwitchRow(
                         title = stringResource(R.string.settings_enter_sends),
@@ -233,15 +210,9 @@ internal fun SettingsScreen(
                         onSendsImmediatelyChange = onFavoriteSendsImmediatelyChange,
                     )
                 }
-                Spacer(Modifier.height(24.dp))
             }
 
-            SettingsPane.OUTPUT -> Column(
-                Modifier
-                    .fillMaxSize()
-                    .verticalScroll(rememberScrollState()),
-            ) {
-                AyanaScrollHeader(stringResource(R.string.settings_section_output))
+            SettingsPane.OUTPUT -> AyanaPage(stringResource(R.string.settings_section_output)) {
                 SettingsCard {
                     SwitchRow(
                         title = stringResource(R.string.settings_raw_stream),
@@ -301,23 +272,36 @@ internal fun SettingsScreen(
                         enabled = signalLongCommands,
                     )
                 }
-                Spacer(Modifier.height(24.dp))
             }
 
             SettingsPane.APPEARANCE -> AppearancePane(state = appearance, actions = appearanceActions, scrollState = appearanceScroll)
 
-            SettingsPane.ABOUT -> Column(
-                Modifier
-                    .fillMaxSize()
-                    .verticalScroll(rememberScrollState()),
-            ) {
-                AyanaScrollHeader(stringResource(R.string.settings_about))
-                // The icon's light, alive, at the top of the room.
+            SettingsPane.ABOUT -> AyanaPage(stringResource(R.string.settings_about)) {
+                // The icon's light as the room's emblem, and under it what this is.
                 AyanaLight(
                     Modifier
                         .align(Alignment.CenterHorizontally)
                         .size(ABOUT_LIGHT_SIZE),
                 )
+                Text(
+                    stringResource(R.string.app_name),
+                    style = MaterialTheme.typography.headlineMedium,
+                    modifier = Modifier.align(Alignment.CenterHorizontally),
+                )
+                Text(
+                    stringResource(R.string.about_version, BuildConfig.VERSION_NAME),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.align(Alignment.CenterHorizontally),
+                )
+                Text(
+                    stringResource(R.string.about_tagline),
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier
+                        .align(Alignment.CenterHorizontally)
+                        .padding(top = Ui.spaceM, bottom = Ui.spaceL),
+                )
+                var thanks by remember { mutableStateOf(false) }
                 val uriHandler = LocalUriHandler.current
                 val sourceUrl = stringResource(R.string.about_source_url)
                 val authorUrl = stringResource(R.string.about_author_url)
@@ -344,16 +328,9 @@ internal fun SettingsScreen(
                 }
                 SettingsCard {
                     SettingsEntryRow(
-                        icon = Icons.Outlined.Tag,
-                        title = stringResource(R.string.settings_version),
-                        onClick = { context.copyToClipboard(BuildConfig.VERSION_NAME, "ayana-version") },
-                        trailing = {
-                            Text(
-                                BuildConfig.VERSION_NAME,
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        },
+                        icon = Icons.Outlined.FavoriteBorder,
+                        title = stringResource(R.string.about_thanks),
+                        onClick = { thanks = true },
                     )
                     SettingsDivider()
                     SettingsEntryRow(
@@ -382,6 +359,7 @@ internal fun SettingsScreen(
                         trailing = {},
                     )
                 }
+                if (thanks) AcknowledgementsDialog(onDismiss = { thanks = false })
                 if (confirmReset) {
                     AyanaConfirmDialog(
                         title = stringResource(R.string.reset_all_title),
@@ -395,7 +373,6 @@ internal fun SettingsScreen(
                         confirmTinted = true,
                     )
                 }
-                Spacer(Modifier.height(24.dp))
             }
         }
     }
@@ -484,4 +461,41 @@ private fun FavoritesRow(
 private const val FAV_RETURN = "return"
 private const val FAV_SEND = "send"
 
-private val ABOUT_LIGHT_SIZE = 280.dp
+private val ABOUT_LIGHT_SIZE = 220.dp
+
+/** The projects the glass is built on, as their licence asks: who made them, and where they live. */
+@Composable
+private fun AcknowledgementsDialog(onDismiss: () -> Unit) {
+    val uriHandler = LocalUriHandler.current
+    AyanaDialogContainer(
+        title = stringResource(R.string.about_thanks),
+        onDismiss = onDismiss,
+        confirm = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.dialog_ok)) }
+        },
+        dismiss = {},
+        content = {
+            Text(
+                stringResource(R.string.about_thanks_text),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            ACKNOWLEDGED.forEach { (name, by, url) ->
+                Column(
+                    Modifier
+                        .fillMaxWidth()
+                        .clickable { uriHandler.openUri(url) }
+                        .padding(vertical = Ui.spaceS),
+                ) {
+                    Text(name, style = MaterialTheme.typography.bodyLarge)
+                    Text(by, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        },
+    )
+}
+
+private val ACKNOWLEDGED = listOf(
+    Triple("KMPLiquidGlass", "Kashif-E · Apache License 2.0", "https://github.com/Kashif-E/KMPLiquidGlass"),
+    Triple("Cloudy", "skydoves (Jaewoong Eum) · Apache License 2.0", "https://github.com/skydoves/Cloudy"),
+)

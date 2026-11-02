@@ -1,5 +1,6 @@
 package iatheiya.ayana.ui.main
 
+import iatheiya.ayana.ui.common.AyanaPage
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -33,7 +34,6 @@ import iatheiya.ayana.R
 import iatheiya.ayana.data.CustomKey
 import iatheiya.ayana.util.unescapeKeySequence
 import iatheiya.ayana.ui.common.AyanaScaffold
-import iatheiya.ayana.ui.common.AyanaScrollHeader
 import iatheiya.ayana.ui.liquid.liquidGlass
 import iatheiya.ayana.ui.theme.Ui
 
@@ -74,12 +74,7 @@ fun KeysScreen(
         modifier = modifier,
         overlay = { KeyDragGhostOverlay(ghost) },
     ) {
-        Column(
-            Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState()),
-        ) {
-            AyanaScrollHeader(stringResource(R.string.keys_title))
+        AyanaPage(stringResource(R.string.keys_title)) {
             SettingsCard {
                 SwitchRow(
                     title = stringResource(R.string.settings_key_row),
@@ -151,7 +146,6 @@ fun KeysScreen(
                 KeyEscapeHelp(Modifier.padding(horizontal = Ui.pageTextInset, vertical = Ui.spaceS))
             }
 
-            Spacer(Modifier.height(24.dp))
         }
     }
 

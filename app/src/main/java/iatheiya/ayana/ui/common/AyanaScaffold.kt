@@ -1,5 +1,13 @@
 package iatheiya.ayana.ui.common
 
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
@@ -117,3 +125,49 @@ fun AyanaScrollHeader(title: String) {
         Spacer(Modifier.height(Ui.topBarBottomPadding))
     }
 }
+
+/**
+ * A settings-like page: its title, and its content under it. When everything fits on the screen,
+ * the title and the content stand together in the middle of the space below the back button, the
+ * title just above the first card; when it does not fit, the page scrolls from the top. One rule
+ * for every such page, so none of them crowds the top and leaves the bottom empty.
+ */
+@Composable
+fun AyanaPage(
+    title: String,
+    scrollState: ScrollState = rememberScrollState(),
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        val page = maxHeight
+        val density = LocalDensity.current
+        val top = WindowInsets.statusBars.getTop(density).let { with(density) { it.toDp() } } + PAGE_TOP_CLEAR
+        Column(
+            Modifier
+                .fillMaxSize()
+                .verticalScroll(scrollState),
+        ) {
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = page)
+                    .padding(top = top, bottom = PAGE_BOTTOM_ROOM),
+                verticalArrangement = Arrangement.Center,
+            ) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = MaterialTheme.colorScheme.onBackground,
+                    modifier = Modifier.padding(start = Ui.pageTextInset, end = Ui.pageTextInset, bottom = Ui.spaceS),
+                )
+                content()
+            }
+        }
+    }
+}
+
+/** Room kept clear at the top of a page for the floating back button. */
+private val PAGE_TOP_CLEAR = Ui.topBarTopPadding + Ui.topButtonSize + Ui.topBarBottomPadding
+
+/** Room left under the last card of a page. */
+private val PAGE_BOTTOM_ROOM = Ui.spaceXl

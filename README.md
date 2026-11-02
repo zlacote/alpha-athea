@@ -1,44 +1,41 @@
 # Ayana
 
-A terminal for the phone.
+A terminal for Android, made for the phone screen.
 
-A real shell. Each command keeps its answer.
+Ayana runs the phone's own shell in a real terminal (a PTY) and shows the session
+as a conversation: the command you sent, and under it what the shell answered.
+Long answers fold. Any command or answer can be searched, copied, or kept as a
+favorite.
 
----
+## On a phone
 
-## The Model
+- **The keys a phone keyboard lacks.** A row above the keyboard with Esc, Tab,
+  Ctrl, Alt, the arrows, Home and End, and the symbols it hides a page away:
+  `/`, `|`, `~`, `-`. Any key can be moved, edited or replaced.
+- **A composer, not a command line.** Commands are written like messages, with
+  a full-screen editor for long ones. Up and Down page through history shared
+  by all sessions, without losing what you were writing.
+- **Sessions that stay.** Several at once, each kept across restarts.
+- **Programs that take the whole screen** (`vim`, `top`, `less`) get a screen of
+  their own; the conversation comes back when they exit.
+- **Files from the phone**, several at a time, copied or linked into the shell's
+  folder.
+- **Long commands** can buzz and notify you when they end, also in the
+  background.
+- **Its own look:** glass surfaces, an accent colour, fonts, a wallpaper.
 
-A session is a stream of bytes. Ayana reads it as **exchanges**: a command, and
-the answer it received.
+## How it works
 
-The shell marks where each command begins and ends (OSC 133). What lies between
-is the answer, closed by its exit code. Without the marks, the output simply
-flows.
+The shell is started with a small rc file that marks each command with OSC 133:
+where it starts, and where it ends with its exit code. Everything between the
+marks is that command's answer. Without the marks the output simply flows.
 
-Exchanges follow one another, as in a dialog. Each can be folded, searched,
-copied or kept.
+Each session is written to a journal as it happens. On start the journal is
+replayed through the current parser, so sessions come back as they were, and a
+parser fix reaches old sessions too.
 
-Programs that draw on the whole screen — `vim`, `top`, `less` — get a screen of
-their own. The transcript returns when they exit.
-
-## How it runs
-
-Each session is an append-only journal. On start it is replayed through the
-current parser: the same events always give the same transcript, and a parser
-fix reaches every past session.
-
-The core is plain Kotlin and knows nothing of Android. The app adds the PTY and
-the screens.
-
-## Why Ayana
-
-A terminal assumes a keyboard and a wide screen. A phone has neither: no Esc,
-no Ctrl, no arrows, and little width.
-
-Ayana starts from the phone. A key row returns the missing keys, and any key in
-it can be moved or replaced. A composer takes the place of the command line.
-History is shared by all sessions and never loses what is being written. A long
-command can signal when it ends.
+`core/` is plain Kotlin with no Android in it: the parser, the transcript and
+sessions, with the tests. `app/` is the Android side: the PTY and the screens.
 
 ## Build
 
@@ -46,8 +43,9 @@ command can signal when it ends.
 gradle :core:test :app:testDebugUnitTest :app:assembleDebug
 ```
 
-JDK 21, Android SDK 37, NDK 28, Gradle 9.
+JDK 21, Android SDK 37, NDK 28, Gradle 9. Every green build on `main` publishes
+its version as a release, with an APK per processor and a universal one.
 
 ## Status
 
-Before 1.0. The current goal is the first public release.
+Early, version 0.8. Things still change between versions.

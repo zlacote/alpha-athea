@@ -1,5 +1,6 @@
 package iatheiya.ayana.ui.main
 
+import iatheiya.ayana.ui.common.AyanaPage
 import android.net.Uri
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -63,7 +64,6 @@ import iatheiya.ayana.data.TINT_COLOR
 import iatheiya.ayana.data.TINT_DEFAULT
 import iatheiya.ayana.data.TINT_SYSTEM
 import iatheiya.ayana.ui.common.AyanaDialogContainer
-import iatheiya.ayana.ui.common.AyanaScrollHeader
 import iatheiya.ayana.ui.theme.Ui
 
 /** What the Appearance room shows. */
@@ -157,12 +157,7 @@ internal fun AppearancePane(state: AppearanceState, actions: AppearanceActions, 
         if (uri != null) actions.onWallpaperPicked(uri)
     }
 
-    Column(
-        Modifier
-            .fillMaxSize()
-            .verticalScroll(scrollState),
-    ) {
-        AyanaScrollHeader(stringResource(R.string.settings_section_appearance))
+    AyanaPage(stringResource(R.string.settings_section_appearance), scrollState) {
 
         // The screen.
         SettingsCard {
@@ -318,7 +313,6 @@ internal fun AppearancePane(state: AppearanceState, actions: AppearanceActions, 
             }
         }
 
-        Spacer(Modifier.height(Ui.spaceXl))
     }
 }
 
