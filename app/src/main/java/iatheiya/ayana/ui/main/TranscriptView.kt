@@ -1,5 +1,7 @@
 package iatheiya.ayana.ui.main
 
+import iatheiya.ayana.ui.common.rememberShimmerCycle
+import iatheiya.ayana.ui.common.filledWithLight
 import kotlin.math.abs
 import kotlin.math.sin
 import kotlin.math.cos
@@ -452,66 +454,25 @@ private fun EmptyGreeting(animated: Boolean, modifier: Modifier = Modifier) {
 }
 
 /**
- * The name in the light of the icon, shimmering as the icon's light does in About: its letters
- * wear the light's colours from corner to corner, a soft swell of brightness runs through them
- * from the lower end to the upper, the hues drift a little warmer and cooler, and a faint glow
- * surrounds them. Still, when [animated] is off: the colours stay, the motion stops.
+ * The name made of the icon's own light: its letters are filled with the light, stretched to run
+ * corner to corner across the word, so the light's fibres, colours and swell flow through them, as
+ * in About. Under the light the letters keep a soft white, so they read everywhere, and a faint
+ * glow lies around them. Still, when [animated] is off.
  */
 @Composable
 private fun ShimmeringName(text: String, style: TextStyle, animated: Boolean) {
-    var cycle by remember { mutableFloatStateOf(0f) }
-    if (animated) {
-        LaunchedEffect(Unit) {
-            val start = withFrameNanos { it }
-            while (true) {
-                withFrameNanos { now -> cycle = ((now - start) % NAME_CYCLE_NANOS).toFloat() / NAME_CYCLE_NANOS }
-            }
-        }
-    }
-    val phase = (2 * PI * cycle).toFloat()
-    // The hue drift: the light's colours lean warmer, then cooler, and back.
-    val lean = if (animated) sin(phase) else 0f
-    val colours = NAME_COLOURS.map { lerp(it, if (lean > 0) NAME_WARM else NAME_COOL, abs(lean) * NAME_DRIFT) }
+    val cycle = rememberShimmerCycle(animated)
     Text(
         text = text,
-        style = style.copy(
-            brush = Brush.linearGradient(colours, start = Offset(0f, Float.POSITIVE_INFINITY), end = Offset(Float.POSITIVE_INFINITY, 0f)),
-            shadow = Shadow(color = NAME_GLOW, blurRadius = NAME_GLOW_BLUR),
-        ),
-        modifier = Modifier
-            .graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen)
-            .drawWithContent {
-                drawContent()
-                if (!animated) return@drawWithContent
-                // The swell: a band of white laid over the letters only, travelling along them.
-                val band = size.width / NAME_SWELL_WAVES
-                val shift = band * cycle
-                drawRect(
-                    brush = Brush.linearGradient(
-                        colors = NAME_SWELL,
-                        start = Offset(shift - band, size.height),
-                        end = Offset(shift, 0f),
-                        tileMode = TileMode.Repeated,
-                    ),
-                    blendMode = BlendMode.SrcAtop,
-                )
-            },
+        style = style.copy(shadow = Shadow(color = NAME_GLOW, blurRadius = NAME_GLOW_BLUR)),
+        color = NAME_BASE,
+        modifier = Modifier.filledWithLight(if (animated) cycle else null),
     )
 }
 
-private const val NAME_CYCLE_NANOS = 4_500_000_000L
-private const val NAME_SWELL_WAVES = 1.3f
-private const val NAME_DRIFT = 0.25f
-private const val NAME_GLOW_BLUR = 18f
-
-/** The icon's light, corner to corner: apricot, warm white, sky, lavender. */
-private val NAME_COLOURS = listOf(Color(0xFFFFB48C), Color(0xFFFFF0E6), Color(0xFF96BEFF), Color(0xFFB996FF))
-private val NAME_WARM = Color(0xFFFF9E80)
-private val NAME_COOL = Color(0xFF8FA8FF)
-private val NAME_GLOW = Color(0x80B9A0FF)
-
-/** The swell's profile across one period: transparent, a soft bright crest, transparent. */
-private val NAME_SWELL = List(13) { k -> Color.White.copy(alpha = (0.55f * (1 - cos(2 * PI * k / 12)) / 2).toFloat()) }
+private const val NAME_GLOW_BLUR = 20f
+private val NAME_BASE = Color(0xB3FFFFFF)
+private val NAME_GLOW = Color(0x66B9A0FF)
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable

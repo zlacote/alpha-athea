@@ -1,5 +1,9 @@
 package iatheiya.ayana.ui.common
 
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.composed
 import android.graphics.Bitmap
 import android.graphics.BlendMode
 import android.graphics.ColorMatrix
@@ -38,15 +42,7 @@ import kotlin.math.sin
 @Composable
 fun AyanaLight(modifier: Modifier = Modifier, shimmering: Boolean = true) {
     val light = remember { SpotLight() }
-    var cycle by remember { mutableFloatStateOf(0f) }
-    if (shimmering) {
-        LaunchedEffect(Unit) {
-            val start = withFrameNanos { it }
-            while (true) {
-                withFrameNanos { now -> cycle = ((now - start) % CYCLE_NANOS).toFloat() / CYCLE_NANOS }
-            }
-        }
-    }
+    val cycle = rememberShimmerCycle(shimmering)
     Canvas(modifier) {
         val w = size.width.roundToInt()
         val h = size.height.roundToInt()
@@ -54,6 +50,64 @@ fun AyanaLight(modifier: Modifier = Modifier, shimmering: Boolean = true) {
         drawIntoCanvas { light.draw(it.nativeCanvas, w, h, if (shimmering) cycle else null) }
     }
 }
+
+/**
+ * Where the shimmer is in its cycle, from 0 to 1. Its clock runs only while frames are drawn and
+ * steps over any pause (the app in the background, a menu over it): after one, the shimmer goes
+ * on from where it stopped, instead of leaping or racing to catch up.
+ */
+@Composable
+fun rememberShimmerCycle(running: Boolean = true): Float {
+    var cycle by remember { mutableFloatStateOf(0f) }
+    if (running) {
+        LaunchedEffect(Unit) {
+            var last = withFrameNanos { it }
+            while (true) {
+                withFrameNanos { now ->
+                    val step = (now - last).coerceIn(0L, MAX_STEP_NANOS)
+                    last = now
+                    cycle = (cycle + step.toFloat() / CYCLE_NANOS) % 1f
+                }
+            }
+        }
+    }
+    return cycle
+}
+
+/** The longest step the shimmer's clock takes between two frames; anything longer was a pause. */
+private const val MAX_STEP_NANOS = 50_000_000L
+
+/**
+ * Fills what this draws (a name, say) with the icon's own light: the light is laid over it,
+ * stretched to run corner to corner across it, and shows only where it draws, so its colours, its
+ * fibres and its swell flow through the letters. [cycle] shimmers it; null keeps it still.
+ */
+fun Modifier.filledWithLight(cycle: Float?): Modifier = composed {
+    val light = remember { SpotLight() }
+    val atop = remember { Paint().apply { xfermode = PorterDuffXfermode(PorterDuff.Mode.SRC_ATOP) } }
+    graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen).drawWithContent {
+        drawContent()
+        val w = size.width
+        val h = size.height
+        if (w <= 0f || h <= 0f) return@drawWithContent
+        drawIntoCanvas { canvas ->
+            val c = canvas.nativeCanvas
+            // The light's own square, a little larger than the letters so its ends reach their
+            // corners, squeezed to their height.
+            val padX = w * TEXT_PAD_X
+            val padY = h * TEXT_PAD_Y
+            val side = (w + 2 * padX).roundToInt().coerceAtLeast(1)
+            val layer = c.saveLayer(0f, 0f, w, h, atop)
+            c.translate(-padX, -padY)
+            c.scale(1f, (h + 2 * padY) / side)
+            light.draw(c, side, side, cycle)
+            c.restoreToCount(layer)
+        }
+    }
+}
+
+private const val TEXT_PAD_X = 0.12f
+private const val TEXT_PAD_Y = 0.35f
 
 /** One full shimmer, after which every motion is back where it began. */
 private const val CYCLE_NANOS = 4_500_000_000L

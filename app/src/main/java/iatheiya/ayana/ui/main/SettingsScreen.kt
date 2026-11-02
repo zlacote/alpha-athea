@@ -273,18 +273,11 @@ internal fun SettingsScreen(
             SettingsPane.APPEARANCE -> AppearancePane(state = appearance, actions = appearanceActions, scrollState = appearanceScroll)
 
             SettingsPane.ABOUT -> AyanaPage(stringResource(R.string.settings_about)) {
-                // The icon's light as the room's emblem, the name under it.
+                // The icon's light as the room's emblem, across the whole width.
                 AyanaLight(
                     Modifier
-                        .align(Alignment.CenterHorizontally)
-                        .size(width = ABOUT_LIGHT_WIDTH, height = ABOUT_LIGHT_HEIGHT),
-                )
-                Text(
-                    stringResource(R.string.app_name),
-                    style = MaterialTheme.typography.headlineMedium,
-                    modifier = Modifier
-                        .align(Alignment.CenterHorizontally)
-                        .padding(bottom = Ui.spaceS),
+                        .fillMaxWidth()
+                        .height(ABOUT_LIGHT_HEIGHT),
                 )
                 val uriHandler = LocalUriHandler.current
                 val sourceUrl = stringResource(R.string.about_source_url)
@@ -427,5 +420,4 @@ private fun FavoritesRow(
 private const val FAV_RETURN = "return"
 private const val FAV_SEND = "send"
 
-private val ABOUT_LIGHT_WIDTH = 220.dp
-private val ABOUT_LIGHT_HEIGHT = 150.dp
+private val ABOUT_LIGHT_HEIGHT = 300.dp
