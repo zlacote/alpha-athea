@@ -107,9 +107,7 @@ private class SpotLight {
         val shift = band * cycle
         swellPaint.shader = LinearGradient(
             shift, h - shift, shift + band, h - shift - band,
-            intArrayOf(0, 0xFFFFFFFF.toInt(), 0),
-            floatArrayOf(0f, .5f, 1f),
-            Shader.TileMode.REPEAT,
+            SWELL_COLOURS, SWELL_AT, Shader.TileMode.REPEAT,
         )
         val layer = canvas.saveLayer(0f, 0f, w.toFloat(), h.toFloat(), layerPaint)
         layPaint.alpha = (255 * (1 - SWELL_FLOOR)).toInt()
@@ -152,6 +150,13 @@ private fun ColorMatrix.setHueRotation(degrees: Float) {
             0f, 0f, 0f, 1f, 0f,
         ),
     )
+}
+
+/** The swell's profile over one period: a smooth rise and fall, (1 - cos)/2, as alpha on white. */
+private val SWELL_AT = FloatArray(13) { it / 12f }
+private val SWELL_COLOURS = IntArray(13) { k ->
+    val a = (1 - cos(2 * PI * k / 12)) / 2
+    ((a * 255 + .5).toInt() shl 24) or 0xFFFFFF
 }
 
 /** How many swells lie along the light at once. */
