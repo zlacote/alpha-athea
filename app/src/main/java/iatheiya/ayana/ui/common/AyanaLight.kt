@@ -38,14 +38,15 @@ fun AyanaLight(modifier: Modifier = Modifier) {
         }
     }
     Canvas(modifier) {
-        // The light reaches a little past its square at the ends; drawn at four fifths, it fits.
-        val s = size.minDimension * 0.8f
+        // Sized by the width: the light runs corner to corner, so a box shorter than it is wide
+        // only trims empty corners, not light.
+        val s = size.width * 0.8f
         drawIntoCanvas { light.draw(it.nativeCanvas, (size.width - s) / 2, (size.height - s) / 2, s, cycle) }
     }
 }
 
 /** One full shimmer, after which every motion is back where it began. */
-private const val CYCLE_NANOS = 9_000_000_000L
+private const val CYCLE_NANOS = 4_500_000_000L
 
 /** How far a spot reaches, in its own radii, before its light is too faint to matter. */
 private const val REACH = 3f
@@ -119,11 +120,11 @@ private fun ColorMatrix.setHueRotation(degrees: Float) {
 }
 
 /** How many swells lie along the light at once. */
-private const val SWELL_WAVES = 0.8f
+private const val SWELL_WAVES = 1.3f
 /** The dimmest a part of the light gets between swells. */
-private const val SWELL_FLOOR = 0.72f
+private const val SWELL_FLOOR = 0.45f
 /** How far the hues drift either way, in degrees. */
-private const val HUE_DRIFT = 14f
+private const val HUE_DRIFT = 24f
 
 private fun argb(alpha: Float, r: Float, g: Float, b: Float): Int =
     ((alpha.coerceIn(0f, 1f) * 255 + .5f).toInt() shl 24) or

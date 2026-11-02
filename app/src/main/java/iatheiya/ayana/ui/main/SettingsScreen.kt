@@ -1,13 +1,10 @@
 package iatheiya.ayana.ui.main
 
 import androidx.compose.foundation.clickable
-import iatheiya.ayana.ui.common.AyanaDialogContainer
-import androidx.compose.material.icons.outlined.FavoriteBorder
 import iatheiya.ayana.ui.common.AyanaPage
 import androidx.compose.foundation.layout.Box
 import iatheiya.ayana.ui.common.SheetChoice
 import iatheiya.ayana.ui.common.AyanaToggleSheet
-import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.layout.onSizeChanged
@@ -277,60 +274,27 @@ internal fun SettingsScreen(
             SettingsPane.APPEARANCE -> AppearancePane(state = appearance, actions = appearanceActions, scrollState = appearanceScroll)
 
             SettingsPane.ABOUT -> AyanaPage(stringResource(R.string.settings_about)) {
-                // The icon's light as the room's emblem, and under it what this is.
+                // The icon's light as the room's emblem, the name under it.
                 AyanaLight(
                     Modifier
                         .align(Alignment.CenterHorizontally)
-                        .size(ABOUT_LIGHT_SIZE),
+                        .size(width = ABOUT_LIGHT_WIDTH, height = ABOUT_LIGHT_HEIGHT),
                 )
                 Text(
                     stringResource(R.string.app_name),
                     style = MaterialTheme.typography.headlineMedium,
-                    modifier = Modifier.align(Alignment.CenterHorizontally),
-                )
-                Text(
-                    stringResource(R.string.about_version, BuildConfig.VERSION_NAME),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.align(Alignment.CenterHorizontally),
-                )
-                Text(
-                    stringResource(R.string.about_tagline),
-                    style = MaterialTheme.typography.bodyLarge,
                     modifier = Modifier
                         .align(Alignment.CenterHorizontally)
-                        .padding(top = Ui.spaceM, bottom = Ui.spaceL),
+                        .padding(bottom = Ui.spaceS),
                 )
-                var thanks by remember { mutableStateOf(false) }
                 val uriHandler = LocalUriHandler.current
                 val sourceUrl = stringResource(R.string.about_source_url)
-                val authorUrl = stringResource(R.string.about_author_url)
                 SettingsCard {
                     SettingsEntryRow(
                         icon = Icons.Default.Code,
                         title = stringResource(R.string.about_source),
                         onClick = { uriHandler.openUri(sourceUrl) },
                         trailing = { OpenOutside() },
-                    )
-                    SettingsDivider()
-                    SettingsEntryRow(
-                        icon = Icons.Outlined.Person,
-                        title = stringResource(R.string.about_author_title),
-                        onClick = { uriHandler.openUri(authorUrl) },
-                        trailing = {
-                            Text(
-                                stringResource(R.string.about_author_name),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        },
-                    )
-                }
-                SettingsCard {
-                    SettingsEntryRow(
-                        icon = Icons.Outlined.FavoriteBorder,
-                        title = stringResource(R.string.about_thanks),
-                        onClick = { thanks = true },
                     )
                     SettingsDivider()
                     SettingsEntryRow(
@@ -359,7 +323,6 @@ internal fun SettingsScreen(
                         trailing = {},
                     )
                 }
-                if (thanks) AcknowledgementsDialog(onDismiss = { thanks = false })
                 if (confirmReset) {
                     AyanaConfirmDialog(
                         title = stringResource(R.string.reset_all_title),
@@ -373,6 +336,15 @@ internal fun SettingsScreen(
                         confirmTinted = true,
                     )
                 }
+                // The version, quiet, at the very end.
+                Text(
+                    stringResource(R.string.about_version, BuildConfig.VERSION_NAME),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier
+                        .align(Alignment.CenterHorizontally)
+                        .padding(top = Ui.spaceL),
+                )
             }
         }
     }
@@ -461,40 +433,5 @@ private fun FavoritesRow(
 private const val FAV_RETURN = "return"
 private const val FAV_SEND = "send"
 
-private val ABOUT_LIGHT_SIZE = 220.dp
-
-/** The project the glass is built on, as its licence asks: who made it, and where it lives. */
-@Composable
-private fun AcknowledgementsDialog(onDismiss: () -> Unit) {
-    val uriHandler = LocalUriHandler.current
-    AyanaDialogContainer(
-        title = stringResource(R.string.about_thanks),
-        onDismiss = onDismiss,
-        confirm = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.dialog_ok)) }
-        },
-        dismiss = {},
-        content = {
-            Text(
-                stringResource(R.string.about_thanks_text),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            ACKNOWLEDGED.forEach { (name, by, url) ->
-                Column(
-                    Modifier
-                        .fillMaxWidth()
-                        .clickable { uriHandler.openUri(url) }
-                        .padding(vertical = Ui.spaceS),
-                ) {
-                    Text(name, style = MaterialTheme.typography.bodyLarge)
-                    Text(by, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-            }
-        },
-    )
-}
-
-private val ACKNOWLEDGED = listOf(
-    Triple("KMPLiquidGlass", "Kashif-E · Apache License 2.0", "https://github.com/Kashif-E/KMPLiquidGlass"),
-)
+private val ABOUT_LIGHT_WIDTH = 220.dp
+private val ABOUT_LIGHT_HEIGHT = 150.dp

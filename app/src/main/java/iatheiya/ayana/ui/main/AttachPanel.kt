@@ -1,12 +1,14 @@
 package iatheiya.ayana.ui.main
 
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
@@ -15,9 +17,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -39,7 +39,6 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import iatheiya.ayana.ui.liquid.LocalLiquidBackdrop
 import iatheiya.ayana.ui.liquid.liquidGlass
-import iatheiya.ayana.ui.theme.Glass
 import iatheiya.ayana.ui.theme.Ui
 import kotlin.math.roundToInt
 
@@ -48,7 +47,7 @@ class AttachChoice(val icon: ImageVector, val label: String, val onPick: () -> U
 
 /**
  * The panel the composer's + opens: a glass card that grows out of the composer's lower left
- * corner, over it, with a large row per choice, each icon in a round well. A tap anywhere else
+ * corner, over it, with a large row per choice. A tap anywhere else
  * puts it away; there is no Cancel.
  *
  * [anchor] is the composer panel's bounds in the root, [origin] this screen's own position there.
@@ -80,28 +79,23 @@ fun AttachPanel(open: Boolean, anchor: Rect, origin: Offset, choices: List<Attac
                 .onSizeChanged { height = it.height }
                 .widthIn(min = PANEL_MIN_WIDTH)
                 .liquidGlass(LocalLiquidBackdrop.current, Ui.panelShape, Ui.panelRadius, strong = true)
-                .padding(vertical = Ui.spaceS),
+                // Rows reach the panel's edges, so a pressed row lights up to them and no further.
+                .clip(Ui.panelShape)
+                .width(IntrinsicSize.Max),
         ) {
             choices.forEach { choice ->
                 Row(
                     Modifier
-                        .widthIn(min = PANEL_MIN_WIDTH)
+                        .fillMaxWidth()
                         .clickable {
                             onDismiss()
                             choice.onPick()
                         }
-                        .padding(horizontal = Ui.spaceL, vertical = Ui.spaceS),
+                        .padding(horizontal = Ui.spaceXl, vertical = ROW_PADDING_V),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Box(
-                        Modifier
-                            .size(WELL)
-                            .clip(CircleShape)
-                            .background(Glass.SELECTED),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Icon(choice.icon, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface)
-                    }
+                    // A bare icon, as everywhere else.
+                    Icon(choice.icon, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     Text(
                         text = choice.label,
                         style = MaterialTheme.typography.titleMedium,
@@ -115,4 +109,4 @@ fun AttachPanel(open: Boolean, anchor: Rect, origin: Offset, choices: List<Attac
 }
 
 private val PANEL_MIN_WIDTH = 240.dp
-private val WELL = 44.dp
+private val ROW_PADDING_V = 18.dp

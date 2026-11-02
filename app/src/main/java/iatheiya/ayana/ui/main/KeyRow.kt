@@ -1,5 +1,12 @@
 package iatheiya.ayana.ui.main
 
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.Icon
+import androidx.compose.material.icons.filled.ArrowDownward
+import androidx.compose.material.icons.filled.ArrowUpward
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.Icons
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -308,6 +315,14 @@ private fun KeyCell(
  */
 @Composable
 internal fun KeyFaceText(label: String, selected: Boolean) {
+    val ink = if (selected) contentOn(keyArmedFill()) else MaterialTheme.colorScheme.onSurface
+    // The arrows are drawn as icons of one size: as characters, each font draws them at its own
+    // size and weight, and → came out far larger than ←.
+    val arrow = ARROW_ICONS[label]
+    if (arrow != null) {
+        Icon(arrow, contentDescription = label, tint = ink, modifier = Modifier.size(ARROW_SIZE))
+        return
+    }
     val fontSize = when (label.length) {
         0, 1, 2 -> 17.sp
         3 -> 15.sp
@@ -321,13 +336,21 @@ internal fun KeyFaceText(label: String, selected: Boolean) {
             fontSize = fontSize,
             lineHeight = 18.sp,
         ),
-        color = if (selected) contentOn(keyArmedFill()) else MaterialTheme.colorScheme.onSurface,
+        color = ink,
         textAlign = TextAlign.Center,
         maxLines = 1,
         softWrap = false,
         overflow = androidx.compose.ui.text.style.TextOverflow.Clip,
     )
 }
+
+private val ARROW_ICONS = mapOf(
+    "←" to Icons.AutoMirrored.Filled.ArrowBack,
+    "→" to Icons.AutoMirrored.Filled.ArrowForward,
+    "↑" to Icons.Filled.ArrowUpward,
+    "↓" to Icons.Filled.ArrowDownward,
+)
+private val ARROW_SIZE = 20.dp
 
 /** The fill of an armed (or carried) key: the chosen accent, or white without one. */
 @Composable

@@ -45,8 +45,15 @@ class AyanaDrawerState internal constructor(private val scope: CoroutineScope) {
     val isVisible: Boolean get() = progress.value > 0f || progress.isRunning
     val isOpen: Boolean get() = progress.value >= 1f && !progress.isRunning
 
-    fun open() { scope.launch { progress.animateTo(1f, SETTLE) } }
-    fun close() { scope.launch { progress.animateTo(0f, SETTLE) } }
+    fun open() = slideTo(1f)
+    fun close() = slideTo(0f)
+
+    /** Slides to an end in a time that fits the way left, so a short way is not rushed through. */
+    private fun slideTo(target: Float) {
+        val left = kotlin.math.abs(target - progress.value)
+        val ms = (SLIDE_MIN_MS + (SLIDE_FULL_MS - SLIDE_MIN_MS) * left).toInt()
+        scope.launch { progress.animateTo(target, tween(ms, easing = FastOutSlowInEasing)) }
+    }
 
     // Where the finger has the drawer, kept here so quick moves add up before each snap lands.
     private var dragAt = 0f
@@ -61,9 +68,9 @@ class AyanaDrawerState internal constructor(private val scope: CoroutineScope) {
 
     /**
      * Where a swipe lands when the finger lets go. A slow pull opens once it has brought the
-     * drawer a third of the way, and shuts once it has taken it back a third. A quick flick
-     * counts only after the drawer has come a fair way too, so a twitch of a few pixels, however
-     * fast, puts it back instead of throwing it open.
+     * drawer half way, and shuts once it has taken it back past half. A quick flick counts only
+     * after the drawer has come a good part of the way, so a short swipe, however fast, puts it
+     * back instead of throwing it open.
      */
     internal fun settle(velocityPx: Float, opening: Boolean) {
         val flick = FLICK_DP_PER_S * densityScale
@@ -71,21 +78,21 @@ class AyanaDrawerState internal constructor(private val scope: CoroutineScope) {
         val target = when {
             moved >= FLICK_MIN_TRAVEL && velocityPx > flick -> 1f
             moved >= FLICK_MIN_TRAVEL && velocityPx < -flick -> 0f
-            opening -> if (progress.value > ONE_THIRD) 1f else 0f
-            else -> if (progress.value < 1f - ONE_THIRD) 0f else 1f
+            opening -> if (progress.value > HALF) 1f else 0f
+            else -> if (progress.value < HALF) 0f else 1f
         }
-        scope.launch { progress.animateTo(target, SETTLE) }
+        slideTo(target)
     }
 
     internal var densityScale = 1f
 
     private companion object {
-        const val ONE_THIRD = 1f / 3f
-        const val FLICK_DP_PER_S = 900f
+        const val HALF = 0.5f
+        const val FLICK_DP_PER_S = 1100f
         /** How far a flick must have carried the drawer before its speed decides. */
-        const val FLICK_MIN_TRAVEL = 0.15f
-        /** The rest of the way, at an even, unhurried pace. */
-        val SETTLE = tween<Float>(durationMillis = 300, easing = FastOutSlowInEasing)
+        const val FLICK_MIN_TRAVEL = 0.3f
+        const val SLIDE_MIN_MS = 180f
+        const val SLIDE_FULL_MS = 420f
     }
 }
 

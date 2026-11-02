@@ -948,7 +948,7 @@ private fun Modifier.fadeOutBottom(height: Dp): Modifier =
         }
 
 /** One pass of the colours through the name. */
-private const val GREETING_FLOW_MS = 6000
+private const val GREETING_FLOW_MS = 3200
 
 /** Soft, muted rainbow: rose, apricot, sage, mist blue, lavender, and rose again to close the loop. */
 private val GREETING_COLORS = listOf(

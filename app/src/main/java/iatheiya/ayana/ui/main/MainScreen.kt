@@ -263,7 +263,14 @@ private fun MainScreenRoutes(viewModel: MainViewModel, state: UiState) {
             scrollState = settingsScroll,
             onResetAll = viewModel::resetAllSettings,
             pane = settingsPane,
-            onPaneChange = { settingsPane = it },
+            // Going back out of a room forgets where it was scrolled; going deeper (Appearance into
+            // Glass) keeps it, since this screen stays put underneath.
+            onPaneChange = { next ->
+                if (next == SettingsPane.ROOT && settingsPane == SettingsPane.APPEARANCE) {
+                    scope.launch { appearanceScroll.scrollTo(0) }
+                }
+                settingsPane = next
+            },
             appearanceScroll = appearanceScroll,
             appearance = AppearanceState(
                 immersiveMode = settings.immersiveMode,

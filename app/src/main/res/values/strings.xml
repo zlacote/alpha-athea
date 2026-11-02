@@ -136,17 +136,11 @@
     <string name="settings_diag_copied">Logs copied</string>
     <string name="settings_about">About</string>
     <string name="about_version">Version %1$s</string>
-    <string name="about_tagline">A terminal for the phone.</string>
-    <string name="about_thanks">Acknowledgements</string>
-    <string name="about_thanks_text">The glass in Ayana is built on the work of this open source project.</string>
-    <string name="about_author_title">Author</string>
-    <string name="about_author_name" translatable="false">Iatheiya</string>
-    <string name="about_author_url" translatable="false">https://github.com/iatheiya</string>
     <string name="about_source">Source code</string>
     <string name="about_source_url" translatable="false">https://github.com/iatheiya/alpha-ayana</string>
     <string name="settings_font_size">Output font size</string>
     <string name="settings_preview_lines">Lines shown when folded</string>
-    <string name="settings_bubble_size">Message font size</string>
+    <string name="settings_bubble_size">Input font size</string>
 
     <!-- Favorites screen -->
     <string name="favorites_run">Run</string>
