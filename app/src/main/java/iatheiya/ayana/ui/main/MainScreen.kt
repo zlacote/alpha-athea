@@ -1,5 +1,8 @@
 package iatheiya.ayana.ui.main
 
+import iatheiya.ayana.session.Attachments
+import iatheiya.ayana.ui.common.AyanaDrawer
+import iatheiya.ayana.ui.common.rememberAyanaDrawerState
 import iatheiya.ayana.util.toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.gestures.awaitEachGesture
@@ -65,16 +68,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.InsertLink
 import androidx.compose.material.icons.filled.TextFields
-import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.LocalRippleConfiguration
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RippleConfiguration
-import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -354,64 +354,6 @@ private fun MainScreenRoutes(viewModel: MainViewModel, state: UiState) {
         return
     }
 
-    // ---- Attachment picker flow -----------------------------------------
-
-    val pickerContext = LocalContext.current
-    var attachAction by remember { mutableStateOf<String?>(null) }
-    val filePicker = rememberLauncherForActivityResult(
-        ActivityResultContracts.OpenDocument()
-    ) { uri ->
-        val action = attachAction
-        attachAction = null
-        if (uri != null && action != null) {
-            viewModel.importAttachment(uri, action, pickerContext)
-        }
-    }
-    if (state.showAttachChooser) {
-        val attachOptions: List<Triple<String, String, androidx.compose.ui.graphics.vector.ImageVector>> =
-            listOf(
-                Triple("copy", stringResource(R.string.attach_copy), Icons.Filled.ContentCopy),
-                Triple("link", stringResource(R.string.attach_link), Icons.Filled.InsertLink),
-                Triple("path", stringResource(R.string.attach_path), Icons.Filled.TextFields),
-            )
-        AyanaDialogContainer(
-            title = stringResource(R.string.attach_chooser_title),
-            onDismiss = { viewModel.setShowAttachChooser(false) },
-            content = {
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    attachOptions.forEach { (action, label, icon) ->
-                        Row(
-                            Modifier
-                                .fillMaxWidth()
-                                .clip(Ui.attachmentShape)
-                                .clickable {
-                                    attachAction = action
-                                    viewModel.setShowAttachChooser(false)
-                                    filePicker.launch(arrayOf("*/*"))
-                                }
-                                .padding(horizontal = 14.dp, vertical = 14.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Icon(
-                                icon,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(22.dp),
-                            )
-                            Text(
-                                text = label,
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.onSurface,
-                                modifier = Modifier.padding(start = 16.dp),
-                            )
-                        }
-                    }
-                }
-            },
-            confirm = {},
-        )
-    }
-
     CompositionLocalProvider(
         LocalOutputFontSize provides state.workspace.settings.outputFontSizeSp,
         LocalMessageFontSize provides state.workspace.settings.bubbleFontSizeSp,
@@ -433,7 +375,7 @@ private fun MainScreenContent(viewModel: MainViewModel, state: UiState) {
 @Composable
 private fun MainScreenBody(viewModel: MainViewModel, state: UiState, composerBackdrop: LiquidBackdrop) {
     val context = LocalContext.current
-    val drawerState = rememberDrawerState(DrawerValue.Closed)
+    val drawerState = rememberAyanaDrawerState()
     val scope = rememberCoroutineScope()
     val density = LocalDensity.current
     // Measured height of the composer and key row: the transcript keeps its last line above them.
@@ -444,6 +386,18 @@ private fun MainScreenBody(viewModel: MainViewModel, state: UiState, composerBac
     var sendBounds by remember { mutableStateOf(Rect.Zero) }
     var panelBounds by remember { mutableStateOf(Rect.Zero) }
     var screenOrigin by remember { mutableStateOf(Offset.Zero) }
+    // The + panel, and the system picker it opens (several files can be picked at once).
+    var attachOpen by remember { mutableStateOf(false) }
+    var attachAction by remember { mutableStateOf<String?>(null) }
+    val filePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
+        val action = attachAction
+        attachAction = null
+        if (uris.isNotEmpty() && action != null) viewModel.importAttachments(uris, action, context)
+    }
+    fun pickFiles(action: String) {
+        attachAction = action
+        filePicker.launch(arrayOf("*/*"))
+    }
 
     // Native toasts: the system renders them, no custom surfaces needed.
     LaunchedEffect(viewModel) {
@@ -466,27 +420,20 @@ private fun MainScreenBody(viewModel: MainViewModel, state: UiState, composerBac
     // instead of floating over the sessions list.
     val focusManager = LocalFocusManager.current
     LaunchedEffect(drawerState) {
-        snapshotFlow {
-            drawerState.currentValue != DrawerValue.Closed ||
-                drawerState.targetValue != DrawerValue.Closed ||
-                drawerState.isAnimationRunning
-        }.collect { opening -> if (opening) focusManager.clearFocus() }
+        snapshotFlow { drawerState.isVisible }.collect { opening -> if (opening) focusManager.clearFocus() }
     }
 
-    ModalNavigationDrawer(
-        drawerState = drawerState,
-        // Drawer swipes must not fight with fullscreen overlays. While it is closed, opening is
-        // left to swipeOpensDrawer alone: the drawer's own drag, started on the same touch, pulled
-        // it back shut. Once open (or moving), its own drag closes it as usual.
-        gesturesEnabled = !state.editorExpanded && state.selectTextPayload == null &&
-            (drawerState.isOpen || drawerState.isAnimationRunning),
+    AyanaDrawer(
+        state = drawerState,
+        // Drawer swipes must not fight with fullscreen overlays.
+        enabled = !state.editorExpanded && state.selectTextPayload == null,
         drawerContent = {
             SessionsDrawerContent(
                 sessions = state.workspace.sessions,
                 currentSessionId = state.workspace.currentSessionId,
                 onSelectSession = { id ->
                     viewModel.selectSession(id)
-                    scope.launch { drawerState.close() }
+                    drawerState.close()
                 },
                 onRenameSession = viewModel::requestRename,
                 onTogglePin = viewModel::togglePin,
@@ -522,13 +469,7 @@ private fun MainScreenBody(viewModel: MainViewModel, state: UiState, composerBac
                     Box(
                         Modifier
                             .fillMaxSize()
-                            .liquidBackdrop(composerBackdrop, MaterialTheme.colorScheme.background)
-                            // A swipe to the right opens the sessions anywhere on the transcript, not
-                            // only on an empty chat: it is a different gesture from a press or a scroll.
-                            .swipeOpensDrawer(
-                                enabled = !state.editorExpanded && state.selectTextPayload == null,
-                                onOpen = { scope.launch { drawerState.open() } },
-                            ),
+                            .liquidBackdrop(composerBackdrop, MaterialTheme.colorScheme.background),
                     ) {
                         // Inside the backdrop, so the glass refracts the wallpaper like any content.
                         Wallpaper(
@@ -590,6 +531,7 @@ private fun MainScreenBody(viewModel: MainViewModel, state: UiState, composerBac
                     composerBackdrop = composerBackdrop,
                     onSendBounds = { sendBounds = it },
                     onPanelBounds = { panelBounds = it },
+                    onAttach = { attachOpen = true },
                     modifier = Modifier
                         .align(Alignment.BottomStart)
                         .fillMaxWidth()
@@ -638,7 +580,7 @@ private fun MainScreenBody(viewModel: MainViewModel, state: UiState, composerBac
                     modifier = Modifier.align(Alignment.TopCenter),
                     hasMessages = current?.blocks?.isNotEmpty() == true,
                     pinned = current?.pinned ?: false,
-                    onOpenDrawer = { scope.launch { drawerState.open() } },
+                    onOpenDrawer = { drawerState.open() },
                     onNewSession = viewModel::newSession,
                     onSearch = viewModel::enterSearch,
                     onRename = { current?.let { viewModel.requestRename(it.id) } },
@@ -648,6 +590,19 @@ private fun MainScreenBody(viewModel: MainViewModel, state: UiState, composerBac
 
                 // Context menus (a long-pressed message) open in the screen, above everything.
                 LocalContextMenu.current?.let { ContextMenuLayer(it) }
+
+                // The + panel grows out of the composer's lower left corner.
+                AttachPanel(
+                    open = attachOpen,
+                    anchor = panelBounds,
+                    origin = screenOrigin,
+                    choices = listOf(
+                        AttachChoice(Icons.Filled.ContentCopy, stringResource(R.string.attach_copy)) { pickFiles(Attachments.COPY) },
+                        AttachChoice(Icons.Filled.InsertLink, stringResource(R.string.attach_link)) { pickFiles(Attachments.LINK) },
+                        AttachChoice(Icons.Filled.TextFields, stringResource(R.string.attach_path)) { pickFiles(Attachments.PATH) },
+                    ),
+                    onDismiss = { attachOpen = false },
+                )
             }
         }
     }
@@ -707,6 +662,7 @@ private fun BottomBar(
     composerBackdrop: LiquidBackdrop?,
     onSendBounds: (Rect) -> Unit,
     onPanelBounds: (Rect) -> Unit,
+    onAttach: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     // One column aligned to the bottom edge: the composer sits directly above
@@ -737,7 +693,9 @@ private fun BottomBar(
             onDraftChange = viewModel::onComposerTextChange,
             onSend = viewModel::sendDraft,
             onExpandEditor = { viewModel.setEditorExpanded(true) },
-            onAddClick = { viewModel.setShowAttachChooser(true) },
+            onAddClick = { onAttach() },
+                )
+            },
             search = state.workspace.search,
             onSearchQueryChange = viewModel::updateSearchQuery,
             onSearchNext = viewModel::nextSearchMatch,
@@ -857,39 +815,3 @@ private fun JumpDownButton(visible: Boolean, centreX: Float, panelTop: Float, or
     }
 }
 
-/**
- * Opens the drawer on a quick, mostly horizontal swipe to the right. It watches on the initial
- * pass, so a message or an output under the finger cannot keep the swipe for itself, and it lets
- * go of everything else: a vertical scroll, a swipe to the left, a second finger, and a press held
- * past the long-press time (which belongs to text selection and menus).
- */
-private fun Modifier.swipeOpensDrawer(enabled: Boolean, onOpen: () -> Unit): Modifier =
-    if (!enabled) {
-        this
-    } else {
-        pointerInput(onOpen) {
-            val slop = viewConfiguration.touchSlop
-            val longPress = viewConfiguration.longPressTimeoutMillis
-            awaitEachGesture {
-                val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
-                var travel = Offset.Zero
-                while (true) {
-                    val event = awaitPointerEvent(PointerEventPass.Initial)
-                    if (event.changes.size > 1) break
-                    val change = event.changes.firstOrNull { it.id == down.id } ?: break
-                    if (!change.pressed || change.uptimeMillis - down.uptimeMillis > longPress) break
-                    travel += change.positionChange()
-                    if (travel.x > slop * 2 && travel.x > abs(travel.y) * 2) {
-                        onOpen()
-                        // The rest of this swipe belongs to the drawer, not to what is under it.
-                        do {
-                            val rest = awaitPointerEvent(PointerEventPass.Initial)
-                            rest.changes.forEach { it.consume() }
-                        } while (rest.changes.any { it.pressed })
-                        break
-                    }
-                    if (abs(travel.y) > slop || travel.x < -slop) break
-                }
-            }
-        }
-    }

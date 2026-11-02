@@ -356,6 +356,8 @@ class Workspace(
     fun acceptSuggestion() {
         val id = _state.value.currentSessionId ?: return
         val suggestion = _state.value.suggestion ?: return
+        // A suggestion left over from an earlier draft is not shown on an empty field, so it is not taken.
+        if (_state.value.sessions.firstOrNull { it.id == id }?.draft.isNullOrEmpty()) return
         mutateMeta(id) { it.copy(draft = suggestion) }
         _state.update { it.copy(suggestion = null) }
     }

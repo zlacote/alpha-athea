@@ -96,8 +96,9 @@ object SearchHighlight {
     var background by mutableStateOf(Color(0xFFBB8009))
 }
 
-val HighlightColor: Color get() = SearchHighlight.background
-val OnHighlightColor: Color get() = contentOn(SearchHighlight.background)
+/** Search matches take the accent in its other mode when there is an accent, else the phone's own. */
+val HighlightColor: Color get() = AccentColor.highlight ?: SearchHighlight.background
+val OnHighlightColor: Color get() = contentOn(HighlightColor)
 
 @Composable
 fun AyanaTheme(content: @Composable () -> Unit) {

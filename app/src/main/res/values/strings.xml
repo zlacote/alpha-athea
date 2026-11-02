@@ -133,7 +133,6 @@
     <string name="settings_diag_section">Diagnostics</string>
     <string name="settings_diag_copy">Copy logs to clipboard</string>
     <string name="attach_add">Attach file</string>
-    <string name="attach_chooser_title">What to do with the file?</string>
     <string name="attach_copy">Copy into terminal folder</string>
     <string name="attach_link">Give a symlink</string>
     <string name="settings_diag_copied">Logs copied</string>

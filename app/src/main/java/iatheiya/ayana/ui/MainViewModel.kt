@@ -59,7 +59,6 @@ data class UiState(
     val composerSelection: TextRange? = null,
     val showSettings: Boolean = false,
     val showFavorites: Boolean = false,
-    val showAttachChooser: Boolean = false,
     val showKeys: Boolean = false,
     val showGlassTuning: Boolean = false,
     val showGlow: Boolean = false,
@@ -420,42 +419,42 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
      * Copies a picked file into the app's attachment folder, then puts the command or the path
      * that uses it into the composer, or runs the command when the setting says so.
      */
-    fun importAttachment(uri: Uri, action: String, context: Context) {
+    /** Copies the picked files into Ayana's own storage, then puts one line for all of them in the composer. */
+    fun importAttachments(uris: List<Uri>, action: String, context: Context) {
         viewModelScope.launch(Dispatchers.Default) {
-            try {
-                val resolver = context.contentResolver
-                val name = runCatching {
-                    resolver.query(
-                        uri,
-                        arrayOf(android.provider.OpenableColumns.DISPLAY_NAME),
-                        null,
-                        null,
-                        null,
-                    )?.use { cursor ->
-                        val idx = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
-                        if (cursor.moveToFirst() && idx >= 0) cursor.getString(idx) else null
-                    }
-                }.getOrNull() ?: "file"
-
-                val safeName = Attachments.safeName(name)
-                val dir = File(context.filesDir, "attachments").apply { mkdirs() }
-                val target = File(dir, "${System.currentTimeMillis()}_$safeName")
-                resolver.openInputStream(uri)?.use { input ->
-                    target.outputStream().use { output -> input.copyTo(output) }
-                } ?: throw IllegalStateException("cannot open $uri")
-
-                AyanaLog.log("attach", "imported $safeName action=$action")
-                withContext(Dispatchers.Main) {
-                    if (action == Attachments.PATH) {
-                        workspace.placePath(target.absolutePath.shellQuote())
-                    } else {
-                        workspace.placeCommand(Attachments.command(action, target.absolutePath, safeName))
-                    }
+            val imported = uris.mapNotNull { uri ->
+                try {
+                    importOne(uri, context)
+                } catch (e: Exception) {
+                    AyanaLog.error("attach", "import failed", e)
+                    null
                 }
-            } catch (e: Exception) {
-                AyanaLog.error("attach", "import failed", e)
+            }
+            if (imported.isEmpty()) return@launch
+            AyanaLog.log("attach", "imported ${imported.size} action=$action")
+            val line = Attachments.combined(action, imported)
+            withContext(Dispatchers.Main) {
+                if (action == Attachments.PATH) workspace.placePath(line) else workspace.placeCommand(line)
             }
         }
+    }
+
+    /** One picked file copied in: its new absolute path and the safe name it was given. */
+    private fun importOne(uri: Uri, context: Context): Pair<String, String> {
+        val resolver = context.contentResolver
+        val name = runCatching {
+            resolver.query(uri, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
+                val idx = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+                if (cursor.moveToFirst() && idx >= 0) cursor.getString(idx) else null
+            }
+        }.getOrNull() ?: "file"
+        val safeName = Attachments.safeName(name)
+        val dir = File(context.filesDir, "attachments").apply { mkdirs() }
+        val target = File(dir, "${System.nanoTime()}_$safeName")
+        resolver.openInputStream(uri)?.use { input ->
+            target.outputStream().use { output -> input.copyTo(output) }
+        } ?: throw IllegalStateException("cannot open $uri")
+        return target.absolutePath to safeName
     }
 
 
@@ -468,8 +467,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun deleteFavorite(id: Long) = workspace.deleteFavorite(id)
 
     fun setShowFavorites(visible: Boolean) = _state.update { it.copy(showFavorites = visible) }
-
-    fun setShowAttachChooser(visible: Boolean) = _state.update { it.copy(showAttachChooser = visible) }
 
     fun setShowKeys(visible: Boolean) = _state.update { it.copy(showKeys = visible) }
 

@@ -83,7 +83,8 @@ fun InputBar(
     onDraftChange: (String) -> Unit,
     onSend: () -> Unit,
     onExpandEditor: () -> Unit,
-    onAddClick: () -> Unit,
+    /** The + was tapped; it passes where it is, for the menu that opens from it. */
+    onAddClick: (Rect) -> Unit,
     search: SearchState?,
     onSearchQueryChange: (String) -> Unit,
     onSearchNext: () -> Unit,
@@ -165,7 +166,8 @@ private fun DraftPanel(
     onDraftChange: (String) -> Unit,
     onSend: () -> Unit,
     onExpandEditor: () -> Unit,
-    onAddClick: () -> Unit,
+    /** The + was tapped; it passes where it is, for the menu that opens from it. */
+    onAddClick: (Rect) -> Unit,
     enterSends: Boolean,
     selection: TextRange?,
     onSelectionChange: (TextRange) -> Unit,
@@ -177,6 +179,7 @@ private fun DraftPanel(
     onPanelBounds: (Rect) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    var addBounds by remember { mutableStateOf(Rect.Zero) }
     var lineCount by remember { mutableStateOf(1) }
     var grown by remember { mutableStateOf(false) }
     if (draft.isEmpty()) grown = false
@@ -269,8 +272,9 @@ private fun DraftPanel(
                                 }
                             }
                             // Ghost suggestion: the opaque draft text covers the
-                            // prefix, the gray tail sticks out past the cursor.
-                            if (suggestion != null && suggestion.startsWith(draft)) {
+                            // prefix, the gray tail sticks out past the cursor. Only once
+                            // something is typed: an empty field shows the prompt alone.
+                            if (draft.isNotEmpty() && suggestion != null && suggestion.startsWith(draft)) {
                                 Text(
                                     suggestion,
                                     style = messageStyle(),
@@ -285,8 +289,11 @@ private fun DraftPanel(
                 )
                 if (compact) {
                     IconButton(
-                        onClick = onAddClick,
-                        modifier = Modifier.align(Alignment.CenterStart).size(Ui.composerButtonSize),
+                        onClick = { onAddClick(addBounds) },
+                        modifier = Modifier
+                            .align(Alignment.CenterStart)
+                            .size(Ui.composerButtonSize)
+                            .onGloballyPositioned { addBounds = it.boundsInRoot() },
                     ) {
                         Icon(
                             Icons.Default.Add,
@@ -318,8 +325,11 @@ private fun DraftPanel(
                 }
                 if (!compact) {
                     IconButton(
-                        onClick = onAddClick,
-                        modifier = Modifier.align(Alignment.BottomStart).size(Ui.composerButtonSize),
+                        onClick = { onAddClick(addBounds) },
+                        modifier = Modifier
+                            .align(Alignment.BottomStart)
+                            .size(Ui.composerButtonSize)
+                            .onGloballyPositioned { addBounds = it.boundsInRoot() },
                     ) {
                         Icon(
                             Icons.Default.Add,

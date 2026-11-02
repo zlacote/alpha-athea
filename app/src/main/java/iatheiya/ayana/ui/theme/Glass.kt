@@ -60,12 +60,25 @@ object AccentColor {
      */
     val shown: Color? get() = color?.let { if (softened) lerp(SOFT_BASE, it, SOFT_MIX) else it }
 
+    /**
+     * The colour that marks search matches: the accent in the other mode (soft when the accent is
+     * shown exact, exact when it is shown soft), so a match always stands apart from what the
+     * accent already fills, tinted glass included.
+     */
+    val highlight: Color? get() = color?.let {
+        val other = if (softened) it else lerp(SOFT_BASE, it, SOFT_MIX)
+        // A near-black accent would mark nothing on the dark transcript: lift it toward white.
+        if (other.luminance() < HIGHLIGHT_MIN_LUMINANCE) lerp(other, Color.White, HIGHLIGHT_LIFT) else other
+    }
+
     /** How far the glass wash and the solid tone move toward the accent when they are tinted. */
     internal const val GLASS_ALPHA = 0.22f
     internal const val SOLID_MIX = 0.35f
 
     private val SOFT_BASE = Color(0xFF141414)
     private const val SOFT_MIX = 0.45f
+    private const val HIGHLIGHT_MIN_LUMINANCE = 0.06f
+    private const val HIGHLIGHT_LIFT = 0.35f
 }
 
 /** The accent wash for glass, when the glass is set to take it; null otherwise. */
