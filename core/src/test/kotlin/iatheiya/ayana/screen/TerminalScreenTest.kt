@@ -96,11 +96,11 @@ class TerminalScreenTest {
     @Test
     fun `a utf-8 character split across chunks is decoded whole`() {
         val screen = TerminalScreen(rows = 1, cols = 4)
-        val bytes = "ж".toByteArray(Charsets.UTF_8)
+        val bytes = "\u00E9".toByteArray(Charsets.UTF_8)
         screen.feed(bytes.copyOfRange(0, 1))
         screen.feed(bytes.copyOfRange(1, bytes.size))
 
-        assertEquals("ж", screen.snapshot().rows[0])
+        assertEquals("\u00E9", screen.snapshot().rows[0])
     }
 
     @Test
