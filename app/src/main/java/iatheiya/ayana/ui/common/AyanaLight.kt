@@ -1,5 +1,7 @@
 package iatheiya.ayana.ui.common
 
+import androidx.compose.runtime.FloatState
+import androidx.compose.runtime.MutableFloatState
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.draw.drawWithContent
@@ -17,10 +19,8 @@ import android.graphics.Shader
 import androidx.compose.foundation.Canvas
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
@@ -47,7 +47,9 @@ fun AyanaLight(modifier: Modifier = Modifier, shimmering: Boolean = true) {
         val w = size.width.roundToInt()
         val h = size.height.roundToInt()
         if (w <= 0 || h <= 0) return@Canvas
-        drawIntoCanvas { light.draw(it.nativeCanvas, w, h, if (shimmering) cycle else null) }
+        // Read here, while drawing, so each new frame of the shimmer redraws the light directly.
+        val now = if (shimmering) cycle.floatValue else null
+        drawIntoCanvas { light.draw(it.nativeCanvas, w, h, now) }
     }
 }
 
@@ -57,8 +59,8 @@ fun AyanaLight(modifier: Modifier = Modifier, shimmering: Boolean = true) {
  * on from where it stopped, instead of leaping or racing to catch up.
  */
 @Composable
-fun rememberShimmerCycle(running: Boolean = true): Float {
-    var cycle by remember { mutableFloatStateOf(0f) }
+fun rememberShimmerCycle(running: Boolean = true): MutableFloatState {
+    val cycle = remember { mutableFloatStateOf(0f) }
     if (running) {
         LaunchedEffect(Unit) {
             var last = withFrameNanos { it }
@@ -66,7 +68,7 @@ fun rememberShimmerCycle(running: Boolean = true): Float {
                 withFrameNanos { now ->
                     val step = (now - last).coerceIn(0L, MAX_STEP_NANOS)
                     last = now
-                    cycle = (cycle + step.toFloat() / CYCLE_NANOS) % 1f
+                    cycle.floatValue = (cycle.floatValue + step.toFloat() / CYCLE_NANOS) % 1f
                 }
             }
         }
@@ -82,7 +84,7 @@ private const val MAX_STEP_NANOS = 50_000_000L
  * stretched to run corner to corner across it, and shows only where it draws, so its colours, its
  * fibres and its swell flow through the letters. [cycle] shimmers it; null keeps it still.
  */
-fun Modifier.filledWithLight(cycle: Float?): Modifier = composed {
+fun Modifier.filledWithLight(cycle: FloatState?): Modifier = composed {
     val light = remember { SpotLight() }
     val atop = remember { Paint().apply { xfermode = PorterDuffXfermode(PorterDuff.Mode.SRC_ATOP) } }
     graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen).drawWithContent {
@@ -100,7 +102,8 @@ fun Modifier.filledWithLight(cycle: Float?): Modifier = composed {
             val layer = c.saveLayer(0f, 0f, w, h, atop)
             c.translate(-padX, -padY)
             c.scale(1f, (h + 2 * padY) / side)
-            light.draw(c, side, side, cycle)
+            // Read while drawing, so each frame of the shimmer redraws the letters directly.
+            light.draw(c, side, side, cycle?.floatValue)
             c.restoreToCount(layer)
         }
     }

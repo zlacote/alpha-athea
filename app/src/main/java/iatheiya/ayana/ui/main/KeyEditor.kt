@@ -56,16 +56,29 @@ internal fun keyModeLabel(mode: KeyMode): String = when (mode) {
     KeyMode.LOCK -> stringResource(R.string.keys_lock)
 }
 
-/** The mode a stored key represents, read back from its kind + sticky/lock flags. */
+/**
+ * The mode a stored key represents, read back from its kind + sticky/lock flags. The built-in
+ * modifiers say what they do: Ctrl and Alt latch for the next key (sticky), FN stays on until it is
+ * pressed again (lock).
+ */
 internal fun CustomKey.keyMode(): KeyMode = when {
+    kind == KeyKind.CTRL || kind == KeyKind.ALT -> KeyMode.STICKY
+    kind == KeyKind.FN -> KeyMode.LOCK
     sticky && lock -> KeyMode.LOCK
     sticky -> KeyMode.STICKY
     kind == KeyKind.INSERT -> KeyMode.INSERT
     else -> KeyMode.SEND
 }
 
-/** The same key with its behaviour set to [mode]: the one place mode maps onto kind + flags. */
-internal fun CustomKey.withMode(mode: KeyMode): CustomKey = when (mode) {
+/** One of the built-in modifiers, whose behaviour is their own and not a payload's. */
+internal val CustomKey.isModifier: Boolean
+    get() = kind == KeyKind.CTRL || kind == KeyKind.ALT || kind == KeyKind.FN
+
+/**
+ * The same key with its behaviour set to [mode]: the one place mode maps onto kind + flags. A
+ * built-in modifier left at its own mode stays that modifier.
+ */
+internal fun CustomKey.withMode(mode: KeyMode): CustomKey = if (isModifier && mode == keyMode()) this else when (mode) {
     KeyMode.INSERT -> copy(kind = KeyKind.INSERT, sticky = false, lock = false)
     KeyMode.SEND -> copy(kind = KeyKind.SEND, sticky = false, lock = false)
     KeyMode.STICKY -> copy(kind = KeyKind.SEND, sticky = true, lock = false)

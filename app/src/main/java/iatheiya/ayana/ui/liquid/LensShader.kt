@@ -132,13 +132,16 @@ float roundBoxSdf(float2 p, float2 halfSize, float r) {
     return length(max(d, float2(0.0))) + min(max(d.x, d.y), 0.0) - r;
 }
 
-float2 outwardNormal(float2 p, float2 halfSize, float r) {
+// The outward direction, turning smoothly. Taken as the nearest edge's normal it jumped by a
+// right angle along each corner's diagonal, and the bend drew that seam as a crease from every
+// corner of a large surface. A soft maximum of the two edge distances blends them across the
+// diagonal over a few pixels of the bezel, and in the round corner it is the corner's own normal.
+float2 outwardNormal(float2 p, float2 halfSize, float r, float softness) {
     float2 d = abs(p) - halfSize + float2(r);
     float2 s = float2(p.x >= 0.0 ? 1.0 : -1.0, p.y >= 0.0 ? 1.0 : -1.0);
-    if (max(d.x, d.y) > 0.0) {
-        return s * normalize(max(d, float2(0.0)));
-    }
-    return d.x > d.y ? float2(s.x, 0.0) : float2(0.0, s.y);
+    float2 k = d / softness;
+    float2 soft = softness * (max(k, float2(0.0)) + log(float2(1.0) + exp(-abs(k))));
+    return s * normalize(soft + float2(1e-4));
 }
 
 // 1 at the rim, 0 at the inner edge of the bezel, along a quarter circle.
@@ -151,6 +154,11 @@ half4 main(float2 xy) {
     float2 p = xy - halfSize;
     // The top corners take cornerRadius, the bottom ones bottomRadius.
     float r = min(p.y < 0.0 ? cornerRadius : bottomRadius, min(halfSize.x, halfSize.y));
+    // A panel with a square bottom is docked: its lower edge runs under the screen's edge or the
+    // keyboard. It is not a rim, so it is neither bent nor lit; only the sides and the top are.
+    if (bottomRadius < 0.5 && p.y > 0.0) {
+        p.y = 0.0;
+    }
     float sdf = roundBoxSdf(p, halfSize, r);
     half4 backdrop = content.eval(xy);
     if (sdf > 1.0) {
@@ -158,7 +166,7 @@ half4 main(float2 xy) {
     }
     float minHalf = min(halfSize.x, halfSize.y);
     float bezelWidth = min(bezel, minHalf);
-    float2 n = outwardNormal(p, halfSize, r);
+    float2 n = outwardNormal(p, halfSize, r, max(bezelWidth * 0.25, 1.0));
 
     float depth = clamp(-sdf / bezelWidth, 0.0, 1.0);
     float edge = circleMap(1.0 - depth);
