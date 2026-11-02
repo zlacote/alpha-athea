@@ -77,56 +77,52 @@ jobs:
         with:
           gradle-version: ${{ env.GRADLE_VERSION }}
 
-      - name: Unit tests and APKs (debug + release)
-        run: gradle :core:test :app:testDebugUnitTest :app:assembleDebug :app:assembleRelease --stacktrace --warning-mode summary
-
-      - name: Sign APKs with apksigner
+      # The release key, when the repository has one in its secrets; without it the build falls
+      # back to the debug key kept in the repository, the same on every run.
+      - name: Release key
+        env:
+          KEYSTORE_B64: ${{ secrets.SIGNING_KEYSTORE_BASE64 }}
         run: |
-          keytool -genkeypair -v \
-            -keystore signing.keystore \
-            -alias ayana \
-            -storepass ayana123 -keypass ayana123 \
-            -keyalg RSA -keysize 2048 -validity 10000 \
-            -dname "CN=Ayana,O=Ayana,C=US"
-          for APK in $(find app/build/outputs/apk -name "*.apk"); do
-            echo "Signing: $APK"
-            ${ANDROID_HOME}/build-tools/${BUILD_TOOLS_VERSION}/apksigner sign \
-              --ks signing.keystore \
-              --ks-key-alias ayana \
-              --ks-pass pass:ayana123 \
-              --key-pass pass:ayana123 \
-              --out "$APK" \
-              "$APK"
-            ${ANDROID_HOME}/build-tools/${BUILD_TOOLS_VERSION}/apksigner verify --verbose "$APK" | head -10
-          done
-          echo "APKs signed successfully"
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.keystore"
+            echo "SIGNING_STORE_FILE=$RUNNER_TEMP/release.keystore" >> "$GITHUB_ENV"
+            echo "Release key: from secrets"
+          else
+            echo "Release key: none in secrets, signing with the repository debug key"
+          fi
+
+      - name: Unit tests and APKs (debug + release)
+        env:
+          SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
+          SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
+          SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
+        run: gradle :core:test :app:testDebugUnitTest :app:assembleDebug :app:assembleRelease --stacktrace --warning-mode summary
 
       - name: Collect outputs
         run: |
-          mkdir -p build_out/apk
-          find app/build/outputs/apk/debug -name "*.apk" -print -quit \
-            | xargs -r -I{} cp {} build_out/apk/Ayana-debug.apk
-          find app/build/outputs/apk/release -name "*.apk" -print -quit \
-            | xargs -r -I{} cp {} build_out/apk/Ayana-arm64.apk
-          echo "=== debug (x86_64 + arm64) ===" > build_out/native_libs.txt
-          unzip -l build_out/apk/Ayana-debug.apk | awk '/lib\//{print $4}' >> build_out/native_libs.txt || true
-          echo "=== release arm64 (optimized) ===" >> build_out/native_libs.txt
-          unzip -l build_out/apk/Ayana-arm64.apk | awk '/lib\//{print $4}' >> build_out/native_libs.txt || true
-          ls -lh build_out/apk/
+          VERSION=$(sed -n 's/.*versionName = "\(.*\)".*/\1/p' app/build.gradle.kts)
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          mkdir -p build_out/release build_out/debug
+          cp app/build/outputs/apk/debug/*universal*.apk "build_out/debug/ayana-$VERSION-debug.apk"
+          for ABI in universal arm64-v8a armeabi-v7a x86_64; do
+            cp app/build/outputs/apk/release/*-"$ABI"-release.apk "build_out/release/ayana-$VERSION-$ABI.apk"
+          done
+          ( cd build_out/release && sha256sum *.apk > SHA256SUMS )
+          ls -lh build_out/release build_out/debug
+
+      - name: Upload release APKs
+        uses: actions/upload-artifact@v7
+        with:
+          name: ayana-release
+          path: build_out/release
+          if-no-files-found: error
+          compression-level: 0
 
       - name: Upload debug APK
         uses: actions/upload-artifact@v7
         with:
-          name: Ayana-debug-apk
-          path: build_out/apk/Ayana-debug.apk
-          if-no-files-found: error
-          compression-level: 0
-
-      - name: Upload arm64 APK (release, optimized)
-        uses: actions/upload-artifact@v7
-        with:
-          name: Ayana-arm64-apk
-          path: build_out/apk/Ayana-arm64.apk
+          name: ayana-debug
+          path: build_out/debug
           if-no-files-found: error
           compression-level: 0
 
@@ -138,13 +134,6 @@ jobs:
           path: app/build/test-results/testDebugUnitTest
           if-no-files-found: ignore
 
-      - name: Upload build info
-        uses: actions/upload-artifact@v7
-        if: always()
-        with:
-          name: build-info
-          path: build_out/native_libs.txt
-          if-no-files-found: ignore
 
   smoke:
     name: emulator-smoke
@@ -172,7 +161,7 @@ jobs:
       - name: Download APK
         uses: actions/download-artifact@v8
         with:
-          name: Ayana-debug-apk
+          name: ayana-debug
           path: downloaded_apk
 
       - name: Locate APK
@@ -221,3 +210,36 @@ jobs:
           name: emulator-data
           path: emulator_logs
           if-no-files-found: warn
+
+  # A green run on the main branch publishes a release for the version in the build, once: when
+  # the version is bumped, the next green run releases it; later runs of the same version skip.
+  release:
+    name: release
+    runs-on: ubuntu-latest
+    needs: [build, smoke]
+    if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Download release APKs
+        uses: actions/download-artifact@v8
+        with:
+          name: ayana-release
+          path: release
+
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION=$(sed -n 's/.*versionName = "\(.*\)".*/\1/p' app/build.gradle.kts)
+          TAG="v$VERSION"
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            echo "Release $TAG already exists; nothing to do."
+            exit 0
+          fi
+          gh release create "$TAG" release/*.apk release/SHA256SUMS \
+            --target "$GITHUB_SHA" \
+            --title "Ayana $VERSION" \
+            --generate-notes

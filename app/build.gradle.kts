@@ -22,8 +22,15 @@ android {
         versionCode = 8
         versionName = "0.8.0"
 
-        ndk {
-            abiFilters += listOf("arm64-v8a", "x86_64")
+    }
+
+    // One APK per processor family, and one universal APK that runs on all of them.
+    splits {
+        abi {
+            isEnable = true
+            reset()
+            include("arm64-v8a", "armeabi-v7a", "x86_64")
+            isUniversalApk = true
         }
     }
 
@@ -34,6 +41,17 @@ android {
             keyAlias = "androiddebugkey"
             keyPassword = "android"
         }
+        // The release key comes from the environment (CI secrets). Without it, releases are signed
+        // with the debug key above: still the same key on every build, so updates install over.
+        val releaseStore = System.getenv("SIGNING_STORE_FILE")
+        if (releaseStore != null && file(releaseStore).exists()) {
+            create("release") {
+                storeFile = file(releaseStore)
+                storePassword = System.getenv("SIGNING_STORE_PASSWORD")
+                keyAlias = System.getenv("SIGNING_KEY_ALIAS")
+                keyPassword = System.getenv("SIGNING_KEY_PASSWORD")
+            }
+        }
     }
 
     buildTypes {
@@ -41,14 +59,11 @@ android {
             signingConfig = signingConfigs.getByName("debug")
         }
         release {
-            // Optimized release: R8 + resource shrink, not debuggable.
-            // Signed with debug keystore in CI so it installs without
-            // a release key; tests still use debug and are unaffected.
-            // Artifact is arm64-optimized (generic arch, not device-specific).
+            // Optimized release: R8 and resource shrinking, not debuggable.
             isMinifyEnabled = true
             isShrinkResources = true
             isDebuggable = false
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
