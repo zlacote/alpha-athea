@@ -2,7 +2,6 @@ package iatheiya.ayana
 
 import android.app.Application
 import android.util.Log
-import iatheiya.ayana.ui.common.lightShaderError
 import iatheiya.ayana.util.AyanaLog
 import iatheiya.ayana.util.LogSink
 import java.io.File
@@ -22,9 +21,6 @@ class AyanaApplication : Application() {
             }
         }
         installCrashLog()
-        if (BuildConfig.DEBUG) {
-            Log.i(LOG_TAG, lightShaderError()?.let { "light shader failed: $it" } ?: "light shader ok")
-        }
     }
 
     /**

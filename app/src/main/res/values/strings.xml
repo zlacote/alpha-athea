@@ -67,7 +67,6 @@
     <string name="appearance_tint_pick">Any color</string>
     <string name="appearance_tint_hex">Hex code</string>
     <string name="appearance_tint_soft">Soft</string>
-    <string name="appearance_tint_soft_desc">The color softened toward the dark background</string>
     <string name="appearance_tint_hue">Hue</string>
     <string name="appearance_tint_saturation">Saturation</string>
     <string name="appearance_tint_brightness">Brightness</string>
@@ -82,7 +81,6 @@
     <string name="signal_text">%1$s: done after %2$d s</string>
     <string name="settings_section_appearance">Appearance</string>
     <string name="appearance_tint">Accent color</string>
-    <string name="appearance_tint_desc">Lights switches, chosen options and armed keys</string>
     <string name="appearance_font">Font</string>
     <string name="appearance_greeting_animated">Shimmering greeting</string>
     <string name="appearance_greeting_animated_desc">The name on every empty chat flows with soft colors, not only on the first one</string>
@@ -112,9 +110,9 @@
     <string name="settings_section_input">Input</string>
     <string name="settings_section_output">Output</string>
     <string name="settings_fav_return">Return to chat on tap</string>
-    <string name="settings_fav_return_desc">Tapping a favorite places it and goes back to the chat</string>
     <string name="settings_fav_send">Send immediately</string>
-    <string name="settings_fav_send_desc">Tapping a favorite runs it instead of inserting it</string>
+    <string name="settings_fav_both">Both</string>
+    <string name="settings_fav_off">Off</string>
     <string name="keys_title">Keys</string>
     <string name="keys_sticky">Sticky</string>
     <string name="keys_lock">Lock</string>
@@ -136,10 +134,11 @@
     <string name="attach_copy">Copy into terminal folder</string>
     <string name="attach_link">Give a symlink</string>
     <string name="settings_diag_copied">Logs copied</string>
-    <string name="settings_advanced">Advanced</string>
+    <string name="settings_about">About</string>
     <string name="settings_version">Version</string>
-    <string name="settings_system_app">Ayana in system settings</string>
-    <string name="about_author">by Iatheiya</string>
+    <string name="about_author_title">Author</string>
+    <string name="about_author_name" translatable="false">Iatheiya</string>
+    <string name="about_author_url" translatable="false">https://github.com/iatheiya</string>
     <string name="about_source">Source code</string>
     <string name="about_source_url" translatable="false">https://github.com/iatheiya/alpha-ayana</string>
     <string name="settings_font_size">Output font size</string>

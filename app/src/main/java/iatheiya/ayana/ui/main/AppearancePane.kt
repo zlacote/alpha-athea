@@ -336,7 +336,6 @@ private fun TintChooser(state: AppearanceState, actions: AppearanceActions) {
     val custom = state.tintMode == TINT_COLOR && state.tintArgb !in PRESET_TINTS
     SwitchRow(
         title = stringResource(R.string.appearance_tint),
-        subtitle = stringResource(R.string.appearance_tint_desc),
         checked = on,
         onChange = { enable ->
             if (enable) {
@@ -384,7 +383,6 @@ private fun TintChooser(state: AppearanceState, actions: AppearanceActions) {
         // The chosen colour exactly, by default; or softened toward the dark surfaces.
         SwitchRow(
             title = stringResource(R.string.appearance_tint_soft),
-            subtitle = stringResource(R.string.appearance_tint_soft_desc),
             checked = state.tintSoft,
             onChange = actions.onTintSoftChange,
         )

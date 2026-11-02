@@ -86,6 +86,36 @@ fun <T> AyanaChoiceSheet(
     selected: T?,
     onPick: (T) -> Unit,
     onDismiss: () -> Unit,
+) = ChoiceSheetFrame(title, choices, isOn = { it == selected }, closesOnPick = true, onPick = onPick, onDismiss = onDismiss)
+
+/**
+ * The same sheet for options that are each on or off, any number at once: a tap turns the option
+ * over and the sheet stays, so several can be set in one go; it goes as any sheet does.
+ */
+@Composable
+fun <T> AyanaToggleSheet(
+    title: String,
+    choices: List<SheetChoice<T>>,
+    on: Set<T>,
+    onToggle: (T, Boolean) -> Unit,
+    onDismiss: () -> Unit,
+) = ChoiceSheetFrame(
+    title,
+    choices,
+    isOn = { it in on },
+    closesOnPick = false,
+    onPick = { onToggle(it, it !in on) },
+    onDismiss = onDismiss,
+)
+
+@Composable
+private fun <T> ChoiceSheetFrame(
+    title: String,
+    choices: List<SheetChoice<T>>,
+    isOn: (T) -> Boolean,
+    closesOnPick: Boolean,
+    onPick: (T) -> Unit,
+    onDismiss: () -> Unit,
 ) {
     val scope = rememberCoroutineScope()
     // The sheet's distance below its resting place, in pixels; it starts fully below. The finger
@@ -185,7 +215,7 @@ fun <T> AyanaChoiceSheet(
                     verticalArrangement = Arrangement.spacedBy(Ui.spaceS),
                 ) {
                     choices.forEach { choice ->
-                        val current = choice.value == selected
+                        val current = isOn(choice.value)
                         // The chosen option is lit with the accent colour when one is set.
                         val fill = when {
                             !current -> Color.Transparent
@@ -204,7 +234,7 @@ fun <T> AyanaChoiceSheet(
                                     BorderStroke(1.dp, if (current) Color.Transparent else MaterialTheme.colorScheme.outline),
                                     OPTION_SHAPE,
                                 )
-                                .clickable { close { onPick(choice.value) } }
+                                .clickable { if (closesOnPick) close { onPick(choice.value) } else onPick(choice.value) }
                                 .padding(horizontal = Ui.spaceXl, vertical = 18.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {

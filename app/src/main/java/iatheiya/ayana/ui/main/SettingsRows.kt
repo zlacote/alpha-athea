@@ -49,7 +49,8 @@ internal fun SettingsCard(content: @Composable ColumnScope.() -> Unit) {
 @Composable
 internal fun SwitchRow(
     title: String,
-    subtitle: String,
+    /** A line under the title; left out where the title says enough. */
+    subtitle: String? = null,
     checked: Boolean,
     onChange: (Boolean) -> Unit,
     /** Off greys the row out and ignores taps, for a setting that cannot apply right now. */
@@ -70,11 +71,13 @@ internal fun SwitchRow(
                 .padding(end = Ui.controlGap),
         ) {
             Text(text = title, style = MaterialTheme.typography.bodyLarge)
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            if (subtitle != null) {
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
         Switch(
             checked = checked,
