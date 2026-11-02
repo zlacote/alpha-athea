@@ -694,8 +694,6 @@ private fun BottomBar(
             onSend = viewModel::sendDraft,
             onExpandEditor = { viewModel.setEditorExpanded(true) },
             onAddClick = { onAttach() },
-                )
-            },
             search = state.workspace.search,
             onSearchQueryChange = viewModel::updateSearchQuery,
             onSearchNext = viewModel::nextSearchMatch,
