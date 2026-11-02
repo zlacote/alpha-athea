@@ -83,7 +83,7 @@
     <string name="appearance_tint">Accent color</string>
     <string name="appearance_font">Font</string>
     <string name="appearance_greeting_animated">Shimmering greeting</string>
-    <string name="appearance_greeting_animated_desc">The name on every empty chat flows with soft colors, not only on the first one</string>
+    <string name="appearance_greeting_animated_desc">The light over the name shimmers on every empty chat, not only on the first one</string>
     <string name="appearance_font_system">Default</string>
     <string name="appearance_font_mono">Monospace</string>
     <string name="appearance_font_serif">Serif</string>
@@ -128,8 +128,7 @@
     <string name="settings_keys_kind_insert">Into editor</string>
     <string name="settings_keys_esc_hint">Special keys are typed as escapes. For example, Home is \\e[H.</string>
     <string name="keys_reference">Key codes reference</string>
-    <string name="settings_diag_section">Diagnostics</string>
-    <string name="settings_diag_copy">Copy logs to clipboard</string>
+    <string name="settings_diag_copy">Copy diagnostics</string>
     <string name="attach_add">Attach file</string>
     <string name="attach_copy">Copy into terminal folder</string>
     <string name="attach_link">Give a symlink</string>

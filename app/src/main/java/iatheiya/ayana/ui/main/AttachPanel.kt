@@ -78,9 +78,9 @@ fun AttachPanel(open: Boolean, anchor: Rect, origin: Offset, choices: List<Attac
             Modifier
                 .onSizeChanged { height = it.height }
                 .widthIn(min = PANEL_MIN_WIDTH)
-                .liquidGlass(LocalLiquidBackdrop.current, Ui.panelShape, Ui.panelRadius, strong = true)
+                .liquidGlass(LocalLiquidBackdrop.current, Ui.menuShape, Ui.menuRadius, strong = true)
                 // Rows reach the panel's edges, so a pressed row lights up to them and no further.
-                .clip(Ui.panelShape)
+                .clip(Ui.menuShape)
                 .width(IntrinsicSize.Max),
         ) {
             choices.forEach { choice ->

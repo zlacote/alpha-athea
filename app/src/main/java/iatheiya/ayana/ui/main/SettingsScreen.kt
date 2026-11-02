@@ -1,5 +1,6 @@
 package iatheiya.ayana.ui.main
 
+import androidx.compose.material.icons.outlined.Description
 import androidx.compose.foundation.clickable
 import iatheiya.ayana.ui.common.AyanaPage
 import androidx.compose.foundation.layout.Box
@@ -37,8 +38,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.BugReport
-import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Keyboard
 import androidx.compose.material.icons.filled.KeyboardCommandKey
 import androidx.compose.material.icons.filled.Palette
@@ -296,19 +295,14 @@ internal fun SettingsScreen(
                         onClick = { uriHandler.openUri(sourceUrl) },
                         trailing = { OpenOutside() },
                     )
-                    SettingsDivider()
+                }
+                // An action, not a room: its words say what it does, so it needs no chevron.
+                SettingsCard {
                     SettingsEntryRow(
-                        icon = Icons.Default.BugReport,
-                        title = stringResource(R.string.settings_diag_section),
+                        icon = Icons.Outlined.Description,
+                        title = stringResource(R.string.settings_diag_copy),
                         onClick = { copyDiagnostics(context) },
-                        // An action, not a room: it carries a copy affordance, not a chevron.
-                        trailing = {
-                            Icon(
-                                Icons.Default.ContentCopy,
-                                contentDescription = stringResource(R.string.settings_diag_copy),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        },
+                        trailing = {},
                     )
                 }
 

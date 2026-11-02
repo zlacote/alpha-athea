@@ -2,8 +2,8 @@ package iatheiya.ayana.ui.common
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -48,11 +48,12 @@ class AyanaDrawerState internal constructor(private val scope: CoroutineScope) {
     fun open() = slideTo(1f)
     fun close() = slideTo(0f)
 
-    /** Slides to an end in a time that fits the way left, so a short way is not rushed through. */
-    private fun slideTo(target: Float) {
-        val left = kotlin.math.abs(target - progress.value)
-        val ms = (SLIDE_MIN_MS + (SLIDE_FULL_MS - SLIDE_MIN_MS) * left).toInt()
-        scope.launch { progress.animateTo(target, tween(ms, easing = FastOutSlowInEasing)) }
+    /**
+     * Glides to an end, carrying on at the speed the finger left it with ([velocity], in drawer
+     * widths per second) and easing out with no overshoot, so letting go never jerks it.
+     */
+    private fun slideTo(target: Float, velocity: Float = 0f) {
+        scope.launch { progress.animateTo(target, GLIDE, initialVelocity = velocity) }
     }
 
     // Where the finger has the drawer, kept here so quick moves add up before each snap lands.
@@ -67,32 +68,29 @@ class AyanaDrawerState internal constructor(private val scope: CoroutineScope) {
     }
 
     /**
-     * Where a swipe lands when the finger lets go. A slow pull opens once it has brought the
-     * drawer half way, and shuts once it has taken it back past half. A quick flick counts only
-     * after the drawer has come a good part of the way, so a short swipe, however fast, puts it
-     * back instead of throwing it open.
+     * Where a swipe lands when the finger lets go, the same both ways. It goes through once the
+     * swipe has carried the drawer a good part of the way ([THROUGH]), or once a clear flick has
+     * carried it some way ([FLICK_MIN_TRAVEL]) in the direction of the swipe. A short twitch,
+     * however fast, falls back.
      */
     internal fun settle(velocityPx: Float, opening: Boolean) {
         val flick = FLICK_DP_PER_S * densityScale
         val moved = if (opening) progress.value else 1f - progress.value
-        val target = when {
-            moved >= FLICK_MIN_TRAVEL && velocityPx > flick -> 1f
-            moved >= FLICK_MIN_TRAVEL && velocityPx < -flick -> 0f
-            opening -> if (progress.value > HALF) 1f else 0f
-            else -> if (progress.value < HALF) 0f else 1f
-        }
-        slideTo(target)
+        val towards = if (opening) velocityPx else -velocityPx
+        val through = moved >= THROUGH || (moved >= FLICK_MIN_TRAVEL && towards > flick)
+        val target = if (through == opening) 1f else 0f
+        slideTo(target, velocityPx / widthPx)
     }
 
     internal var densityScale = 1f
 
     private companion object {
-        const val HALF = 0.5f
-        const val FLICK_DP_PER_S = 1100f
+        /** How much of the way a slow swipe must carry the drawer to go through. */
+        const val THROUGH = 0.4f
+        const val FLICK_DP_PER_S = 700f
         /** How far a flick must have carried the drawer before its speed decides. */
-        const val FLICK_MIN_TRAVEL = 0.3f
-        const val SLIDE_MIN_MS = 180f
-        const val SLIDE_FULL_MS = 420f
+        const val FLICK_MIN_TRAVEL = 0.12f
+        val GLIDE = spring<Float>(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = 380f)
     }
 }
 
@@ -143,7 +141,8 @@ fun AyanaDrawer(
                 .onSizeChanged { state.widthPx = it.width.toFloat().coerceAtLeast(1f) }
                 .offset { IntOffset(((p - 1f) * state.widthPx).roundToInt(), 0) },
         ) {
-            if (p > 0f) drawerContent()
+            // Kept composed while hidden, so pulling it out does not stall on its first frame.
+            drawerContent()
         }
     }
 }

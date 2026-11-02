@@ -28,10 +28,10 @@ import androidx.compose.ui.graphics.nativeCanvas
  * warmer and cooler and back.
  */
 @Composable
-fun AyanaLight(modifier: Modifier = Modifier) {
+fun AyanaLight(modifier: Modifier = Modifier, shimmering: Boolean = true) {
     val light = remember { SpotLight() }
     var cycle by remember { mutableFloatStateOf(0f) }
-    LaunchedEffect(Unit) {
+    if (shimmering) LaunchedEffect(Unit) {
         val start = withFrameNanos { it }
         while (true) {
             withFrameNanos { now -> cycle = ((now - start) % CYCLE_NANOS).toFloat() / CYCLE_NANOS }

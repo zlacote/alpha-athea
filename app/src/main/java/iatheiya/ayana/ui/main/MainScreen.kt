@@ -728,8 +728,11 @@ private fun BottomBar(
             val keys = remember(state.workspace.customKeys) {
                 effectiveKeyRow(state.workspace.customKeys).map { it.toTerminalKey() }
             }
+            var fnOn by remember { mutableStateOf(false) }
             KeyRow(
                 keys = keys,
+                fnOn = fnOn,
+                onToggleFn = { fnOn = !fnOn },
                 stickyCtrl = state.stickyCtrl,
                 stickyAlt = state.stickyAlt,
                 stickyPrefix = state.stickyPrefix,

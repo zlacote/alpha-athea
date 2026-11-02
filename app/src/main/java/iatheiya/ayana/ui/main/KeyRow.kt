@@ -2,10 +2,10 @@ package iatheiya.ayana.ui.main
 
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Icon
-import androidx.compose.material.icons.filled.ArrowDownward
-import androidx.compose.material.icons.filled.ArrowUpward
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.ArrowDropUp
+import androidx.compose.material.icons.automirrored.filled.ArrowRight
+import androidx.compose.material.icons.automirrored.filled.ArrowLeft
 import androidx.compose.material.icons.Icons
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -58,6 +58,9 @@ enum class KeyActionKind {
 
     /** Arms the sticky Alt modifier (ESC prefix) for the next key. */
     TOGGLE_STICKY_ALT,
+
+    /** Turns the second layer of keys on or off; it stays until pressed again. */
+    TOGGLE_FN,
 }
 
 /**
@@ -107,27 +110,55 @@ object DefaultKeys {
     val RIGHT = TerminalKey("→", KeyActionKind.SEND_TO_TERMINAL, CursorKey.RIGHT.sequence)
     val HOME = TerminalKey("HOME", KeyActionKind.SEND_TO_TERMINAL, CursorKey.HOME.sequence)
     val END = TerminalKey("END", KeyActionKind.SEND_TO_TERMINAL, CursorKey.END.sequence)
+    val PAGE_UP = TerminalKey("PGUP", KeyActionKind.SEND_TO_TERMINAL, CursorKey.PAGE_UP.sequence)
+    val PAGE_DOWN = TerminalKey("PGDN", KeyActionKind.SEND_TO_TERMINAL, CursorKey.PAGE_DOWN.sequence)
     val SLASH = TerminalKey("/", KeyActionKind.INSERT_INTO_DRAFT, "/")
     val DASH = TerminalKey("-", KeyActionKind.INSERT_INTO_DRAFT, "-")
     val PIPE = TerminalKey("|", KeyActionKind.INSERT_INTO_DRAFT, "|")
     val TILDE = TerminalKey("~", KeyActionKind.INSERT_INTO_DRAFT, "~")
 
+    val FN = TerminalKey("FN", KeyActionKind.TOGGLE_FN)
+
     // Two rows of seven: what a shell asks for most and a phone keyboard hides. The keys it has
-    // no key for at all (Esc, Tab, Ctrl, Alt, the arrows, Home, End), and the symbols it keeps
-    // a page or two away: / for paths, | for pipes, ~ for home, - for every flag.
-    //   ESC  /     |    ~  HOME  ↑  END
-    //   TAB  CTRL  ALT  -  ←     ↓  →
-    // The grid is column-major, so the list runs down each column in turn. Ctrl and Alt are
-    // modifiers: press one, then the next key, from the row or the keyboard, combines with it.
+    // no key for at all (Esc, Tab, Ctrl, the arrows, Home, End), and the symbols it keeps a page
+    // or two away: - for every flag, ~ for home, | for pipes, / for paths.
+    //   ESC  -     ~   HOME  ↑  END  |
+    //   TAB  CTRL  FN  ←     ↓  →    /
+    // The grid is column-major, so the list runs down each column in turn. Ctrl is a modifier:
+    // press it, then the next key, from the row or the keyboard, combines with it. FN swaps every
+    // other key for the second layer below, until it is pressed again.
     val row = listOf(
         ESC, TAB,
-        SLASH, CTRL,
-        PIPE, ALT,
-        TILDE, DASH,
+        DASH, CTRL,
+        TILDE, FN,
         HOME, LEFT,
         UP, DOWN,
         END, RIGHT,
+        PIPE, SLASH,
     )
+
+    private fun function(n: Int, sequence: String) = TerminalKey("F$n", KeyActionKind.SEND_TO_TERMINAL, sequence)
+
+    // The second layer, shown while FN is on, in the places of every key but FN itself:
+    //   F1  F2  F3  F4  F5   F6   PGUP
+    //   F7  F8  FN  F9  F10  ALT  PGDN
+    // The function keys programs like htop and mc use, paging, and Alt, which the first layer
+    // gives up for FN. Listed in the order of the cells it fills, column by column.
+    val fnLayer = listOf(
+        function(1, "\u001BOP"), function(7, "\u001B[18~"),
+        function(2, "\u001BOQ"), function(8, "\u001B[19~"),
+        function(3, "\u001BOR"),
+        function(4, "\u001BOS"), function(9, "\u001B[20~"),
+        function(5, "\u001B[15~"), function(10, "\u001B[21~"),
+        function(6, "\u001B[17~"), ALT,
+        PAGE_UP, PAGE_DOWN,
+    )
+}
+
+/** [row] as it shows while FN is on: every key but FN takes the next key of [layer], in order. */
+fun withFnLayer(row: List<TerminalKey>, layer: List<TerminalKey>): List<TerminalKey> {
+    val next = layer.iterator()
+    return row.map { key -> if (key.kind == KeyActionKind.TOGGLE_FN || !next.hasNext()) key else next.next() }
 }
 
 /** The key row as the user sees it: their stored keys, or the built-in row until they change it. */
@@ -141,6 +172,7 @@ fun CustomKey.toTerminalKey(): TerminalKey = TerminalKey(
         KeyKind.SEND -> KeyActionKind.SEND_TO_TERMINAL
         KeyKind.CTRL -> KeyActionKind.TOGGLE_STICKY_CTRL
         KeyKind.ALT -> KeyActionKind.TOGGLE_STICKY_ALT
+        KeyKind.FN -> KeyActionKind.TOGGLE_FN
     },
     payload = payload,
     sticky = sticky,
@@ -155,6 +187,7 @@ private fun TerminalKey.toCustomKey(): CustomKey = CustomKey(
         KeyActionKind.SEND_TO_TERMINAL -> KeyKind.SEND
         KeyActionKind.TOGGLE_STICKY_CTRL -> KeyKind.CTRL
         KeyActionKind.TOGGLE_STICKY_ALT -> KeyKind.ALT
+        KeyActionKind.TOGGLE_FN -> KeyKind.FN
     },
 )
 
@@ -176,6 +209,9 @@ fun KeyRow(
     onToggleStickyPrefix: (payload: String, lock: Boolean) -> Unit,
     onConsumeStickyPrefix: () -> Unit,
     modifier: Modifier = Modifier,
+    /** The second layer of keys is showing; [onToggleFn] turns it on and off. */
+    fnOn: Boolean = false,
+    onToggleFn: () -> Unit = {},
     rows: Int = 1,
     cols: Int = Ui.keyVisibleCount,
     /** False when the row sits inside a container that already draws the glass. */
@@ -200,7 +236,7 @@ fun KeyRow(
             ),
     ) {
         EqualCellGrid(
-            items = keys,
+            items = if (fnOn) withFnLayer(keys, DefaultKeys.fnLayer) else keys,
             rows = rows,
             columnsVisible = cols,
             cellHeight = Ui.keyMinHeight,
@@ -218,6 +254,7 @@ fun KeyRow(
             cell = { key ->
                 val selected = (key.kind == KeyActionKind.TOGGLE_STICKY_CTRL && stickyCtrl) ||
                     (key.kind == KeyActionKind.TOGGLE_STICKY_ALT && stickyAlt) ||
+                    (key.kind == KeyActionKind.TOGGLE_FN && fnOn) ||
                     (key.sticky && stickyPrefix == key.payload)
                 KeyCell(key = key, selected = selected) {
                     // A sticky key does not fire itself: it latches its payload as the prefix the
@@ -261,6 +298,8 @@ fun KeyRow(
                         KeyActionKind.TOGGLE_STICKY_CTRL -> onToggleStickyCtrl()
 
                         KeyActionKind.TOGGLE_STICKY_ALT -> onToggleStickyAlt()
+
+                        KeyActionKind.TOGGLE_FN -> onToggleFn()
                     }
                 }
             },
@@ -344,13 +383,14 @@ internal fun KeyFaceText(label: String, selected: Boolean) {
     )
 }
 
+// Plain triangles, one set, so the four read alike.
 private val ARROW_ICONS = mapOf(
-    "←" to Icons.AutoMirrored.Filled.ArrowBack,
-    "→" to Icons.AutoMirrored.Filled.ArrowForward,
-    "↑" to Icons.Filled.ArrowUpward,
-    "↓" to Icons.Filled.ArrowDownward,
+    "←" to Icons.AutoMirrored.Filled.ArrowLeft,
+    "→" to Icons.AutoMirrored.Filled.ArrowRight,
+    "↑" to Icons.Filled.ArrowDropUp,
+    "↓" to Icons.Filled.ArrowDropDown,
 )
-private val ARROW_SIZE = 20.dp
+private val ARROW_SIZE = 30.dp
 
 /** The fill of an armed (or carried) key: the chosen accent, or white without one. */
 @Composable

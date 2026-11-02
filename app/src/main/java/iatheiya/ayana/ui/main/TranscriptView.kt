@@ -1,5 +1,6 @@
 package iatheiya.ayana.ui.main
 
+import iatheiya.ayana.ui.common.AyanaLight
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -428,28 +429,16 @@ fun TranscriptView(
 
 @Composable
 private fun EmptyGreeting(animated: Boolean, modifier: Modifier = Modifier) {
-    val base = MaterialTheme.colorScheme.onBackground
-    // A soft rainbow flows through the name without end: the colours repeat as one seamless
-    // band, so the loop has no seam and no jump.
-    val flow = if (animated) {
-        val transition = rememberInfiniteTransition(label = "greeting")
-        transition.animateFloat(
-            initialValue = 0f,
-            targetValue = 1f,
-            animationSpec = infiniteRepeatable(tween(GREETING_FLOW_MS, easing = LinearEasing)),
-            label = "greetingFlow",
-        ).value
-    } else {
-        null
-    }
+    // The icon's light over the name: shimmering when the greeting is animated, still otherwise.
     Column(
         modifier = modifier.padding(horizontal = 32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
+        AyanaLight(Modifier.size(width = GREETING_LIGHT_WIDTH, height = GREETING_LIGHT_HEIGHT), shimmering = animated)
         Text(
             text = stringResource(R.string.greeting_title),
-            style = MaterialTheme.typography.headlineSmall.copy(brush = flow?.let(::greetingBrush)),
-            color = base,
+            style = MaterialTheme.typography.headlineSmall,
+            color = MaterialTheme.colorScheme.onBackground,
         )
         Spacer(Modifier.height(8.dp))
         Text(
@@ -459,6 +448,9 @@ private fun EmptyGreeting(animated: Boolean, modifier: Modifier = Modifier) {
         )
     }
 }
+
+private val GREETING_LIGHT_WIDTH = 170.dp
+private val GREETING_LIGHT_HEIGHT = 120.dp
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -947,29 +939,3 @@ private fun Modifier.fadeOutBottom(height: Dp): Modifier =
             )
         }
 
-/** One pass of the colours through the name. */
-private const val GREETING_FLOW_MS = 3200
-
-/** Soft, muted rainbow: rose, apricot, sage, mist blue, lavender, and rose again to close the loop. */
-private val GREETING_COLORS = listOf(
-    Color(0xFFE6B8C9),
-    Color(0xFFE8CDAE),
-    Color(0xFFD3E2B8),
-    Color(0xFFB8D6E0),
-    Color(0xFFC7BCE6),
-    Color(0xFFE6B8C9),
-)
-
-/** The band of colours, shifted by [flow] (0..1) of its own width, repeating across the text. */
-private fun greetingBrush(flow: Float): Brush {
-    val start = -GREETING_BAND_PX * flow
-    return Brush.linearGradient(
-        colors = GREETING_COLORS,
-        start = Offset(start, 0f),
-        end = Offset(start + GREETING_BAND_PX, 0f),
-        tileMode = TileMode.Repeated,
-    )
-}
-
-/** About one and a half times the name's width, so a few colours show at once. */
-private const val GREETING_BAND_PX = 520f

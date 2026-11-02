@@ -3,7 +3,7 @@ package iatheiya.ayana.data
 import kotlinx.serialization.Serializable
 
 /** Action a key-row button performs. */
-enum class KeyKind { INSERT, SEND, CTRL, ALT }
+enum class KeyKind { INSERT, SEND, CTRL, ALT, FN }
 
 /** One user-configurable button of the key row. */
 @Serializable
