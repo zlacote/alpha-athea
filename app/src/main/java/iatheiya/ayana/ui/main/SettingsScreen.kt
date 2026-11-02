@@ -463,7 +463,7 @@ private const val FAV_SEND = "send"
 
 private val ABOUT_LIGHT_SIZE = 220.dp
 
-/** The projects the glass is built on, as their licence asks: who made them, and where they live. */
+/** The project the glass is built on, as its licence asks: who made it, and where it lives. */
 @Composable
 private fun AcknowledgementsDialog(onDismiss: () -> Unit) {
     val uriHandler = LocalUriHandler.current
@@ -497,5 +497,4 @@ private fun AcknowledgementsDialog(onDismiss: () -> Unit) {
 
 private val ACKNOWLEDGED = listOf(
     Triple("KMPLiquidGlass", "Kashif-E · Apache License 2.0", "https://github.com/Kashif-E/KMPLiquidGlass"),
-    Triple("Cloudy", "skydoves (Jaewoong Eum) · Apache License 2.0", "https://github.com/skydoves/Cloudy"),
 )

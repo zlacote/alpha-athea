@@ -138,7 +138,7 @@
     <string name="about_version">Version %1$s</string>
     <string name="about_tagline">A terminal for the phone.</string>
     <string name="about_thanks">Acknowledgements</string>
-    <string name="about_thanks_text">The glass in Ayana is built on the work of these open source projects.</string>
+    <string name="about_thanks_text">The glass in Ayana is built on the work of this open source project.</string>
     <string name="about_author_title">Author</string>
     <string name="about_author_name" translatable="false">Iatheiya</string>
     <string name="about_author_url" translatable="false">https://github.com/iatheiya</string>

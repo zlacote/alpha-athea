@@ -2,7 +2,8 @@ package iatheiya.ayana.ui.common
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -59,15 +60,17 @@ class AyanaDrawerState internal constructor(private val scope: CoroutineScope) {
     }
 
     /**
-     * Where a swipe lands when the finger lets go: a quick flick goes the way it was flicked; a
-     * slow one stays open once it has come a third of the way, and shuts once it has gone back
-     * a third. So a short, deliberate pull is enough, and a twitch is not.
+     * Where a swipe lands when the finger lets go. A slow pull opens once it has brought the
+     * drawer a third of the way, and shuts once it has taken it back a third. A quick flick
+     * counts only after the drawer has come a fair way too, so a twitch of a few pixels, however
+     * fast, puts it back instead of throwing it open.
      */
     internal fun settle(velocityPx: Float, opening: Boolean) {
         val flick = FLICK_DP_PER_S * densityScale
+        val moved = if (opening) progress.value else 1f - progress.value
         val target = when {
-            velocityPx > flick -> 1f
-            velocityPx < -flick -> 0f
+            moved >= FLICK_MIN_TRAVEL && velocityPx > flick -> 1f
+            moved >= FLICK_MIN_TRAVEL && velocityPx < -flick -> 0f
             opening -> if (progress.value > ONE_THIRD) 1f else 0f
             else -> if (progress.value < 1f - ONE_THIRD) 0f else 1f
         }
@@ -78,8 +81,11 @@ class AyanaDrawerState internal constructor(private val scope: CoroutineScope) {
 
     private companion object {
         const val ONE_THIRD = 1f / 3f
-        const val FLICK_DP_PER_S = 500f
-        val SETTLE = spring<Float>(stiffness = 600f)
+        const val FLICK_DP_PER_S = 900f
+        /** How far a flick must have carried the drawer before its speed decides. */
+        const val FLICK_MIN_TRAVEL = 0.15f
+        /** The rest of the way, at an even, unhurried pace. */
+        val SETTLE = tween<Float>(durationMillis = 300, easing = FastOutSlowInEasing)
     }
 }
 
