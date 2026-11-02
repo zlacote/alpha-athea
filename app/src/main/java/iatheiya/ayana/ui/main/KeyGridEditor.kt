@@ -74,7 +74,7 @@ class KeyDragGhost {
 /**
  * The key grid as an editable preview: it lays the keys out exactly as the live row
  * shows them (column-major, [rows] per column) and scrolls horizontally. Hold a key
- * and drag to reorder it — the other keys slide to make room — and tap a key to open
+ * and drag it onto another key to trade their places, and tap a key to open
  * its editor (where it can also be removed). Dropped far outside the grid, the key
  * returns to its place.
  */
@@ -149,7 +149,7 @@ fun KeyGridEditor(
                                 } else {
                                     Offset.Zero
                                 }
-                                // While dragging, the make-room shift springs; on release the list has
+                                // While dragging, the key under the finger springs to the free slot; on release the list has
                                 // already reordered into these exact slots, so the slide snaps to zero
                                 // instead of replaying the animation on top of the reorder (the jitter).
                                 val animatedSlide by animateOffsetAsState(
@@ -207,7 +207,7 @@ fun KeyGridEditor(
                                                 slotOffset(to) - slotOffset(from),
                                                 tween(durationMillis = 160),
                                             )
-                                            if (to != from) onKeysChange(moveItem(keys, from, to))
+                                            if (to != from) onKeysChange(swapItems(keys, from, to))
                                             draggedIndex = null
                                             targetIndex = null
                                             ghost.key = null
@@ -293,16 +293,21 @@ private fun targetFor(
     return (newColumn * rows + newRow).coerceIn(0, size - 1)
 }
 
-/** The display slot a key at [index] takes while [from] is being dragged to [to]. */
-private fun displayPosition(index: Int, from: Int, to: Int): Int {
-    val withoutDragged = if (index < from) index else index - 1
-    return if (withoutDragged >= to) withoutDragged + 1 else withoutDragged
+/**
+ * The display slot a key at [index] takes while [from] is being dragged to [to]. The two keys
+ * trade places and no other key moves: in a column-major grid the cell beside a key is a whole
+ * column away in the list, and shifting everything between them would disturb keys the drag
+ * never touched.
+ */
+private fun displayPosition(index: Int, from: Int, to: Int): Int = when (index) {
+    from -> to
+    to -> from
+    else -> index
 }
 
-private fun <T> moveItem(list: List<T>, from: Int, to: Int): List<T> {
+private fun <T> swapItems(list: List<T>, from: Int, to: Int): List<T> {
     val mutable = list.toMutableList()
-    val item = mutable.removeAt(from)
-    mutable.add(to.coerceIn(0, mutable.size), item)
+    mutable[from] = mutable[to].also { mutable[to] = mutable[from] }
     return mutable
 }
 

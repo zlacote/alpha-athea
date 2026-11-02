@@ -100,24 +100,26 @@ object DefaultKeys {
     val RIGHT = TerminalKey("→", KeyActionKind.SEND_TO_TERMINAL, CursorKey.RIGHT.sequence)
     val HOME = TerminalKey("HOME", KeyActionKind.SEND_TO_TERMINAL, CursorKey.HOME.sequence)
     val END = TerminalKey("END", KeyActionKind.SEND_TO_TERMINAL, CursorKey.END.sequence)
-    val PAGE_UP = TerminalKey("PGUP", KeyActionKind.SEND_TO_TERMINAL, CursorKey.PAGE_UP.sequence)
-    val PAGE_DOWN = TerminalKey("PGDN", KeyActionKind.SEND_TO_TERMINAL, CursorKey.PAGE_DOWN.sequence)
     val SLASH = TerminalKey("/", KeyActionKind.INSERT_INTO_DRAFT, "/")
     val DASH = TerminalKey("-", KeyActionKind.INSERT_INTO_DRAFT, "-")
+    val PIPE = TerminalKey("|", KeyActionKind.INSERT_INTO_DRAFT, "|")
+    val TILDE = TerminalKey("~", KeyActionKind.INSERT_INTO_DRAFT, "~")
 
-    // Two rows of seven, with the arrows as an inverted T:
-    //   ESC  /     -    HOME  ↑  END  PGUP
-    //   TAB  CTRL  ALT  ←     ↓  →    PGDN
+    // Two rows of seven: what a shell asks for most and a phone keyboard hides. The keys it has
+    // no key for at all (Esc, Tab, Ctrl, Alt, the arrows, Home, End), and the symbols it keeps
+    // a page or two away: / for paths, | for pipes, ~ for home, - for every flag.
+    //   ESC  /     |    ~  HOME  ↑  END
+    //   TAB  CTRL  ALT  -  ←     ↓  →
     // The grid is column-major, so the list runs down each column in turn. Ctrl and Alt are
     // modifiers: press one, then the next key, from the row or the keyboard, combines with it.
     val row = listOf(
         ESC, TAB,
         SLASH, CTRL,
-        DASH, ALT,
+        PIPE, ALT,
+        TILDE, DASH,
         HOME, LEFT,
         UP, DOWN,
         END, RIGHT,
-        PAGE_UP, PAGE_DOWN,
     )
 }
 

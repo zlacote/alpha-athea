@@ -557,7 +557,8 @@ private fun CommandBubble(
                     Icon(
                         Icons.Default.KeyboardArrowDown,
                         contentDescription = stringResource(R.string.cd_expand_editor),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        // The same ink as the message, so it reads on any accent the bubble wears.
+                        tint = bubbleText.copy(alpha = Ui.chevronAlphaCollapsedPreview),
                         modifier = Modifier
                             .align(Alignment.CenterHorizontally)
                             .padding(top = Ui.keyRowPaddingV)

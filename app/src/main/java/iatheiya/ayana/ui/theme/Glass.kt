@@ -72,8 +72,13 @@ object AccentColor {
 internal fun glassWash(): Color? =
     AccentColor.color?.takeIf { AccentColor.tintsGlass }?.copy(alpha = AccentColor.GLASS_ALPHA)
 
-/** Black or white, whichever reads on [background]. */
-fun contentOn(background: Color): Color = if (background.luminance() > 0.5f) Color.Black else Color.White
+/**
+ * Black or white, whichever contrasts more with [background]. The two contrasts are equal at a
+ * relative luminance of about 0.18, so a mid grey (a soft white accent) already takes black text.
+ */
+fun contentOn(background: Color): Color = if (background.luminance() > EQUAL_CONTRAST_LUMINANCE) Color.Black else Color.White
+
+private const val EQUAL_CONTRAST_LUMINANCE = 0.179f
 
 /**
  * A rim drawn inside [path] only: a stroke centred on the edge would stick out by half its width,
