@@ -18,10 +18,10 @@ import androidx.compose.ui.res.painterResource
 import iatheiya.ayana.R
 
 /**
- * The light of the app icon, alive. A ribbon of white light turns about its own axis: it narrows
- * and widens, its warm and cool edges trade sides as it turns, a glint runs along it, and fans of
- * the spectrum turn around it, passing in front of it and behind it, while its lower end comes
- * apart into a breathing trail. The icon is one moment of the same light.
+ * The light of the app icon, alive: a bundle of soft veils of light woven about one diagonal, a warm
+ * and a cool ribbon twisted together with lighter sheets and hairs around them. Where they cross,
+ * their light adds up to white. The bundle turns about its axis, the nearer veils brighter and
+ * wider. The icon is one moment of the same light.
  *
  * It is drawn by a shader (Android 13 and later); before that the icon's still light stands in.
  */
@@ -72,131 +72,79 @@ private fun LivingLight(modifier: Modifier) {
 }
 
 /**
- * The light as one field over the square: every pixel asks how far it lies along the line (t)
- * and across it (d), and adds up the body, its edges, its glow, the fans and the trail.
+ * The light as one field over the square: every pixel asks how far it lies along the diagonal (t)
+ * and across it (d), and adds up the veils and a common haze.
  */
 private const val LIGHT_AGSL = """
 uniform float2 size;
 uniform float cycle;
 
-const float PI = 3.14159265;
-const float H = 0.026;
-const float TWIST = 0.9;
-const float3 WARM = float3(1.0, 0.588, 0.392);
-const float3 COOL = float3(0.392, 0.627, 1.0);
+const float TAU = 6.2831853;
 
-float sm(float a, float b, float x) { return smoothstep(a, b, x); }
 float sq(float x) { return x * x; }
 
-float3 specAt(int i) {
-    if (i == 0) return float3(1.0, 0.412, 0.373);
-    if (i == 1) return float3(1.0, 0.647, 0.333);
-    if (i == 2) return float3(1.0, 0.882, 0.471);
-    if (i == 3) return float3(0.549, 0.902, 0.588);
-    if (i == 4) return float3(0.392, 0.804, 1.0);
-    if (i == 5) return float3(0.392, 0.529, 1.0);
-    return float3(0.647, 0.431, 1.0);
-}
-
-// A colour along the spectrum, wrapping around, blended between neighbours.
-float3 spec(float x) {
-    float w = mod(x, 7.0);
-    float i = floor(w);
-    return mix(specAt(int(i)), specAt(int(mod(i + 1.0, 7.0))), w - i);
+// One veil: a bright thin middle in a wide soft halo, waving about the axis with its own phase and
+// turning with time; nearer (facing you) it is brighter and wider. Its light gathers about [mid].
+float veil(float t, float d, float tc, float spindle, float ends, float amp, float cyc, float ph,
+           float wc, float wh, float bright, float spin, float mid, float spread, float tilt, float line) {
+    float theta = TAU * cyc * t + ph + TAU * spin * cycle;
+    float off = amp * spindle * sin(theta) + tilt * (t - 0.5);
+    float z = cos(theta);
+    float dd = d - off;
+    float along = exp(-sq((t - mid) / spread)) * ends;
+    float w1 = 1.25 * wc * (0.55 + 0.45 * spindle) * (1.0 + 0.35 * z);
+    float w2 = 0.8 * wh * (0.35 + 0.65 * spindle) * (1.0 + 0.25 * z);
+    float lum = bright * (0.7 + 0.3 * z) * along;
+    return lum * (line * exp(-sq(dd / w1)) + 0.45 * exp(-sq(dd / w2)));
 }
 
 half4 main(float2 frag) {
     float side0 = min(size.x, size.y);
     float2 p = (frag - 0.5 * (size - side0)) / side0;
-    float2 A = float2(0.2, 0.86);
-    float2 B = float2(0.8, 0.14);
+    float2 A = float2(0.13, 0.89);
+    float2 B = float2(0.87, 0.11);
     float L = length(B - A);
     float2 u = (B - A) / L;
     float2 n = float2(-u.y, u.x);
     float t = dot(p - A, u) / L;
     float d = dot(p - A, n);
-    float ph = 2.0 * PI * cycle;
-
-    float inside = (t > 0.0 && t < 1.0) ? 1.0 : 0.0;
     float tc = clamp(t, 0.0, 1.0);
-    float env = pow(sm(0.0, 0.3, tc), 1.7) * pow(sm(0.0, 0.26, 1.0 - tc), 1.7) * inside;
-    float c = cos(2.0 * PI * TWIST * t + ph);
-    float ac = abs(c);
-    float hw = H * (0.42 + 0.58 * ac) * (0.6 + 0.4 * min(sm(0.0, 0.3, tc), sm(0.0, 0.26, 1.0 - tc)));
-    float e = d / hw;
+    float spindle = 0.18 + 0.82 * pow(sin(3.14159265 * tc), 0.7);
+    float ends = smoothstep(-0.06, 0.24, t) * smoothstep(-0.06, 0.24, 1.0 - t);
 
-    float core = exp(-pow(abs(e / 0.8), 3.5)) * env;
-    float k = sm(-0.3, 0.3, c);
-    float3 left = mix(COOL, WARM, k);
-    float3 right = mix(WARM, COOL, k);
-    float fl = exp(-sq((e + 1.0) / 0.3)) * env;
-    float fr = exp(-sq((e - 1.0) / 0.3)) * env;
-    float tg = cycle * 1.4 - 0.2;
-    float glint = exp(-sq((t - tg) / 0.1)) * pow(ac, 4.0) * env;
-    float3 tint = spec(t * 2.2 + cycle * 7.0) * 0.14 + 0.86;
+    float3 img = float3(0.0);
+    // the white heart, near the axis
+    img += veil(t, d, tc, spindle, ends, 0.006, 1.0, 0.0, 0.0035, 0.016, 0.85, 1.0, 0.48, 0.42, 0.0, 1.0) * float3(1.000, 0.957, 0.925);
+    // the warm main ribbon
+    img += veil(t, d, tc, spindle, ends, 0.048, 1.2, 0.3, 0.0055, 0.04, 1.0, 1.0, 0.48, 0.46, 0.0, 0.8) * float3(1.000, 0.588, 0.361);
+    // the cool main ribbon, half a turn behind it
+    img += veil(t, d, tc, spindle, ends, 0.04, 1.2, 3.44, 0.0055, 0.042, 1.0, 1.0, 0.52, 0.44, 0.0, 0.8) * float3(0.267, 0.529, 1.000);
+    // violet, between them
+    img += veil(t, d, tc, spindle, ends, 0.046, 1.25, 1.9, 0.004, 0.045, 0.6, 1.0, 0.46, 0.44, 0.01, 0.55) * float3(0.502, 0.306, 0.933);
+    // lavender
+    img += veil(t, d, tc, spindle, ends, 0.03, 1.6, 5.0, 0.003, 0.035, 0.45, 2.0, 0.55, 0.4, -0.01, 0.45) * float3(0.627, 0.490, 1.000);
+    // apricot
+    img += veil(t, d, tc, spindle, ends, 0.028, 1.0, 4.2, 0.0035, 0.03, 0.45, 1.0, 0.4, 0.36, 0.02, 0.5) * float3(1.000, 0.463, 0.306);
+    // cyan
+    img += veil(t, d, tc, spindle, ends, 0.022, 1.8, 2.4, 0.0025, 0.022, 0.4, 2.0, 0.64, 0.3, 0.0, 0.55) * float3(0.412, 0.765, 1.000);
+    // pink
+    img += veil(t, d, tc, spindle, ends, 0.034, 1.4, 0.8, 0.003, 0.045, 0.4, 1.0, 0.44, 0.4, 0.0, 0.3) * float3(0.910, 0.384, 0.737);
+    // blue
+    img += veil(t, d, tc, spindle, ends, 0.036, 1.1, 2.0, 0.003, 0.05, 0.4, 2.0, 0.58, 0.38, 0.01, 0.3) * float3(0.267, 0.529, 1.000);
+    // a faint hair
+    img += veil(t, d, tc, spindle, ends, 0.075, 0.9, 0.9, 0.0012, 0.03, 0.18, 1.0, 0.36, 0.36, 0.03, 0.35) * float3(0.910, 0.384, 0.737);
+    // a faint hair
+    img += veil(t, d, tc, spindle, ends, 0.085, 0.8, 2.6, 0.001, 0.028, 0.15, 1.0, 0.62, 0.34, -0.03, 0.35) * float3(0.627, 0.490, 1.000);
+    // a faint hair
+    img += veil(t, d, tc, spindle, ends, 0.095, 1.1, 4.4, 0.001, 0.026, 0.12, 1.0, 0.3, 0.32, 0.02, 0.35) * float3(0.502, 0.306, 0.933);
 
-    float3 img = core * (0.72 + 0.35 * glint) * tint;
-    img += exp(-sq(d / (H * 0.16))) * env * (0.55 + 0.5 * glint);
-    img += fl * (0.55 + 0.4 * (1.0 - ac)) * left;
-    img += fr * (0.55 + 0.4 * (1.0 - ac)) * right;
-    img += exp(-pow(abs(d) / (hw * 1.8), 1.6)) * env * (0.12 + 0.3 * glint) * float3(0.8, 0.86, 1.0);
-    img += exp(-abs(d) / (H * 7.0)) * env * 0.035 * float3(0.65, 0.7, 1.0);
-    float cover = clamp(core * 1.4 + (fl + fr) * 0.4, 0.0, 1.0);
+    // a common haze along the bundle: blue toward the top, violet toward the bottom
+    float hz = exp(-sq(d / 0.06)) * spindle * ends * 0.05;
+    img += hz * mix(float3(0.667, 0.431, 0.902), float3(0.471, 0.588, 1.0), tc);
 
-    // Fans: rays from one point, each a colour of the spectrum, turning about the line.
-    for (int fi = 0; fi < 3; fi++) {
-        float t0 = fi == 0 ? 0.70 : (fi == 1 ? 0.52 : 0.44);
-        float t1 = fi == 0 ? 0.50 : (fi == 1 ? 0.38 : 0.22);
-        float sideF = fi == 2 ? -1.0 : 1.0;
-        float rays = fi == 0 ? 4.0 : (fi == 1 ? 3.0 : 5.0);
-        float c0 = fi == 0 ? 1.0 : (fi == 1 ? 3.0 : 0.0);
-        float spin = fi == 1 ? 2.0 : 1.0;
-        float ffi = float(fi);
-        float psi = ph * spin + ffi * 2.1;
-        float proj = cos(psi);
-        float depth = sin(psi);
-        float span = abs(t1 - t0);
-        float q = (t - t0) / (t1 - t0);
-        float qc = clamp(q, 0.0, 1.0);
-        float inq = (q > 0.0 && q < 1.0) ? 1.0 : 0.0;
-        float along = qc * span * L;
-        for (int kk = 0; kk < 5; kk++) {
-            float fk = float(kk);
-            if (fk < rays) {
-                float f = fk / max(1.0, rays - 1.0);
-                float ang = radians(6.0 + 16.0 * f) * (1.0 + 0.25 * sin(ph * 2.0 + ffi + fk));
-                float off = sideF * (hw * 0.2 + along * tan(ang) * (0.35 + 0.65 * proj));
-                float life = 0.7 + 0.3 * mod(fk * 37.0 + ffi * 11.0, 10.0) / 10.0;
-                float vis = sm(0.0, 0.2, qc) * (1.0 - sm(0.25, life, qc)) * inq * clamp(env * 1.8, 0.0, 1.0);
-                float w = H * (0.2 - 0.06 * f) * (1.0 + 1.2 * qc);
-                float3 col = spec(c0 + fk + 0.7 * sin(ph + ffi)) * 0.8 + 0.2;
-                float a = 1.6 * (1.0 - 0.3 * f) * (0.7 + 0.3 * depth);
-                float m = (exp(-sq((d - off) / w)) + 0.25 * exp(-sq((d - off) / (w * 3.5)))) * vis * a;
-                m *= 1.0 - cover * (depth < 0.0 ? 1.0 : 0.8);
-                img += m * col;
-            }
-        }
-    }
-
-    // The trail the lower end comes apart into, breathing.
-    for (int kk = 0; kk < 6; kk++) {
-        float fk = float(kk);
-        float f = (fk + 0.5) / 6.0;
-        float t0 = 0.62 - 0.05 * fk;
-        float t1 = -0.12;
-        float q = (t0 - t) / (t0 - t1);
-        float qc = clamp(q, 0.0, 1.0);
-        float inq = (q > 0.0 && q < 1.0) ? 1.0 : 0.0;
-        float spread = 0.07 * f * (1.0 + 0.3 * sin(ph * 3.0 + fk * 1.3));
-        float off = hw * 0.2 + spread * pow(qc, 1.4);
-        float vis = sm(0.0, 0.25, qc) * (1.0 - sm(0.45, 0.95, qc)) * inq * sm(0.0, 0.3, 1.0 - tc);
-        float w = H * (0.16 + 0.08 * (1.0 - f)) * (1.0 + 0.8 * qc);
-        float3 col = spec(4.0 + 2.0 * f + 0.5 * sin(ph)) * 0.75 + 0.25;
-        img += exp(-sq((d - off) / w)) * vis * (0.8 - 0.35 * f) * (1.0 - cover) * col;
-    }
-
-    float3 rgb = 1.0 - exp(-img * 1.2);
+    float3 rgb = 1.0 - exp(-img * 2.0);
     float alpha = max(rgb.r, max(rgb.g, rgb.b));
     return half4(half3(rgb), half(alpha));
 }
 """
+
