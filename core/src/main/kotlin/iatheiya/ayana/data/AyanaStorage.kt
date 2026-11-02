@@ -78,7 +78,7 @@ data class AyanaSettings(
      */
     val introSessionId: Long = INTRO_UNSET,
     /** The name on every empty chat shimmers, not only on the first one. */
-    val greetingAnimated: Boolean = false,
+    val greetingAnimated: Boolean = true,
     /** Full screen: the status bar with the clock is hidden until swiped in. */
     val immersiveMode: Boolean = false,
     /** When the screen is kept from going dark: [AWAKE_OFF], [AWAKE_RUNNING] or [AWAKE_ALWAYS]. */

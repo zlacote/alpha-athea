@@ -462,12 +462,21 @@ private fun EmptyGreeting(animated: Boolean, modifier: Modifier = Modifier) {
 @Composable
 private fun ShimmeringName(text: String, style: TextStyle, animated: Boolean) {
     val cycle = rememberShimmerCycle(animated)
-    Text(
-        text = text,
-        style = style.copy(shadow = Shadow(color = NAME_GLOW, blurRadius = NAME_GLOW_BLUR)),
-        color = NAME_BASE,
-        modifier = Modifier.filledWithLight(if (animated) cycle else null),
-    )
+    // Two layers of the same text: the glow behind, on its own, so the light never fills it; and
+    // over it the letters, filled with the light.
+    Box(contentAlignment = Alignment.Center) {
+        Text(
+            text = text,
+            style = style.copy(shadow = Shadow(color = NAME_GLOW, blurRadius = NAME_GLOW_BLUR)),
+            color = Color.Transparent,
+        )
+        Text(
+            text = text,
+            style = style,
+            color = NAME_BASE,
+            modifier = Modifier.filledWithLight(if (animated) cycle else null),
+        )
+    }
 }
 
 private const val NAME_GLOW_BLUR = 20f

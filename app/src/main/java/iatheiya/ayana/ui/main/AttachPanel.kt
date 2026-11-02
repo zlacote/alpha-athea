@@ -47,7 +47,8 @@ class AttachChoice(val icon: ImageVector, val label: String, val onPick: () -> U
 
 /**
  * The panel the composer's + opens: a glass card that grows out of the composer's lower left
- * corner, over it, with a large row per choice. A tap anywhere else
+ * corner, over it, in the same glass as the other menus (tinted with them), with a large row
+ * per choice. A tap anywhere else
  * puts it away; there is no Cancel.
  *
  * [anchor] is the composer panel's bounds in the root, [origin] this screen's own position there.
@@ -78,7 +79,7 @@ fun AttachPanel(open: Boolean, anchor: Rect, origin: Offset, choices: List<Attac
             Modifier
                 .onSizeChanged { height = it.height }
                 .widthIn(min = PANEL_MIN_WIDTH)
-                .liquidGlass(LocalLiquidBackdrop.current, Ui.menuShape, Ui.menuRadius, strong = true)
+                .liquidGlass(LocalLiquidBackdrop.current, Ui.menuShape, Ui.menuRadius)
                 // Rows reach the panel's edges, so a pressed row lights up to them and no further.
                 .clip(Ui.menuShape)
                 .width(IntrinsicSize.Max),
