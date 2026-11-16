@@ -58,28 +58,15 @@ class LiquidBackdrop internal constructor(internal val layer: GraphicsLayer) {
      * redraw, such as leaving and re-entering the app, ever corrected it.
      */
     internal var rootOrigin: Offset by mutableStateOf(Offset.Zero)
-
-    /**
-     * What lies under this content on screen, when it has no background of its own: the content
-     * of a glass panel (a drawer's list) over the page the panel frosts. Glass on that content
-     * sees [beneath] first, dimmed by [beneathTint], and the content over it. Without it, it saw
-     * the content on nothing, so its blur had nothing to soften and the sharp content under it
-     * showed straight through.
-     */
-    internal var beneath: LiquidBackdrop? = null
-    internal var beneathTint: Color = Color.Transparent
 }
 
 /** The backdrop that glass surfaces below this point refract. Null means plain glass. */
 val LocalLiquidBackdrop = compositionLocalOf<LiquidBackdrop?> { null }
 
 @Composable
-fun rememberLiquidBackdrop(beneath: LiquidBackdrop? = null, beneathTint: Color = Color.Transparent): LiquidBackdrop {
+fun rememberLiquidBackdrop(): LiquidBackdrop {
     val layer = rememberGraphicsLayer()
-    return remember(layer) { LiquidBackdrop(layer) }.also {
-        it.beneath = beneath
-        it.beneathTint = beneathTint
-    }
+    return remember(layer) { LiquidBackdrop(layer) }
 }
 
 /**
@@ -143,8 +130,6 @@ fun Modifier.liquidGlass(
     }
     val lensEffect = rememberLensEffect()
     val placement = remember { GlassPlacement() }
-    // The page under a panel's content, frosted as that panel frosts it (see LiquidBackdrop.beneath).
-    val beneathLayer = rememberGraphicsLayer()
     // Glass switched off: the whole interface falls back to one solid, opaque
     // tone (the tone the menus use) rather than going translucent.
     if (!GlassTuning.enabled) {
@@ -173,18 +158,6 @@ fun Modifier.liquidGlass(
                     AyanaLog.log("lens", "surface size=$pixels offset=$offset shaded=${lensEffect != null}")
                 }
                 lensLayer.record(this@onDrawWithContent, layoutDirection, pixels) {
-                    backdrop.beneath?.let { under ->
-                        // Frosted first, as the panel shows it: then this glass's own blur and bend
-                        // act on the panel's content over that, and its bezel bends the content,
-                        // not a sharp page the panel never shows.
-                        val frost = GlassTuning.blurDp.dp.toPx()
-                        beneathLayer.renderEffect = if (frost >= 0.5f) BlurEffect(frost, frost, TileMode.Clamp) else null
-                        beneathLayer.record(this@onDrawWithContent, layoutDirection, pixels) {
-                            drawBackdropMirrored(under.layer, placement.rootOrigin - under.rootOrigin)
-                        }
-                        drawLayer(beneathLayer)
-                        drawRect(backdrop.beneathTint)
-                    }
                     drawBackdropMirrored(backdrop.layer, offset)
                 }
                 if (lensEffect != null) {

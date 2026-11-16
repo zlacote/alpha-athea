@@ -6,6 +6,7 @@ import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.CompositionLocalProvider
 import iatheiya.ayana.ui.common.rememberShimmerCycle
 import iatheiya.ayana.ui.common.sweptWithIconColours
+import iatheiya.ayana.ui.common.COLOUR_CYCLE_NANOS
 import kotlin.math.abs
 import kotlin.math.sin
 import kotlin.math.cos
@@ -186,7 +187,8 @@ fun TranscriptView(
     onCopyCommand: (String) -> Unit,
     onCopyOutput: (String) -> Unit,
     onSelectCommandText: (String) -> Unit,
-    onAddToFavorites: (String) -> Unit,
+    /** Null while favorites are off: then a message offers no way to keep it. */
+    onAddToFavorites: ((String) -> Unit)?,
     onAreaResized: (rows: Int, cols: Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -330,9 +332,16 @@ fun TranscriptView(
             // Stick to the real bottom while output grows, including the tail of a last chunk that is
             // taller than one viewport, and while the room above the composer shrinks (the keyboard
             // coming up, the composer growing), so the newest message stays just above the composer.
+            // A new message is glided to, as it fades in; a growing answer and a rising keyboard
+            // are followed at once, step by step, as they move.
+            var followedCount by remember { mutableIntStateOf(itemCount) }
             LaunchedEffect(itemCount, lastTextLength, constraints.maxHeight, contentBottomPadding) {
+                // Still gliding (the answer started while the list was on its way): keep gliding
+                // to the new end, rather than cutting the glide short with a jump.
+                val arrived = itemCount > followedCount || listState.isScrollInProgress
+                followedCount = itemCount
                 if (itemCount > 0 && stickToBottom) {
-                    try { listState.keepEnd(itemCount - 1) } catch (_: Exception) {}
+                    try { listState.keepEnd(itemCount - 1, animated = arrived) } catch (_: Exception) {}
                 }
             }
 
@@ -358,7 +367,7 @@ fun TranscriptView(
                 jumpToBottom.collect {
                     stickToBottom = true
                     val last = itemCount - 1
-                    if (last >= 0) try { listState.animateScrollToEnd(last) } catch (_: Exception) {}
+                    if (last >= 0) try { listState.keepEnd(last, animated = true) } catch (_: Exception) {}
                 }
             }
 
@@ -400,71 +409,75 @@ fun TranscriptView(
                         is DisplayItem.Chunk -> "${item.blockId}-chunk-${item.chunkIndex}"
                     }
                 }) { item ->
-                    when (item) {
-                        is DisplayItem.Block -> {
-                            val view = item.view
-                            when (val block = view.block) {
-                                is CommandBlock -> CommandBubble(
-                                    block = block,
-                                    collapsed = view.collapsed,
-                                    maxWidth = maxBubbleWidth,
-                                    previewLines = previewLines,
-                                    currentMatch = block.id == currentMatchId,
-                                    scrollInside = virtualizeLargeOutput,
-                                    query = search?.query,
-                                    onToggle = { onToggleBlock(block.id) },
-                                    onCopy = { onCopyCommand(block.text) },
-                                    onSelectText = { onSelectCommandText(block.text) },
-                                    onFavorite = { onAddToFavorites(block.text) },
-                                )
-                                is OutputBlock -> OutputPanel(
-                                    block = block,
-                                    collapsed = view.collapsed,
-                                    query = search?.query,
-                                    currentMatch = block.id == currentMatchId,
-                                    virtualizeEnabled = virtualizeLargeOutput,
-                                    previewLines = previewLines,
-                                    jumpToBottom = jumpToBottom,
-                                    onToggle = { onToggleBlock(block.id) },
-                                    onCopy = onCopyOutput,
-                                )
+                    // A new message fades in and the ones around it slide to make room, rather than
+                    // everything jumping at once.
+                    Box(Modifier.animateItem(fadeInSpec = tween(ITEM_FADE_MS), fadeOutSpec = null)) {
+                        when (item) {
+                            is DisplayItem.Block -> {
+                                val view = item.view
+                                when (val block = view.block) {
+                                    is CommandBlock -> CommandBubble(
+                                        block = block,
+                                        collapsed = view.collapsed,
+                                        maxWidth = maxBubbleWidth,
+                                        previewLines = previewLines,
+                                        currentMatch = block.id == currentMatchId,
+                                        scrollInside = virtualizeLargeOutput,
+                                        query = search?.query,
+                                        onToggle = { onToggleBlock(block.id) },
+                                        onCopy = { onCopyCommand(block.text) },
+                                        onSelectText = { onSelectCommandText(block.text) },
+                                        onFavorite = onAddToFavorites?.let { add -> { add(block.text) } },
+                                    )
+                                    is OutputBlock -> OutputPanel(
+                                        block = block,
+                                        collapsed = view.collapsed,
+                                        query = search?.query,
+                                        currentMatch = block.id == currentMatchId,
+                                        virtualizeEnabled = virtualizeLargeOutput,
+                                        previewLines = previewLines,
+                                        jumpToBottom = jumpToBottom,
+                                        onToggle = { onToggleBlock(block.id) },
+                                        onCopy = onCopyOutput,
+                                    )
+                                }
                             }
-                        }
-                        is DisplayItem.Chunk -> {
-                            // Huge fully-expanded block split into outer items — true virtualization
-                            // No inner scroll, no label, fully visible but composed only when on screen.
-                            Column(
-                                Modifier
-                                    .fillMaxWidth()
-                                    .background(
-                                        if (item.blockId == currentMatchId) MaterialTheme.colorScheme.primary.copy(alpha = Ui.highlightAlpha)
-                                        else androidx.compose.ui.graphics.Color.Transparent
-                                    )
-                                    .padding(horizontal = Ui.outputPaddingH, vertical = if (item.isFirst) Ui.headerPaddingV else 0.dp)
-                            ) {
-                                if (item.isFirst && item.exitCode != null && item.exitCode != 0) {
-                                    Text(
-                                        text = stringResource(R.string.exit_code, item.exitCode),
-                                        color = MaterialTheme.colorScheme.error,
-                                        style = MaterialTheme.typography.labelSmall,
-                                        modifier = Modifier.padding(bottom = Ui.keyRowPaddingV),
-                                    )
-                                }
-                                ClearableSelection {
-                                    Text(
-                                        text = remember(item.chunk, search?.query) { item.chunk.withSearchHighlights(search?.query) },
-                                        style = codeStyle(),
-                                        color = MaterialTheme.colorScheme.onBackground,
-                                        modifier = Modifier.fillMaxWidth(),
-                                    )
-                                }
-                                if (item.isLast) {
-                                    OutputFooter(
-                                        expandable = true,
-                                        collapsed = false,
-                                        onCopy = { onCopyOutput(item.text.trimCommand()) },
-                                        onToggle = { onToggleBlock(item.blockId) },
-                                    )
+                            is DisplayItem.Chunk -> {
+                                // Huge fully-expanded block split into outer items — true virtualization
+                                // No inner scroll, no label, fully visible but composed only when on screen.
+                                Column(
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .background(
+                                            if (item.blockId == currentMatchId) MaterialTheme.colorScheme.primary.copy(alpha = Ui.highlightAlpha)
+                                            else androidx.compose.ui.graphics.Color.Transparent
+                                        )
+                                        .padding(horizontal = Ui.outputPaddingH, vertical = if (item.isFirst) Ui.headerPaddingV else 0.dp)
+                                ) {
+                                    if (item.isFirst && item.exitCode != null && item.exitCode != 0) {
+                                        Text(
+                                            text = stringResource(R.string.exit_code, item.exitCode),
+                                            color = MaterialTheme.colorScheme.error,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            modifier = Modifier.padding(bottom = Ui.keyRowPaddingV),
+                                        )
+                                    }
+                                    ClearableSelection {
+                                        Text(
+                                            text = remember(item.chunk, search?.query) { item.chunk.withSearchHighlights(search?.query) },
+                                            style = codeStyle(),
+                                            color = MaterialTheme.colorScheme.onBackground,
+                                            modifier = Modifier.fillMaxWidth(),
+                                        )
+                                    }
+                                    if (item.isLast) {
+                                        OutputFooter(
+                                            expandable = true,
+                                            collapsed = false,
+                                            onCopy = { onCopyOutput(item.text.trimCommand()) },
+                                            onToggle = { onToggleBlock(item.blockId) },
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -508,7 +521,8 @@ private fun EmptyGreeting(animated: Boolean, modifier: Modifier = Modifier) {
  */
 @Composable
 private fun ShimmeringName(text: String, style: TextStyle, animated: Boolean) {
-    val cycle = rememberShimmerCycle(animated)
+    val shade = rememberShimmerCycle(animated)
+    val colours = rememberShimmerCycle(animated, COLOUR_CYCLE_NANOS)
     // Two layers of the same text: the glow behind, on its own, so the colours never fill it; and
     // over it the letters, filled with the colours.
     Box(contentAlignment = Alignment.Center) {
@@ -521,7 +535,10 @@ private fun ShimmeringName(text: String, style: TextStyle, animated: Boolean) {
             text = text,
             style = style,
             color = Color.White,
-            modifier = Modifier.sweptWithIconColours(if (animated) cycle else null),
+            modifier = Modifier.sweptWithIconColours(
+                colours = if (animated) colours else null,
+                shade = if (animated) shade else null,
+            ),
         )
     }
 }
@@ -544,7 +561,7 @@ private fun CommandBubble(
     onToggle: () -> Unit,
     onCopy: () -> Unit,
     onSelectText: () -> Unit,
-    onFavorite: () -> Unit,
+    onFavorite: (() -> Unit)?,
 ) {
     val bubbleStyle = messageStyle()
     // Sent messages wear the accent colour (softened, as everywhere) when one is chosen; without
@@ -598,7 +615,7 @@ private fun CommandBubble(
                             ContextMenuRequest(bubbleBounds) {
                                 item(icon = Icons.Default.ContentCopy, text = copyLabel) { onCopy() }
                                 item(icon = Icons.Default.TextFields, text = selectLabel) { onSelectText() }
-                                item(icon = Icons.Default.Star, text = favoriteLabel) { onFavorite() }
+                                if (onFavorite != null) item(icon = Icons.Default.Star, text = favoriteLabel) { onFavorite() }
                             },
                         )
                     },
@@ -850,24 +867,39 @@ private suspend fun LazyListState.scrollToEnd(lastIndex: Int) {
  * [scrollToEnd] does) put its top at the top of the screen and then scrolled down again, so every
  * new line of output, and every step of the keyboard rising, showed as a jolt.
  */
-private suspend fun LazyListState.keepEnd(lastIndex: Int) {
+private suspend fun LazyListState.keepEnd(lastIndex: Int, animated: Boolean = false) {
     // Twice at most: what was measured before the newest lines may fall short by them.
     repeat(2) {
-        val info = layoutInfo
-        val last = info.visibleItemsInfo.lastOrNull()
-        if (last == null || last.index != lastIndex) {
-            scrollToEnd(lastIndex)
+        val past = pastEnd(lastIndex)
+        if (past == null) {
+            // The end is not on screen (or not laid out yet): go there through the list.
+            if (animated) animateScrollToEnd(lastIndex) else scrollToEnd(lastIndex)
             return
         }
-        val past = last.offset + last.size - (info.viewportEndOffset - info.afterContentPadding)
-        if (past <= 0 || scrollBy(past.toFloat()) <= 0f) return
+        if (past <= 0) return
+        val moved = if (animated) animateScrollBy(past.toFloat(), END_GLIDE) else scrollBy(past.toFloat())
+        if (moved <= 0f) return
     }
 }
 
-/** Animate to the actual end even when the final lazy-list item is very tall. */
+/** How far the last item's end lies below the bottom of the list's room, or null when it is not on screen. */
+private fun LazyListState.pastEnd(lastIndex: Int): Int? {
+    val info = layoutInfo
+    val last = info.visibleItemsInfo.lastOrNull()?.takeIf { it.index == lastIndex } ?: return null
+    return last.offset + last.size - (info.viewportEndOffset - info.afterContentPadding)
+}
+
+/** How a glide to a new message moves: quickly at first, settling softly, with no overshoot. */
+private val END_GLIDE = androidx.compose.animation.core.spring<Float>(stiffness = 500f)
+
+/**
+ * Glide to the actual end even when the final lazy-list item is very tall: to the item, then on
+ * to its end in one more glide, rather than a jump.
+ */
 private suspend fun LazyListState.animateScrollToEnd(lastIndex: Int) {
     animateScrollToItem(lastIndex)
-    scrollRemainingToEnd()
+    val past = pastEnd(lastIndex)
+    if (past != null && past > 0) animateScrollBy(past.toFloat(), END_GLIDE) else scrollRemainingToEnd()
 }
 
 /**
@@ -1039,3 +1071,6 @@ private fun Modifier.fadeOutBottom(height: Dp): Modifier =
             )
         }
 
+
+/** How long a new message takes to fade in. */
+private const val ITEM_FADE_MS = 220

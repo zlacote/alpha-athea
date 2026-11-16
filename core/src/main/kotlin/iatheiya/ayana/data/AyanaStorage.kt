@@ -120,6 +120,8 @@ data class AyanaSettings(
     val virtualizeLargeOutput: Boolean = false,
     /** Commands made from picked files run at once; off, they wait in the composer on a new line. */
     val attachSendsNow: Boolean = false,
+    /** Favorites at all: off, nothing offers to keep a command or to open the kept ones. */
+    val favoritesEnabled: Boolean = true,
     /** Tapping a favorite returns to the chat after placing it. */
     val favoriteReturnsHome: Boolean = true,
     /** Tapping a favorite runs it at once instead of inserting it into the composer. */

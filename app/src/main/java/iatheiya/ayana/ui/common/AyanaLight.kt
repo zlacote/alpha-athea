@@ -62,10 +62,10 @@ fun AyanaLight(modifier: Modifier = Modifier, shimmering: Boolean = true) {
  * on from where it stopped, instead of leaping or racing to catch up.
  */
 @Composable
-fun rememberShimmerCycle(running: Boolean = true): MutableFloatState {
+fun rememberShimmerCycle(running: Boolean = true, cycleNanos: Long = CYCLE_NANOS): MutableFloatState {
     // It starts where a shimmer that had always been running would be now, not at its beginning,
     // so opening a screen with the light finds it already under way.
-    val cycle = remember { mutableFloatStateOf((System.nanoTime() % CYCLE_NANOS).toFloat() / CYCLE_NANOS) }
+    val cycle = remember { mutableFloatStateOf((System.nanoTime() % cycleNanos).toFloat() / cycleNanos) }
     if (running) {
         LaunchedEffect(Unit) {
             var last = withFrameNanos { it }
@@ -73,7 +73,7 @@ fun rememberShimmerCycle(running: Boolean = true): MutableFloatState {
                 withFrameNanos { now ->
                     val step = (now - last).coerceIn(0L, MAX_STEP_NANOS)
                     last = now
-                    cycle.floatValue = (cycle.floatValue + step.toFloat() / CYCLE_NANOS) % 1f
+                    cycle.floatValue = (cycle.floatValue + step.toFloat() / cycleNanos) % 1f
                 }
             }
         }
@@ -85,21 +85,21 @@ fun rememberShimmerCycle(running: Boolean = true): MutableFloatState {
 private const val MAX_STEP_NANOS = 50_000_000L
 
 /**
- * Fills what this draws (a name, say) with the icon's colours: bands of them, leaning like a
- * backslash, sweep across it from left to right, and a slower swell of light and shade runs
- * through them, as the light in the icon brightens and dims along its length. [cycle] moves them;
- * null holds them still.
+ * Fills what this draws (a name, say) with the icon's colours, leaning like a backslash and
+ * drifting across it from left to right, each melting into the next over more than the width;
+ * through them runs the icon's own swell of light and shade, as wide and as fast for the width as
+ * on the emblem, and as deep. [colours] is where the colours are in their slow round
+ * ([COLOUR_CYCLE_NANOS]), [shade] where the swell is in the emblem's cycle; null holds either still.
  */
-fun Modifier.sweptWithIconColours(cycle: FloatState?): Modifier =
+fun Modifier.sweptWithIconColours(colours: FloatState?, shade: FloatState?): Modifier =
     graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen).drawWithContent {
         drawContent()
         val w = size.width
         if (w <= 0f || size.height <= 0f) return@drawWithContent
-        val c = cycle?.floatValue ?: 0f
         // Across the backslash: rightwards and up. Moving along it moves the bands to the right.
         val across = Offset(DIAGONAL, -DIAGONAL)
         val colourBand = w * SWEEP_COLOUR_BAND
-        val colourStart = across * (colourBand * c)
+        val colourStart = across * (colourBand * (colours?.floatValue ?: 0f))
         drawRect(
             brush = Brush.linearGradient(
                 SWEEP_COLOURS,
@@ -109,9 +109,9 @@ fun Modifier.sweptWithIconColours(cycle: FloatState?): Modifier =
             ),
             blendMode = androidx.compose.ui.graphics.BlendMode.SrcAtop,
         )
-        // Light and shade, at a different pace, so the two never fall into step.
+        // Light and shade, the emblem's swell: one band per cycle, as on the emblem.
         val shadeBand = w * SWEEP_SHADE_BAND
-        val shadeStart = across * (shadeBand * SWEEP_SHADE_TURNS * c)
+        val shadeStart = across * (shadeBand * (shade?.floatValue ?: 0f))
         drawRect(
             brush = Brush.linearGradient(
                 SWEEP_SHADES,
@@ -124,13 +124,17 @@ fun Modifier.sweptWithIconColours(cycle: FloatState?): Modifier =
     }
 
 private const val DIAGONAL = 0.70710677f
-/** One round of the colours, as a share of the width. */
-private const val SWEEP_COLOUR_BAND = 0.9f
-/** One swell of light and shade, as a share of the width, and how many pass in one cycle. */
-private const val SWEEP_SHADE_BAND = 0.6f
-private const val SWEEP_SHADE_TURNS = 2
-/** The darkest the shade makes the colours, as how much of them it leaves. */
-private const val SWEEP_SHADE_FLOOR = 0.6f
+/** One round of the colours, as a share of the width: wide, so each melts slowly into the next. */
+private const val SWEEP_COLOUR_BAND = 2.4f
+/**
+ * One round of the colours, in time: as long as three swells, so they drift across at about the
+ * pace the swell runs, as the emblem's colours travel with its light.
+ */
+internal const val COLOUR_CYCLE_NANOS = 3 * CYCLE_NANOS
+/** One swell, as a share of the width: the emblem's (its width over [SWELL_WAVES]). */
+private const val SWEEP_SHADE_BAND = 1f / SWELL_WAVES
+/** The darkest the shade makes the colours: the emblem's floor. */
+private const val SWEEP_SHADE_FLOOR = SWELL_FLOOR
 
 /** The icon's colours, in the order its light runs through them, ending where they began. */
 private val SWEEP_COLOURS = listOf(
@@ -149,7 +153,7 @@ private val SWEEP_SHADES = List(13) { k ->
 }
 
 /** One full shimmer, after which every motion is back where it began. */
-private const val CYCLE_NANOS = 4_500_000_000L
+internal const val CYCLE_NANOS = 4_500_000_000L
 
 /** How far a spot reaches, in its own radii, before its light is too faint to matter. */
 private const val REACH = 3f

@@ -1,5 +1,7 @@
 package iatheiya.ayana.ui.main
 
+import iatheiya.ayana.ui.common.AyanaChoiceSheet
+import iatheiya.ayana.ui.common.SheetChoice
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.foundation.clickable
 import iatheiya.ayana.ui.common.AyanaPage
@@ -92,6 +94,8 @@ internal fun SettingsScreen(
     virtualizeLargeOutput: Boolean,
     previewLines: Int,
     attachSendsNow: Boolean,
+    favoritesEnabled: Boolean,
+    onFavoritesEnabledChange: (Boolean) -> Unit,
     favoriteReturnsHome: Boolean,
     favoriteSendsImmediately: Boolean,
     onFavoriteReturnsHomeChange: (Boolean) -> Unit,
@@ -210,28 +214,46 @@ internal fun SettingsScreen(
                         onChange = onAutoScrollOnSendChange,
                     )
                 }
-                // A tapped favorite: stays in the favorites and goes into the input (off), takes
-                // you back to the chat with it in the input, or is sent and takes you back to see
-                // its answer. One of the three, so one switch with three places.
+                // Favorites at all, and what a tap on one does: it waits in the input (Nothing),
+                // goes into the input and takes you back to the chat, or is sent and takes you
+                // back to see its answer.
                 SettingsCard {
-                    ThreeWaySwitchRow(
+                    SwitchRow(
                         title = stringResource(R.string.favorites),
-                        subtitle = stringResource(R.string.settings_fav_desc),
-                        choices = listOf(
-                            FAV_OFF to stringResource(R.string.settings_fav_off),
-                            FAV_RETURN to stringResource(R.string.settings_fav_return),
-                            FAV_SEND to stringResource(R.string.settings_fav_send),
-                        ),
-                        selected = when {
-                            favoriteSendsImmediately -> FAV_SEND
-                            favoriteReturnsHome -> FAV_RETURN
-                            else -> FAV_OFF
-                        },
-                        onSelect = { choice ->
-                            onFavoriteReturnsHomeChange(choice != FAV_OFF)
-                            onFavoriteSendsImmediatelyChange(choice == FAV_SEND)
-                        },
+                        subtitle = stringResource(R.string.settings_favorites_desc),
+                        checked = favoritesEnabled,
+                        onChange = onFavoritesEnabledChange,
                     )
+                    SettingsDivider()
+                    val favChoices = listOf(
+                        SheetChoice(FAV_NOTHING, stringResource(R.string.settings_fav_nothing)),
+                        SheetChoice(FAV_RETURN, stringResource(R.string.settings_fav_return)),
+                        SheetChoice(FAV_SEND, stringResource(R.string.settings_fav_send)),
+                    )
+                    val favAction = when {
+                        favoriteSendsImmediately -> FAV_SEND
+                        favoriteReturnsHome -> FAV_RETURN
+                        else -> FAV_NOTHING
+                    }
+                    var choosingFav by remember { mutableStateOf(false) }
+                    ChoiceSettingRow(
+                        title = stringResource(R.string.settings_fav_action),
+                        value = favChoices.first { it.value == favAction }.label,
+                        onClick = { choosingFav = true },
+                        enabled = favoritesEnabled,
+                    )
+                    if (choosingFav) {
+                        AyanaChoiceSheet(
+                            title = stringResource(R.string.settings_fav_action),
+                            choices = favChoices,
+                            selected = favAction,
+                            onPick = { choice ->
+                                onFavoriteReturnsHomeChange(choice != FAV_NOTHING)
+                                onFavoriteSendsImmediatelyChange(choice == FAV_SEND)
+                            },
+                            onDismiss = { choosingFav = false },
+                        )
+                    }
                 }
             }
 
@@ -411,7 +433,7 @@ private fun OpenOutside() {
     )
 }
 
-private const val FAV_OFF = 0
+private const val FAV_NOTHING = 0
 private const val FAV_RETURN = 1
 private const val FAV_SEND = 2
 

@@ -76,7 +76,8 @@ fun SessionsDrawerContent(
     onRenameSession: (Long) -> Unit,
     onTogglePin: (Long) -> Unit,
     onDeleteSession: (Long) -> Unit,
-    onOpenFavorites: () -> Unit,
+    /** Null while favorites are off: the pill then shows Settings alone. */
+    onOpenFavorites: (() -> Unit)?,
     onSettings: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -85,106 +86,109 @@ fun SessionsDrawerContent(
         sessions.sortedByDescending { it.pinned }
     }
 
-    // The bottom pill must refract the sessions scrolling above it, not the main page behind the
-    // whole drawer. So the sessions list records into its own backdrop and only the pill samples
-    // it; the drawer Surface keeps sampling the main backdrop for its overall frost.
-    // Under the sessions lies the page the drawer frosts, darkened as the drawer darkens it, so the
-    // pill's blur softens a whole picture, not only the rows' words.
-    val sessionsBackdrop = rememberLiquidBackdrop(
-        beneath = LocalLiquidBackdrop.current,
-        beneathTint = Color.Black.copy(alpha = DRAWER_UNDER_DIM),
-    )
+    // The bottom pill is glass over the drawer: it bends and blurs the drawer exactly as it shows
+    // on screen (its own frosted glass, its shade, the sessions scrolling by). So the drawer, all
+    // of it, is recorded into its own backdrop, and the pill lies over it, outside it.
+    val drawerBackdrop = rememberLiquidBackdrop()
 
     // Surface (not a bare background) so inner text picks up the proper
     // content color instead of the default dark one.
     // The dark tint sits between the glass and the rows, so the panel darkens and the text does not.
-    Surface(
-        color = Color.Black.copy(alpha = Ui.drawerDarkenAlpha),
-        contentColor = MaterialTheme.colorScheme.onSurface,
-        modifier = modifier
+    Box(
+        modifier
             .fillMaxHeight()
-            .fillMaxWidth(Ui.drawerWidthFraction)
-            .liquidGlass(LocalLiquidBackdrop.current, RectangleShape, 0.dp, lit = false, strong = true, flat = true),
+            .fillMaxWidth(Ui.drawerWidthFraction),
     ) {
-        Column(
-            Modifier
+        Surface(
+            color = Color.Black.copy(alpha = Ui.drawerDarkenAlpha),
+            contentColor = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier
                 .fillMaxSize()
-                .statusBarsPadding()
-                .windowInsetsPadding(
-                    WindowInsets.safeDrawing.only(
-                        WindowInsetsSides.Start + WindowInsetsSides.Bottom
-                    )
-                ),
+                // Recorded with its glass, as it is seen: before the glass in the chain.
+                .liquidBackdrop(drawerBackdrop)
+                .liquidGlass(LocalLiquidBackdrop.current, RectangleShape, 0.dp, lit = false, strong = true, flat = true),
         ) {
-            Text(
-                text = stringResource(R.string.drawer_sessions),
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(horizontal = 20.dp, vertical = 14.dp),
-            )
+            Column(
+                Modifier
+                    .fillMaxSize()
+                    .statusBarsPadding()
+                    .windowInsetsPadding(
+                        WindowInsets.safeDrawing.only(
+                            WindowInsetsSides.Start + WindowInsetsSides.Bottom
+                        )
+                    ),
+            ) {
+                Text(
+                    text = stringResource(R.string.drawer_sessions),
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 14.dp),
+                )
 
-            // Sessions area: scrollable list fills the space.
-            // Two tiers at the bottom: (1) full-width translucent panel
-            // to the screen edge, (2) compact pill on top — same pill as
-            // the top-right in MainScreen.
-            Box(Modifier.weight(1f)) {
-                // The rows and the shade under the pill, recorded together: what the pill sees.
-                Box(Modifier.fillMaxSize().liquidBackdrop(sessionsBackdrop)) {
-                    Column(
-                        Modifier
-                            .fillMaxSize()
-                            .verticalScroll(rememberScrollState())
-                            .padding(bottom = 104.dp),
-                    ) {
-                        ordered.forEach { session ->
-                            SessionRow(
-                                session = session,
-                                selected = session.id == currentSessionId,
-                                onSelect = { onSelectSession(session.id) },
-                                onRename = { onRenameSession(session.id) },
-                                onTogglePin = { onTogglePin(session.id) },
-                                onDelete = { onDeleteSession(session.id) },
-                            )
-                        }
-                    }
-
-                    // Tier 1: translucent full-width panel behind the pill,
-                    // starts a bit higher above the pill and gets darker at the bottom.
-                    Box(
-                        Modifier
-                            .align(Alignment.BottomCenter)
-                            .fillMaxWidth()
-                            .height(116.dp)
-                            .background(
-                                Brush.verticalGradient(
-                                    0f to Color.Transparent,
-                                    0.30f to Color.Black.copy(alpha = Ui.drawerScrimA),
-                                    0.62f to Color.Black.copy(alpha = Ui.drawerScrimB),
-                                    1f to Color.Black.copy(alpha = Ui.drawerScrimC),
+                // Sessions area: scrollable list fills the space.
+                // Two tiers at the bottom: (1) full-width translucent panel
+                // to the screen edge, (2) compact pill on top — same pill as
+                // the top-right in MainScreen.
+                Box(Modifier.weight(1f)) {
+                    Box(Modifier.fillMaxSize()) {
+                        Column(
+                            Modifier
+                                .fillMaxSize()
+                                .verticalScroll(rememberScrollState())
+                                .padding(bottom = 104.dp),
+                        ) {
+                            ordered.forEach { session ->
+                                SessionRow(
+                                    session = session,
+                                    selected = session.id == currentSessionId,
+                                    onSelect = { onSelectSession(session.id) },
+                                    onRename = { onRenameSession(session.id) },
+                                    onTogglePin = { onTogglePin(session.id) },
+                                    onDelete = { onDeleteSession(session.id) },
                                 )
-                            ),
-                    )
-                }
+                            }
+                        }
 
-                // Tier 2: compact pill — identical to TopBar right pill, now left-aligned. It
-                // refracts the sessions list (its own backdrop above), not the main page behind
-                // the drawer, so scrolling the sessions moves what the glass bends.
-                CompositionLocalProvider(LocalLiquidBackdrop provides sessionsBackdrop) {
-                    AyanaPill(
-                        modifier = Modifier
-                            .align(Alignment.BottomStart)
-                            .padding(start = 14.dp, bottom = 16.dp),
-                    ) {
-                        AyanaPillIcon(
-                            icon = Icons.Default.Settings,
-                            contentDescription = stringResource(R.string.settings),
-                            onClick = onSettings,
-                        )
-                        AyanaPillIcon(
-                            icon = Icons.Outlined.StarBorder,
-                            contentDescription = stringResource(R.string.favorites),
-                            onClick = onOpenFavorites,
+                        // Tier 1: translucent full-width panel behind the pill,
+                        // starts a bit higher above the pill and gets darker at the bottom.
+                        Box(
+                            Modifier
+                                .align(Alignment.BottomCenter)
+                                .fillMaxWidth()
+                                .height(116.dp)
+                                .background(
+                                    Brush.verticalGradient(
+                                        0f to Color.Transparent,
+                                        0.30f to Color.Black.copy(alpha = Ui.drawerScrimA),
+                                        0.62f to Color.Black.copy(alpha = Ui.drawerScrimB),
+                                        1f to Color.Black.copy(alpha = Ui.drawerScrimC),
+                                    )
+                                ),
                         )
                     }
+                }
+            }
+        }
+
+        // The compact pill, as at the top right of the main screen, left-aligned: glass over the
+        // drawer, bending and blurring it as it is seen.
+        CompositionLocalProvider(LocalLiquidBackdrop provides drawerBackdrop) {
+            AyanaPill(
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Start + WindowInsetsSides.Bottom))
+                    .padding(start = 14.dp, bottom = 16.dp),
+            ) {
+                AyanaPillIcon(
+                    icon = Icons.Default.Settings,
+                    contentDescription = stringResource(R.string.settings),
+                    onClick = onSettings,
+                )
+                if (onOpenFavorites != null) {
+                    AyanaPillIcon(
+                        icon = Icons.Outlined.StarBorder,
+                        contentDescription = stringResource(R.string.favorites),
+                        onClick = onOpenFavorites,
+                    )
                 }
             }
         }
@@ -278,6 +282,3 @@ private fun ProcessDot(running: Boolean) {
             ),
     )
 }
-
-/** How dark the page reads through the drawer: its own glass fill and its dark tint together. */
-private const val DRAWER_UNDER_DIM = 0.85f

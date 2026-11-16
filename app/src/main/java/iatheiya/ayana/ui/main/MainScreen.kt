@@ -330,6 +330,8 @@ private fun MainScreenRoutes(viewModel: MainViewModel, state: UiState) {
             onOpenKeys = { viewModel.setShowKeys(true) },
             attachSendsNow = state.workspace.settings.attachSendsNow,
             onAttachSendsNowChange = viewModel::setAttachSendsNow,
+            favoritesEnabled = state.workspace.settings.favoritesEnabled,
+            onFavoritesEnabledChange = viewModel::setFavoritesEnabled,
             favoriteReturnsHome = state.workspace.settings.favoriteReturnsHome,
             favoriteSendsImmediately = state.workspace.settings.favoriteSendsImmediately,
             onFavoriteReturnsHomeChange = viewModel::setFavoriteReturnsHome,
@@ -445,7 +447,11 @@ private fun MainScreenBody(viewModel: MainViewModel, state: UiState, composerBac
                 onRenameSession = viewModel::requestRename,
                 onTogglePin = viewModel::togglePin,
                 onDeleteSession = viewModel::requestDelete,
-                onOpenFavorites = { viewModel.setShowFavorites(true) },
+                onOpenFavorites = if (state.workspace.settings.favoritesEnabled) {
+                    { viewModel.setShowFavorites(true) }
+                } else {
+                    null
+                },
                 onSettings = { viewModel.setShowSettings(true) },
             )
         },
@@ -522,7 +528,7 @@ private fun MainScreenBody(viewModel: MainViewModel, state: UiState, composerBac
                                     context.copyToClipboard(text, "ayana-output")
                                 },
                                 onSelectCommandText = viewModel::showSelectText,
-                                onAddToFavorites = viewModel::addFavorite,
+                                onAddToFavorites = if (state.workspace.settings.favoritesEnabled) viewModel::addFavorite else null,
                                 onAreaResized = viewModel::onTranscriptAreaResized,
                                 modifier = Modifier.fillMaxSize(),
                             )

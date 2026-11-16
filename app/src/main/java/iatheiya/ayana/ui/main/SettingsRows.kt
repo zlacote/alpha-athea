@@ -1,28 +1,6 @@
 package iatheiya.ayana.ui.main
 
 import androidx.compose.foundation.clickable
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.spring
-import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.unit.IntOffset
-import kotlinx.coroutines.launch
-import kotlin.math.roundToInt
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -245,12 +223,19 @@ internal fun SettingsDivider() {
  * options come up from the bottom, they do not open a page). Tapping it raises them (see [iatheiya.ayana.ui.common.AyanaChoiceSheet]).
  */
 @Composable
-internal fun ChoiceSettingRow(title: String, value: String, onClick: () -> Unit) {
+internal fun ChoiceSettingRow(
+    title: String,
+    value: String,
+    onClick: () -> Unit,
+    /** Off greys the row out and ignores taps, for a setting that cannot apply right now. */
+    enabled: Boolean = true,
+) {
     Row(
         Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(horizontal = Ui.spaceL, vertical = Ui.spaceL),
+            .clickable(enabled = enabled, onClick = onClick)
+            .padding(horizontal = Ui.spaceL, vertical = Ui.spaceL)
+            .alpha(if (enabled) 1f else Ui.ghostAlpha),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
@@ -272,113 +257,3 @@ internal fun ChoiceSettingRow(title: String, value: String, onClick: () -> Unit)
         )
     }
 }
-
-/**
- * A setting with three choices on one switch: a wider track whose thumb rests at the left, in the
- * middle or at the right, with the chosen choice's name under it. A tap on a third of the track
- * picks that choice; the thumb can also be dragged and settles where it is let go. Left is the
- * off position: the track is lit with the accent only while the thumb is off it.
- */
-@Composable
-internal fun <T> ThreeWaySwitchRow(
-    title: String,
-    subtitle: String? = null,
-    /** The three choices, left to right, with their names. */
-    choices: List<Pair<T, String>>,
-    selected: T,
-    onSelect: (T) -> Unit,
-) {
-    require(choices.size == 3)
-    val index = choices.indexOfFirst { it.first == selected }.coerceAtLeast(0)
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .padding(horizontal = Ui.spaceL, vertical = Ui.spaceM),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Column(
-            Modifier
-                .weight(1f)
-                .padding(end = Ui.controlGap),
-        ) {
-            Text(text = title, style = MaterialTheme.typography.bodyLarge)
-            if (subtitle != null) {
-                Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            ThreeWaySwitch(index = index, onIndex = { onSelect(choices[it].first) })
-            Text(
-                text = choices[index].second,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = Ui.spaceXs),
-            )
-        }
-    }
-}
-
-@Composable
-private fun ThreeWaySwitch(index: Int, onIndex: (Int) -> Unit) {
-    val density = LocalDensity.current
-    val accent = AccentColor.shown ?: MaterialTheme.colorScheme.primary
-    val travel = with(density) { (TRI_TRACK_W - TRI_TRACK_H).toPx() }
-    // Where the thumb is, 0 (left) to 2 (right). The finger moves it directly; a choice glides it.
-    val position = remember { Animatable(index.toFloat()) }
-    val scope = rememberCoroutineScope()
-    LaunchedEffect(index) { if (!position.isRunning) position.animateTo(index.toFloat(), TRI_GLIDE) }
-    val lit = position.value > 0.5f
-    val track by animateColorAsState(if (lit) accent else MaterialTheme.colorScheme.outline, label = "triTrack")
-    val thumb by animateColorAsState(
-        if (lit) contentOn(accent) else MaterialTheme.colorScheme.onSurfaceVariant,
-        label = "triThumb",
-    )
-    val thumbSize by animateDpAsState(if (lit) TRI_THUMB_ON else TRI_THUMB_OFF, label = "triThumbSize")
-    fun settle(to: Int) {
-        scope.launch { position.animateTo(to.toFloat(), TRI_GLIDE) }
-        if (to != index) onIndex(to)
-    }
-    Box(
-        Modifier
-            .size(TRI_TRACK_W, TRI_TRACK_H)
-            .clip(CircleShape)
-            .background(track)
-            .pointerInput(index) {
-                detectTapGestures { at -> settle((at.x / size.width * 3).toInt().coerceIn(0, 2)) }
-            }
-            .pointerInput(index) {
-                detectHorizontalDragGestures(
-                    onDragEnd = { settle(position.value.roundToInt().coerceIn(0, 2)) },
-                    onDragCancel = { settle(index) },
-                ) { change, dx ->
-                    change.consume()
-                    scope.launch { position.snapTo((position.value + dx / travel * 2).coerceIn(0f, 2f)) }
-                }
-            },
-        contentAlignment = Alignment.CenterStart,
-    ) {
-        Box(
-            Modifier
-                .offset { IntOffset((position.value / 2 * travel).roundToInt(), 0) }
-                .size(TRI_TRACK_H),
-            contentAlignment = Alignment.Center,
-        ) {
-            Box(
-                Modifier
-                    .size(thumbSize)
-                    .clip(CircleShape)
-                    .background(thumb),
-            )
-        }
-    }
-}
-
-private val TRI_TRACK_W = 84.dp
-private val TRI_TRACK_H = 32.dp
-private val TRI_THUMB_ON = 24.dp
-private val TRI_THUMB_OFF = 16.dp
-private val TRI_GLIDE = spring<Float>(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMediumLow)
