@@ -123,35 +123,6 @@ fun Modifier.sweptWithIconColours(colours: FloatState?, shade: FloatState?): Mod
         )
     }
 
-private const val DIAGONAL = 0.70710677f
-/** One round of the colours, as a share of the width: wide, so each melts slowly into the next. */
-private const val SWEEP_COLOUR_BAND = 2.4f
-/**
- * One round of the colours, in time: as long as three swells, so they drift across at about the
- * pace the swell runs, as the emblem's colours travel with its light.
- */
-internal const val COLOUR_CYCLE_NANOS = 3 * CYCLE_NANOS
-/** One swell, as a share of the width: the emblem's (its width over [SWELL_WAVES]). */
-private const val SWEEP_SHADE_BAND = 1f / SWELL_WAVES
-/** The darkest the shade makes the colours: the emblem's floor. */
-private const val SWEEP_SHADE_FLOOR = SWELL_FLOOR
-
-/** The icon's colours, in the order its light runs through them, ending where they began. */
-private val SWEEP_COLOURS = listOf(
-    Color(0xFF7C5CFF), // violet
-    Color(0xFF6FA8FF), // blue
-    Color(0xFFF4F0FF), // the white of its core
-    Color(0xFFFFB48A), // peach
-    Color(0xFFFF7EB6), // pink
-    Color(0xFF7C5CFF),
-)
-
-/** The shade over one swell: none at its crest, down to the floor between, as black over it. */
-private val SWEEP_SHADES = List(13) { k ->
-    val light = (1 - cos(2 * PI * k / 12)) / 2
-    Color.Black.copy(alpha = ((1 - SWEEP_SHADE_FLOOR) * (1 - light)).toFloat())
-}
-
 /** One full shimmer, after which every motion is back where it began. */
 internal const val CYCLE_NANOS = 4_500_000_000L
 
@@ -308,3 +279,32 @@ private const val HUE_DRIFT = 24f
 private fun argb(alpha: Float, r: Float, g: Float, b: Float): Int =
     ((alpha.coerceIn(0f, 1f) * 255 + .5f).toInt() shl 24) or
         ((r * 255 + .5f).toInt() shl 16) or ((g * 255 + .5f).toInt() shl 8) or (b * 255 + .5f).toInt()
+
+private const val DIAGONAL = 0.70710677f
+/** One round of the colours, as a share of the width: wide, so each melts slowly into the next. */
+private const val SWEEP_COLOUR_BAND = 2.4f
+/**
+ * One round of the colours, in time: as long as three swells, so they drift across at about the
+ * pace the swell runs, as the emblem's colours travel with its light.
+ */
+internal const val COLOUR_CYCLE_NANOS = 3 * CYCLE_NANOS
+/** One swell, as a share of the width: the emblem's (its width over [SWELL_WAVES]). */
+private const val SWEEP_SHADE_BAND = 1f / SWELL_WAVES
+/** The darkest the shade makes the colours: the emblem's floor. */
+private const val SWEEP_SHADE_FLOOR = SWELL_FLOOR
+
+/** The icon's colours, in the order its light runs through them, ending where they began. */
+private val SWEEP_COLOURS = listOf(
+    Color(0xFF7C5CFF), // violet
+    Color(0xFF6FA8FF), // blue
+    Color(0xFFF4F0FF), // the white of its core
+    Color(0xFFFFB48A), // peach
+    Color(0xFFFF7EB6), // pink
+    Color(0xFF7C5CFF),
+)
+
+/** The shade over one swell: none at its crest, down to the floor between, as black over it. */
+private val SWEEP_SHADES = List(13) { k ->
+    val light = (1 - cos(2 * PI * k / 12)) / 2
+    Color.Black.copy(alpha = ((1 - SWEEP_SHADE_FLOOR) * (1 - light)).toFloat())
+}
