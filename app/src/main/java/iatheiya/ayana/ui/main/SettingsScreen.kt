@@ -209,19 +209,28 @@ internal fun SettingsScreen(
                         checked = autoScrollOnSend,
                         onChange = onAutoScrollOnSendChange,
                     )
-                    SettingsDivider()
-                    SwitchRow(
-                        title = stringResource(R.string.settings_fav_return),
-                        subtitle = stringResource(R.string.settings_fav_return_desc),
-                        checked = favoriteReturnsHome,
-                        onChange = onFavoriteReturnsHomeChange,
-                    )
-                    SettingsDivider()
-                    SwitchRow(
-                        title = stringResource(R.string.settings_fav_send),
-                        subtitle = stringResource(R.string.settings_fav_send_desc),
-                        checked = favoriteSendsImmediately,
-                        onChange = onFavoriteSendsImmediatelyChange,
+                }
+                // A tapped favorite: stays in the favorites and goes into the input (off), takes
+                // you back to the chat with it in the input, or is sent and takes you back to see
+                // its answer. One of the three, so one switch with three places.
+                SettingsCard {
+                    ThreeWaySwitchRow(
+                        title = stringResource(R.string.favorites),
+                        subtitle = stringResource(R.string.settings_fav_desc),
+                        choices = listOf(
+                            FAV_OFF to stringResource(R.string.settings_fav_off),
+                            FAV_RETURN to stringResource(R.string.settings_fav_return),
+                            FAV_SEND to stringResource(R.string.settings_fav_send),
+                        ),
+                        selected = when {
+                            favoriteSendsImmediately -> FAV_SEND
+                            favoriteReturnsHome -> FAV_RETURN
+                            else -> FAV_OFF
+                        },
+                        onSelect = { choice ->
+                            onFavoriteReturnsHomeChange(choice != FAV_OFF)
+                            onFavoriteSendsImmediatelyChange(choice == FAV_SEND)
+                        },
                     )
                 }
             }
@@ -401,5 +410,9 @@ private fun OpenOutside() {
         tint = MaterialTheme.colorScheme.onSurfaceVariant,
     )
 }
+
+private const val FAV_OFF = 0
+private const val FAV_RETURN = 1
+private const val FAV_SEND = 2
 
 private val ABOUT_LIGHT_HEIGHT = 300.dp

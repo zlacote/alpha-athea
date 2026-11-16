@@ -1,7 +1,11 @@
 package iatheiya.ayana.ui.main
 
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.key
+import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.CompositionLocalProvider
 import iatheiya.ayana.ui.common.rememberShimmerCycle
-import iatheiya.ayana.ui.common.filledWithLight
+import iatheiya.ayana.ui.common.sweptWithIconColours
 import kotlin.math.abs
 import kotlin.math.sin
 import kotlin.math.cos
@@ -186,262 +190,299 @@ fun TranscriptView(
     onAreaResized: (rows: Int, cols: Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    BoxWithConstraints(modifier) {
-        val density = LocalDensity.current
-        val maxBubbleWidth = with(density) {
-            (constraints.maxWidth * Ui.bubbleMaxWidthFraction).toInt().toDp()
-        }
-
-        // Report the real cell geometry to the engine so line wrapping matches.
-        val measurer = rememberTextMeasurer()
-        val cellStyle = codeStyle()
-        LaunchedEffect(constraints.maxWidth, constraints.maxHeight, cellStyle) {
-            val layout = measurer.measure(AnnotatedString("M"), cellStyle)
-            val cols = (constraints.maxWidth / layout.size.width.coerceAtLeast(1))
-                .coerceAtLeast(1)
-            val rows = (constraints.maxHeight / layout.size.height.coerceAtLeast(1))
-                .coerceAtLeast(1)
-            onAreaResized(rows, cols)
-        }
-
-        // An empty chat greets the same way in either view.
-        if (session.blocks.isEmpty() && session.rawText.isBlank()) {
-            EmptyGreeting(animated = greetingAnimated, modifier = Modifier.align(Alignment.Center))
-            return@BoxWithConstraints
-        }
-
-        if (session.rawStream) {
-            // Cap raw view rendering: the full text lives in the journal.
-            val rawCapped = session.rawText.takeLast(10_000)
-            RawStreamView(
-                text = rawCapped,
-                query = search?.query,
-                topPadding = contentTopPadding + Ui.contentPaddingV,
-                bottomPadding = contentBottomPadding,
-                modifier = Modifier.fillMaxSize(),
-            )
-            return@BoxWithConstraints
-        }
-
-        val listState = rememberLazyListState()
-        val views = session.blocks
-        // Viewport-adaptive chunk size: one screen of text, so each chunk fits viewport and scrollToItem(last) is truly very end.
-        val viewportChunkSize = remember(constraints.maxHeight, constraints.maxWidth, cellStyle) {
-            val charLayout = measurer.measure(AnnotatedString("M"), cellStyle)
-            val rows = (constraints.maxHeight / charLayout.size.height.coerceAtLeast(1)).coerceAtLeast(20)
-            val cols = (constraints.maxWidth / charLayout.size.width.coerceAtLeast(1)).coerceAtLeast(40)
-            (rows * cols).coerceIn(Ui.chunkSize / 2, Ui.chunkSize * 2)
-        }
-        // Architectural: huge fully-expanded output is split into multiple outer
-        // LazyColumn items (chunks) so outer virtualization composes only visible
-        // chunks and scrollToItem(last) is truly very end — no large offset hack.
-        // Offload chunking from main thread to avoid jank when scrolling tools.
-        var displayItems by remember { mutableStateOf<List<DisplayItem>>(emptyList()) }
-        LaunchedEffect(views, viewportChunkSize, virtualizeLargeOutput) {
-            val out = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
-                val list = mutableListOf<DisplayItem>()
-                for (view in views) {
-                    val block = view.block
-                    if (block is OutputBlock && !view.collapsed && !virtualizeLargeOutput) {
-                        val plain = block.text.trimCommand()
-                        val lineCount = plain.count { it == '\n' } + 1
-                        val isHuge = lineCount > Ui.hugeLinesThreshold || plain.length > Ui.hugeCharsThreshold
-                        if (isHuge) {
-                            val annotated = block.styled.trimTrailingNewlines().toAnnotated()
-                            val chunks = chunkAnnotated(annotated, viewportChunkSize)
-                            chunks.forEachIndexed { idx, chunk ->
-                                list.add(DisplayItem.Chunk(block.id, chunk, idx, idx == 0, idx == chunks.lastIndex, block.exitCode, block.text))
-                            }
-                            continue
-                        }
+    // A tap anywhere on the transcript lets go of a selection, not only a tap on the message that
+    // holds it: after a long press (which is how a selection starts), the next plain tap renews
+    // every selection area, and with it whatever was selected.
+    var selectionEpoch by remember { mutableIntStateOf(0) }
+    var maySelect by remember { mutableStateOf(false) }
+    CompositionLocalProvider(LocalSelectionEpoch provides selectionEpoch) {
+        BoxWithConstraints(
+            modifier.pointerInput(Unit) {
+                awaitEachGesture {
+                    val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                    var moved = false
+                    var held = false
+                    while (true) {
+                        val event = awaitPointerEvent(PointerEventPass.Initial)
+                        val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                        if ((change.position - down.position).getDistance() > viewConfiguration.touchSlop) moved = true
+                        if (change.uptimeMillis - down.uptimeMillis >= viewConfiguration.longPressTimeoutMillis) held = true
+                        if (!change.pressed) break
                     }
-                    list.add(DisplayItem.Block(view))
-                }
-                list
-            }
-            displayItems = out
-        }
-        // Map blockId -> first display index for search navigation
-        val blockToDisplayIndex = remember(displayItems) {
-            val map = mutableMapOf<String, Int>()
-            displayItems.forEachIndexed { idx, item ->
-                val id = when (item) {
-                    is DisplayItem.Block -> item.view.block.id
-                    is DisplayItem.Chunk -> item.blockId
-                }
-                map.putIfAbsent(id, idx)
-            }
-            map
-        }
-        val itemCount = displayItems.size
-        val lastTextLength =
-            (views.lastOrNull()?.block as? OutputBlock)?.text?.length ?: 0
-
-        // A chunk can be much taller than the viewport.  Therefore the last
-        // visible *item* is not sufficient to tell whether we are at the end:
-        // it may only be the beginning of that last chunk.  Keep following
-        // output only while its final line was actually visible.
-        // Only the finger lets go of the end: a jump of our own (after a send, say) is still in
-        // progress when the answer arrives, and must not count as the reader scrolling away.
-        var stickToBottom by remember { mutableStateOf(true) }
-        val dragged by listState.interactionSource.collectIsDraggedAsState()
-        LaunchedEffect(listState) {
-            snapshotFlow { Triple(!listState.canScrollForward, listState.isScrollInProgress, dragged) }
-                .collect { (atBottom, inProgress, byFinger) ->
-                    if (byFinger && !atBottom) {
-                        stickToBottom = false
-                    } else if (atBottom && !inProgress && !stickToBottom) {
-                        kotlinx.coroutines.delay(600)
-                        if (!listState.canScrollForward && !listState.isScrollInProgress) stickToBottom = true
+                    if (held) {
+                        maySelect = true
+                    } else if (!moved && maySelect) {
+                        maySelect = false
+                        selectionEpoch++
                     }
                 }
-        }
-        // Stick to the real bottom while output grows, including the tail of a last chunk that is
-        // taller than one viewport, and while the room above the composer shrinks (the keyboard
-        // coming up, the composer growing), so the newest message stays just above the composer.
-        LaunchedEffect(itemCount, lastTextLength, constraints.maxHeight, contentBottomPadding) {
-            if (itemCount > 0 && stickToBottom) {
-                try { listState.scrollToEnd(itemCount - 1) } catch (_: Exception) {}
-            }
-        }
-
-        // Search navigation: reveal the block, then scroll to its first chunk.
-        LaunchedEffect(session.id) {
-            scrollRequests.collect { blockId ->
-                val index = blockToDisplayIndex[blockId] ?: onLocateBlock(blockId)
-                if (index >= 0) {
-                    onRevealBlock(blockId)
-                    listState.animateScrollToItem(index)
-                } else {
-                    val fallback = onLocateBlock(blockId)
-                    if (fallback >= 0) {
-                        onRevealBlock(blockId)
-                        listState.animateScrollToItem(blockToDisplayIndex[views[fallback].block.id] ?: fallback)
-                    }
-                }
-            }
-        }
-
-        // Forced jumps to the very bottom (e.g. right after sending). Slightly slower than instant — animate.
-        LaunchedEffect(session.id, itemCount) {
-            jumpToBottom.collect {
-                stickToBottom = true
-                val last = itemCount - 1
-                if (last >= 0) try { listState.animateScrollToEnd(last) } catch (_: Exception) {}
-            }
-        }
-
-        // The page keys at an idle prompt: scroll most of a screen, keeping a few lines for context.
-        LaunchedEffect(session.id) {
-            pageScroll.collect { direction ->
-                val viewport = listState.layoutInfo.viewportEndOffset - listState.layoutInfo.viewportStartOffset
-                listState.animateScrollBy(direction * viewport * PAGE_FRACTION)
-            }
-        }
-
-        // The jump-down button (in the composer) shows whenever even part of a tall final chunk
-        // is below the viewport, and goes away only at the true end.
-        LaunchedEffect(listState) {
-            snapshotFlow { listState.canScrollForward }.collect { onJumpAvailableChange(it) }
-        }
-        DisposableEffect(Unit) { onDispose { onJumpAvailableChange(false) } }
-
-        val currentMatchId = search?.matchBlockIds?.getOrNull(search.index)
-
-        if (views.isEmpty()) {
-            EmptyGreeting(animated = greetingAnimated, modifier = Modifier.align(Alignment.Center))
-            return@BoxWithConstraints
-        }
-
-        LazyColumn(
-            state = listState,
-            modifier = Modifier
-                .fillMaxSize()
-                .then(if (pinchZoomEnabled) Modifier.pinchToZoom(onTranscriptFontZoom) else Modifier),
-            contentPadding = PaddingValues(
-                top = contentTopPadding + Ui.contentPaddingV,
-                bottom = contentBottomPadding,
-            ),
+            },
         ) {
-            items(displayItems, key = { item ->
-                when (item) {
-                    is DisplayItem.Block -> item.view.block.id
-                    is DisplayItem.Chunk -> "${item.blockId}-chunk-${item.chunkIndex}"
+            val density = LocalDensity.current
+            val maxBubbleWidth = with(density) {
+                (constraints.maxWidth * Ui.bubbleMaxWidthFraction).toInt().toDp()
+            }
+
+            // Report the real cell geometry to the engine so line wrapping matches.
+            val measurer = rememberTextMeasurer()
+            val cellStyle = codeStyle()
+            LaunchedEffect(constraints.maxWidth, constraints.maxHeight, cellStyle) {
+                val layout = measurer.measure(AnnotatedString("M"), cellStyle)
+                val cols = (constraints.maxWidth / layout.size.width.coerceAtLeast(1))
+                    .coerceAtLeast(1)
+                val rows = (constraints.maxHeight / layout.size.height.coerceAtLeast(1))
+                    .coerceAtLeast(1)
+                onAreaResized(rows, cols)
+            }
+
+            // An empty chat greets the same way in either view.
+            if (session.blocks.isEmpty() && session.rawText.isBlank()) {
+                EmptyGreeting(animated = greetingAnimated, modifier = Modifier.align(Alignment.Center))
+                return@BoxWithConstraints
+            }
+
+            if (session.rawStream) {
+                // Cap raw view rendering: the full text lives in the journal.
+                val rawCapped = session.rawText.takeLast(10_000)
+                RawStreamView(
+                    text = rawCapped,
+                    query = search?.query,
+                    topPadding = contentTopPadding + Ui.contentPaddingV,
+                    bottomPadding = contentBottomPadding,
+                    modifier = Modifier.fillMaxSize(),
+                )
+                return@BoxWithConstraints
+            }
+
+            val listState = rememberLazyListState()
+            val views = session.blocks
+            // Viewport-adaptive chunk size: one screen of text, so each chunk fits viewport and scrollToItem(last) is truly very end.
+            val viewportChunkSize = remember(constraints.maxHeight, constraints.maxWidth, cellStyle) {
+                val charLayout = measurer.measure(AnnotatedString("M"), cellStyle)
+                val rows = (constraints.maxHeight / charLayout.size.height.coerceAtLeast(1)).coerceAtLeast(20)
+                val cols = (constraints.maxWidth / charLayout.size.width.coerceAtLeast(1)).coerceAtLeast(40)
+                (rows * cols).coerceIn(Ui.chunkSize / 2, Ui.chunkSize * 2)
+            }
+            // Architectural: huge fully-expanded output is split into multiple outer
+            // LazyColumn items (chunks) so outer virtualization composes only visible
+            // chunks and scrollToItem(last) is truly very end — no large offset hack.
+            // Offload chunking from main thread to avoid jank when scrolling tools.
+            var displayItems by remember { mutableStateOf<List<DisplayItem>>(emptyList()) }
+            LaunchedEffect(views, viewportChunkSize, virtualizeLargeOutput) {
+                val out = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+                    val list = mutableListOf<DisplayItem>()
+                    for (view in views) {
+                        val block = view.block
+                        if (block is OutputBlock && !view.collapsed && !virtualizeLargeOutput) {
+                            val plain = block.text.trimCommand()
+                            val lineCount = plain.count { it == '\n' } + 1
+                            val isHuge = lineCount > Ui.hugeLinesThreshold || plain.length > Ui.hugeCharsThreshold
+                            if (isHuge) {
+                                val annotated = block.styled.trimTrailingNewlines().toAnnotated()
+                                val chunks = chunkAnnotated(annotated, viewportChunkSize)
+                                chunks.forEachIndexed { idx, chunk ->
+                                    list.add(DisplayItem.Chunk(block.id, chunk, idx, idx == 0, idx == chunks.lastIndex, block.exitCode, block.text))
+                                }
+                                continue
+                            }
+                        }
+                        list.add(DisplayItem.Block(view))
+                    }
+                    list
                 }
-            }) { item ->
-                when (item) {
-                    is DisplayItem.Block -> {
-                        val view = item.view
-                        when (val block = view.block) {
-                            is CommandBlock -> CommandBubble(
-                                block = block,
-                                collapsed = view.collapsed,
-                                maxWidth = maxBubbleWidth,
-                                previewLines = previewLines,
-                                currentMatch = block.id == currentMatchId,
-                                scrollInside = virtualizeLargeOutput,
-                                query = search?.query,
-                                onToggle = { onToggleBlock(block.id) },
-                                onCopy = { onCopyCommand(block.text) },
-                                onSelectText = { onSelectCommandText(block.text) },
-                                onFavorite = { onAddToFavorites(block.text) },
-                            )
-                            is OutputBlock -> OutputPanel(
-                                block = block,
-                                collapsed = view.collapsed,
-                                query = search?.query,
-                                currentMatch = block.id == currentMatchId,
-                                virtualizeEnabled = virtualizeLargeOutput,
-                                previewLines = previewLines,
-                                jumpToBottom = jumpToBottom,
-                                onToggle = { onToggleBlock(block.id) },
-                                onCopy = onCopyOutput,
-                            )
+                displayItems = out
+            }
+            // Map blockId -> first display index for search navigation
+            val blockToDisplayIndex = remember(displayItems) {
+                val map = mutableMapOf<String, Int>()
+                displayItems.forEachIndexed { idx, item ->
+                    val id = when (item) {
+                        is DisplayItem.Block -> item.view.block.id
+                        is DisplayItem.Chunk -> item.blockId
+                    }
+                    map.putIfAbsent(id, idx)
+                }
+                map
+            }
+            val itemCount = displayItems.size
+            val lastTextLength =
+                (views.lastOrNull()?.block as? OutputBlock)?.text?.length ?: 0
+
+            // A chunk can be much taller than the viewport.  Therefore the last
+            // visible *item* is not sufficient to tell whether we are at the end:
+            // it may only be the beginning of that last chunk.  Keep following
+            // output only while its final line was actually visible.
+            // Only the finger lets go of the end: a jump of our own (after a send, say) is still in
+            // progress when the answer arrives, and must not count as the reader scrolling away.
+            var stickToBottom by remember { mutableStateOf(true) }
+            val dragged by listState.interactionSource.collectIsDraggedAsState()
+            LaunchedEffect(listState) {
+                snapshotFlow { Triple(!listState.canScrollForward, listState.isScrollInProgress, dragged) }
+                    .collect { (atBottom, inProgress, byFinger) ->
+                        if (byFinger && !atBottom) {
+                            stickToBottom = false
+                        } else if (atBottom && !inProgress && !stickToBottom) {
+                            kotlinx.coroutines.delay(600)
+                            if (!listState.canScrollForward && !listState.isScrollInProgress) stickToBottom = true
                         }
                     }
-                    is DisplayItem.Chunk -> {
-                        // Huge fully-expanded block split into outer items — true virtualization
-                        // No inner scroll, no label, fully visible but composed only when on screen.
-                        Column(
-                            Modifier
-                                .fillMaxWidth()
-                                .background(
-                                    if (item.blockId == currentMatchId) MaterialTheme.colorScheme.primary.copy(alpha = Ui.highlightAlpha)
-                                    else androidx.compose.ui.graphics.Color.Transparent
+            }
+            // Stick to the real bottom while output grows, including the tail of a last chunk that is
+            // taller than one viewport, and while the room above the composer shrinks (the keyboard
+            // coming up, the composer growing), so the newest message stays just above the composer.
+            LaunchedEffect(itemCount, lastTextLength, constraints.maxHeight, contentBottomPadding) {
+                if (itemCount > 0 && stickToBottom) {
+                    try { listState.keepEnd(itemCount - 1) } catch (_: Exception) {}
+                }
+            }
+
+            // Search navigation: reveal the block, then scroll to its first chunk.
+            LaunchedEffect(session.id) {
+                scrollRequests.collect { blockId ->
+                    val index = blockToDisplayIndex[blockId] ?: onLocateBlock(blockId)
+                    if (index >= 0) {
+                        onRevealBlock(blockId)
+                        listState.animateScrollToItem(index)
+                    } else {
+                        val fallback = onLocateBlock(blockId)
+                        if (fallback >= 0) {
+                            onRevealBlock(blockId)
+                            listState.animateScrollToItem(blockToDisplayIndex[views[fallback].block.id] ?: fallback)
+                        }
+                    }
+                }
+            }
+
+            // Forced jumps to the very bottom (e.g. right after sending). Slightly slower than instant — animate.
+            LaunchedEffect(session.id, itemCount) {
+                jumpToBottom.collect {
+                    stickToBottom = true
+                    val last = itemCount - 1
+                    if (last >= 0) try { listState.animateScrollToEnd(last) } catch (_: Exception) {}
+                }
+            }
+
+            // The page keys at an idle prompt: scroll most of a screen, keeping a few lines for context.
+            LaunchedEffect(session.id) {
+                pageScroll.collect { direction ->
+                    val viewport = listState.layoutInfo.viewportEndOffset - listState.layoutInfo.viewportStartOffset
+                    listState.animateScrollBy(direction * viewport * PAGE_FRACTION)
+                }
+            }
+
+            // The jump-down button (in the composer) shows whenever even part of a tall final chunk
+            // is below the viewport, and goes away only at the true end.
+            LaunchedEffect(listState) {
+                snapshotFlow { listState.canScrollForward }.collect { onJumpAvailableChange(it) }
+            }
+            DisposableEffect(Unit) { onDispose { onJumpAvailableChange(false) } }
+
+            val currentMatchId = search?.matchBlockIds?.getOrNull(search.index)
+
+            if (views.isEmpty()) {
+                EmptyGreeting(animated = greetingAnimated, modifier = Modifier.align(Alignment.Center))
+                return@BoxWithConstraints
+            }
+
+            LazyColumn(
+                state = listState,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .then(if (pinchZoomEnabled) Modifier.pinchToZoom(onTranscriptFontZoom) else Modifier),
+                contentPadding = PaddingValues(
+                    top = contentTopPadding + Ui.contentPaddingV,
+                    bottom = contentBottomPadding,
+                ),
+            ) {
+                items(displayItems, key = { item ->
+                    when (item) {
+                        is DisplayItem.Block -> item.view.block.id
+                        is DisplayItem.Chunk -> "${item.blockId}-chunk-${item.chunkIndex}"
+                    }
+                }) { item ->
+                    when (item) {
+                        is DisplayItem.Block -> {
+                            val view = item.view
+                            when (val block = view.block) {
+                                is CommandBlock -> CommandBubble(
+                                    block = block,
+                                    collapsed = view.collapsed,
+                                    maxWidth = maxBubbleWidth,
+                                    previewLines = previewLines,
+                                    currentMatch = block.id == currentMatchId,
+                                    scrollInside = virtualizeLargeOutput,
+                                    query = search?.query,
+                                    onToggle = { onToggleBlock(block.id) },
+                                    onCopy = { onCopyCommand(block.text) },
+                                    onSelectText = { onSelectCommandText(block.text) },
+                                    onFavorite = { onAddToFavorites(block.text) },
                                 )
-                                .padding(horizontal = Ui.outputPaddingH, vertical = if (item.isFirst) Ui.headerPaddingV else 0.dp)
-                        ) {
-                            if (item.isFirst && item.exitCode != null && item.exitCode != 0) {
-                                Text(
-                                    text = stringResource(R.string.exit_code, item.exitCode),
-                                    color = MaterialTheme.colorScheme.error,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    modifier = Modifier.padding(bottom = Ui.keyRowPaddingV),
+                                is OutputBlock -> OutputPanel(
+                                    block = block,
+                                    collapsed = view.collapsed,
+                                    query = search?.query,
+                                    currentMatch = block.id == currentMatchId,
+                                    virtualizeEnabled = virtualizeLargeOutput,
+                                    previewLines = previewLines,
+                                    jumpToBottom = jumpToBottom,
+                                    onToggle = { onToggleBlock(block.id) },
+                                    onCopy = onCopyOutput,
                                 )
                             }
-                            SelectionContainer {
-                                Text(
-                                    text = remember(item.chunk, search?.query) { item.chunk.withSearchHighlights(search?.query) },
-                                    style = codeStyle(),
-                                    color = MaterialTheme.colorScheme.onBackground,
-                                    modifier = Modifier.fillMaxWidth(),
-                                )
-                            }
-                            if (item.isLast) {
-                                OutputFooter(
-                                    expandable = true,
-                                    collapsed = false,
-                                    onCopy = { onCopyOutput(item.text.trimCommand()) },
-                                    onToggle = { onToggleBlock(item.blockId) },
-                                )
+                        }
+                        is DisplayItem.Chunk -> {
+                            // Huge fully-expanded block split into outer items — true virtualization
+                            // No inner scroll, no label, fully visible but composed only when on screen.
+                            Column(
+                                Modifier
+                                    .fillMaxWidth()
+                                    .background(
+                                        if (item.blockId == currentMatchId) MaterialTheme.colorScheme.primary.copy(alpha = Ui.highlightAlpha)
+                                        else androidx.compose.ui.graphics.Color.Transparent
+                                    )
+                                    .padding(horizontal = Ui.outputPaddingH, vertical = if (item.isFirst) Ui.headerPaddingV else 0.dp)
+                            ) {
+                                if (item.isFirst && item.exitCode != null && item.exitCode != 0) {
+                                    Text(
+                                        text = stringResource(R.string.exit_code, item.exitCode),
+                                        color = MaterialTheme.colorScheme.error,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        modifier = Modifier.padding(bottom = Ui.keyRowPaddingV),
+                                    )
+                                }
+                                ClearableSelection {
+                                    Text(
+                                        text = remember(item.chunk, search?.query) { item.chunk.withSearchHighlights(search?.query) },
+                                        style = codeStyle(),
+                                        color = MaterialTheme.colorScheme.onBackground,
+                                        modifier = Modifier.fillMaxWidth(),
+                                    )
+                                }
+                                if (item.isLast) {
+                                    OutputFooter(
+                                        expandable = true,
+                                        collapsed = false,
+                                        onCopy = { onCopyOutput(item.text.trimCommand()) },
+                                        onToggle = { onToggleBlock(item.blockId) },
+                                    )
+                                }
                             }
                         }
                     }
                 }
             }
-        }
 
+        }
     }
+}
+
+/** Grows by one each time a tap lets go of the transcript's selections; see [ClearableSelection]. */
+private val LocalSelectionEpoch = compositionLocalOf { 0 }
+
+/** A selection area that a tap anywhere on the transcript clears, not only one on itself. */
+@Composable
+private fun ClearableSelection(content: @Composable () -> Unit) {
+    key(LocalSelectionEpoch.current) { SelectionContainer(content = content) }
 }
 
 @Composable
@@ -461,16 +502,15 @@ private fun EmptyGreeting(animated: Boolean, modifier: Modifier = Modifier) {
 }
 
 /**
- * The name made of the icon's own light: its letters are filled with the light, turned to run
- * along the word, so the light's fibres, colours and swell flow through them, as in About. Under
- * the light the letters keep only a trace of white, so where the light is faint they still read
- * without washing it out, and a faint glow lies around them. Still, when [animated] is off.
+ * The name in the icon's colours, sweeping across it from left to right in bands that lean like
+ * a backslash, brightening and dimming as they go, with a faint glow around it. Still, when
+ * [animated] is off.
  */
 @Composable
 private fun ShimmeringName(text: String, style: TextStyle, animated: Boolean) {
     val cycle = rememberShimmerCycle(animated)
-    // Two layers of the same text: the glow behind, on its own, so the light never fills it; and
-    // over it the letters, filled with the light.
+    // Two layers of the same text: the glow behind, on its own, so the colours never fill it; and
+    // over it the letters, filled with the colours.
     Box(contentAlignment = Alignment.Center) {
         Text(
             text = text,
@@ -480,14 +520,13 @@ private fun ShimmeringName(text: String, style: TextStyle, animated: Boolean) {
         Text(
             text = text,
             style = style,
-            color = NAME_BASE,
-            modifier = Modifier.filledWithLight(if (animated) cycle else null),
+            color = Color.White,
+            modifier = Modifier.sweptWithIconColours(if (animated) cycle else null),
         )
     }
 }
 
 private const val NAME_GLOW_BLUR = 20f
-private val NAME_BASE = Color(0x26FFFFFF)
 private val NAME_GLOW = Color(0x66B9A0FF)
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -709,7 +748,7 @@ private fun OutputPanel(
             if (isHuge) {
                 ChunkedExpanded(annotated = displayAnnotated, query = query)
             } else {
-                SelectionContainer {
+                ClearableSelection {
                     val annotated = remember(displayAnnotated, query) { displayAnnotated.withSearchHighlights(query) }
                     Text(
                         text = annotated,
@@ -805,6 +844,26 @@ private suspend fun LazyListState.scrollToEnd(lastIndex: Int) {
     scrollRemainingToEnd()
 }
 
+/**
+ * Keeps the end in view while it moves: when the last item is already on screen, moves by just
+ * the distance its end has gone past the bottom, in one step. Jumping to the last item first (as
+ * [scrollToEnd] does) put its top at the top of the screen and then scrolled down again, so every
+ * new line of output, and every step of the keyboard rising, showed as a jolt.
+ */
+private suspend fun LazyListState.keepEnd(lastIndex: Int) {
+    // Twice at most: what was measured before the newest lines may fall short by them.
+    repeat(2) {
+        val info = layoutInfo
+        val last = info.visibleItemsInfo.lastOrNull()
+        if (last == null || last.index != lastIndex) {
+            scrollToEnd(lastIndex)
+            return
+        }
+        val past = last.offset + last.size - (info.viewportEndOffset - info.afterContentPadding)
+        if (past <= 0 || scrollBy(past.toFloat()) <= 0f) return
+    }
+}
+
 /** Animate to the actual end even when the final lazy-list item is very tall. */
 private suspend fun LazyListState.animateScrollToEnd(lastIndex: Int) {
     animateScrollToItem(lastIndex)
@@ -869,7 +928,7 @@ private fun VirtualizedOutput(annotated: AnnotatedString, query: String?, jumpTo
             ) {
                 items(chunks.size) { idx ->
                     val chunk = chunks[idx]
-                    SelectionContainer {
+                    ClearableSelection {
                         Text(
                             text = remember(chunk, query) { chunk.withSearchHighlights(query) },
                             style = codeStyle(),
@@ -888,7 +947,7 @@ private fun ChunkedExpanded(annotated: AnnotatedString, query: String?) {
     // Same chunking but fully expanded (no inner scroll, no label)
     // Prevents single huge Text OOM while keeping default fully visible.
     val chunks = remember(annotated) { chunkAnnotated(annotated) }
-    SelectionContainer {
+    ClearableSelection {
         Column(Modifier.fillMaxWidth()) {
             chunks.forEach { chunk ->
                 Text(
@@ -931,7 +990,7 @@ private fun RawStreamView(
     val scroll = rememberScrollState()
     // Kept at the end as the text grows and as the room above the composer shrinks.
     LaunchedEffect(text.length, scroll.maxValue) { scroll.scrollTo(scroll.maxValue) }
-    SelectionContainer {
+    ClearableSelection {
         Text(
             text = AnnotatedString(text.ifEmpty { " " }).withSearchHighlights(query),
             style = codeStyle(),

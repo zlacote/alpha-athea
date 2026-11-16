@@ -48,4 +48,4 @@ its version as a release, with an APK per processor and a universal one.
 
 ## Status
 
-Early, version 0.8. Things still change between versions.
+Early, version 0.9. Things still change between versions.
