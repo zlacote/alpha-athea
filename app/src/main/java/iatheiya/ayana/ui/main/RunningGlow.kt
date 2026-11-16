@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.BlendMode
@@ -42,21 +43,26 @@ fun RunningGlow(running: Boolean, settings: AyanaSettings, modifier: Modifier = 
 @Composable
 private fun GlowPulse(presence: Float, settings: AyanaSettings, modifier: Modifier) {
     val period = settings.glowPeriodMs
-    val transition = rememberInfiniteTransition(label = "glowPulse")
-    // One pulse: it flares quickly over the first eighth of the period, then fades slowly.
-    val pulse by transition.animateFloat(
-        initialValue = 0f,
-        targetValue = 0f,
-        animationSpec = infiniteRepeatable(
-            animation = keyframes<Float> {
-                durationMillis = period
-                0f at 0
-                1f at period / 8 using FastOutSlowInEasing
-                0f at period using FastOutSlowInEasing
-            },
-        ),
-        label = "glowPulse",
-    )
+    // One pulse has its own length: it flares quickly, then fades. The setting is how often one
+    // comes, so a longer period leaves the edge dark for longer between two pulses. Keyed on the
+    // period: an infinite transition keeps the timing it started with.
+    val pulse by key(period) {
+        val length = minOf(period, PULSE_MS)
+        rememberInfiniteTransition(label = "glowPulse").animateFloat(
+            initialValue = 0f,
+            targetValue = 0f,
+            animationSpec = infiniteRepeatable(
+                animation = keyframes<Float> {
+                    durationMillis = period
+                    0f at 0
+                    1f at length / 8 using FastOutSlowInEasing
+                    0f at length using FastOutSlowInEasing
+                    0f at period
+                },
+            ),
+            label = "glowPulse",
+        )
+    }
     val glow = MaterialTheme.colorScheme.primary
     val peak = settings.glowStrengthPct / 100f
     Box(
@@ -83,3 +89,6 @@ private fun GlowPulse(presence: Float, settings: AyanaSettings, modifier: Modifi
             .background(Brush.verticalGradient(0f to glow, 1f to Color.Transparent)),
     )
 }
+
+/** How long one pulse lasts, flare and fade, however far apart the pulses come. */
+private const val PULSE_MS = 1200

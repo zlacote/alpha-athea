@@ -109,10 +109,10 @@
     <string name="settings_virtualize_desc">When large, scroll inside instead of full page; uses same lines as collapsed view ×4</string>
     <string name="settings_section_input">Input</string>
     <string name="settings_section_output">Output</string>
-    <string name="settings_fav_return">Return to chat on tap</string>
-    <string name="settings_fav_send">Send immediately</string>
-    <string name="settings_fav_both">Both</string>
-    <string name="settings_fav_off">Off</string>
+    <string name="settings_fav_return">Favorites return to chat</string>
+    <string name="settings_fav_return_desc">A tapped favorite takes you back to the chat</string>
+    <string name="settings_fav_send">Favorites send at once</string>
+    <string name="settings_fav_send_desc">Off: the command goes into the input</string>
     <string name="keys_title">Keys</string>
     <string name="keys_sticky">Sticky</string>
     <string name="keys_lock">Lock</string>
@@ -130,8 +130,8 @@
     <string name="keys_reference">Key codes reference</string>
     <string name="settings_diag_copy">Copy diagnostics</string>
     <string name="attach_add">Attach file</string>
-    <string name="attach_copy">Copy into terminal folder</string>
-    <string name="attach_link">Give a symlink</string>
+    <string name="attach_copy">Copy</string>
+    <string name="attach_link">Symlink</string>
     <string name="settings_diag_copied">Logs copied</string>
     <string name="settings_about">About Ayana</string>
     <string name="about_version">Version %1$s</string>
@@ -174,7 +174,7 @@
     <string name="glass_needs_glass">needs glass on</string>
     <string name="glass_needs_bezel">needs a bezel above 0</string>
     <string name="glass_needs_highlight">needs highlight strength above 0</string>
-    <string name="attach_path">Insert path</string>
+    <string name="attach_path">Path</string>
     <string name="settings_attach_sends_now">Send file commands at once</string>
     <string name="settings_attach_sends_now_desc">Off: the command goes into the input on a new line</string>
     <string name="settings_glow_section">Glow</string>
@@ -183,5 +183,5 @@
     <string name="settings_glow_strength">Strength, %</string>
     <string name="settings_glow_height">Height, dp</string>
     <string name="settings_glow_width">Width, %</string>
-    <string name="settings_glow_period">Pulse, ms</string>
+    <string name="settings_glow_period">Pulse every, ms</string>
 </resources>

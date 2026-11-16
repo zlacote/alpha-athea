@@ -86,34 +86,13 @@ fun <T> AyanaChoiceSheet(
     selected: T?,
     onPick: (T) -> Unit,
     onDismiss: () -> Unit,
-) = ChoiceSheetFrame(title, choices, isOn = { it == selected }, closesOnPick = true, onPick = onPick, onDismiss = onDismiss)
-
-/**
- * The same sheet for options that are each on or off, any number at once: a tap turns the option
- * over and the sheet stays, so several can be set in one go; it goes as any sheet does.
- */
-@Composable
-fun <T> AyanaToggleSheet(
-    title: String,
-    choices: List<SheetChoice<T>>,
-    on: Set<T>,
-    onToggle: (T, Boolean) -> Unit,
-    onDismiss: () -> Unit,
-) = ChoiceSheetFrame(
-    title,
-    choices,
-    isOn = { it in on },
-    closesOnPick = false,
-    onPick = { onToggle(it, it !in on) },
-    onDismiss = onDismiss,
-)
+) = ChoiceSheetFrame(title, choices, isOn = { it == selected }, onPick = onPick, onDismiss = onDismiss)
 
 @Composable
 private fun <T> ChoiceSheetFrame(
     title: String,
     choices: List<SheetChoice<T>>,
     isOn: (T) -> Boolean,
-    closesOnPick: Boolean,
     onPick: (T) -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -234,7 +213,7 @@ private fun <T> ChoiceSheetFrame(
                                     BorderStroke(1.dp, if (current) Color.Transparent else MaterialTheme.colorScheme.outline),
                                     OPTION_SHAPE,
                                 )
-                                .clickable { if (closesOnPick) close { onPick(choice.value) } else onPick(choice.value) }
+                                .clickable { close { onPick(choice.value) } }
                                 .padding(horizontal = Ui.spaceXl, vertical = 18.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {

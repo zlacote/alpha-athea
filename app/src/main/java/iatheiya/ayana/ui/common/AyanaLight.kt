@@ -41,7 +41,7 @@ import kotlin.math.sin
  */
 @Composable
 fun AyanaLight(modifier: Modifier = Modifier, shimmering: Boolean = true) {
-    val light = remember { SpotLight() }
+    val light = remember { SpotLight(along = false) }
     val cycle = rememberShimmerCycle(shimmering)
     Canvas(modifier) {
         val w = size.width.roundToInt()
@@ -60,7 +60,9 @@ fun AyanaLight(modifier: Modifier = Modifier, shimmering: Boolean = true) {
  */
 @Composable
 fun rememberShimmerCycle(running: Boolean = true): MutableFloatState {
-    val cycle = remember { mutableFloatStateOf(0f) }
+    // It starts where a shimmer that had always been running would be now, not at its beginning,
+    // so opening a screen with the light finds it already under way.
+    val cycle = remember { mutableFloatStateOf((System.nanoTime() % CYCLE_NANOS).toFloat() / CYCLE_NANOS) }
     if (running) {
         LaunchedEffect(Unit) {
             var last = withFrameNanos { it }
@@ -80,12 +82,14 @@ fun rememberShimmerCycle(running: Boolean = true): MutableFloatState {
 private const val MAX_STEP_NANOS = 50_000_000L
 
 /**
- * Fills what this draws (a name, say) with the icon's own light: the light is laid over it,
- * stretched to run corner to corner across it, and shows only where it draws, so its colours, its
- * fibres and its swell flow through the letters. [cycle] shimmers it; null keeps it still.
+ * Fills what this draws (a name, say) with the icon's own light: the light is turned to lie along
+ * it, its length across the whole width, and shows only where it draws, so its colours, its fibres
+ * and its swell flow through the letters from one end to the other. Not stretched: stretched to a
+ * word's flat shape its fibres smeared into a plain gradient. [cycle] shimmers it; null keeps it
+ * still.
  */
 fun Modifier.filledWithLight(cycle: FloatState?): Modifier = composed {
-    val light = remember { SpotLight() }
+    val light = remember { SpotLight(along = true) }
     val atop = remember { Paint().apply { xfermode = PorterDuffXfermode(PorterDuff.Mode.SRC_ATOP) } }
     graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen).drawWithContent {
         drawContent()
@@ -94,23 +98,18 @@ fun Modifier.filledWithLight(cycle: FloatState?): Modifier = composed {
         if (w <= 0f || h <= 0f) return@drawWithContent
         drawIntoCanvas { canvas ->
             val c = canvas.nativeCanvas
-            // The light's own square, a little larger than the letters so its ends reach their
-            // corners, squeezed to their height.
-            val padX = w * TEXT_PAD_X
-            val padY = h * TEXT_PAD_Y
-            val side = (w + 2 * padX).roundToInt().coerceAtLeast(1)
             val layer = c.saveLayer(0f, 0f, w, h, atop)
-            c.translate(-padX, -padY)
-            c.scale(1f, (h + 2 * padY) / side)
             // Read while drawing, so each frame of the shimmer redraws the letters directly.
-            light.draw(c, side, side, cycle?.floatValue)
+            light.draw(c, w.roundToInt().coerceAtLeast(1), h.roundToInt().coerceAtLeast(1), cycle?.floatValue)
             c.restoreToCount(layer)
         }
     }
 }
 
-private const val TEXT_PAD_X = 0.12f
-private const val TEXT_PAD_Y = 0.35f
+/** How much of the light's length a word spans, in the light's own units (its square is 1). */
+private const val ALONG_SPAN = 0.8f
+/** How much brighter the light is laid into letters, which are thin next to the emblem. */
+private const val ALONG_GAIN = 1.6f
 
 /** One full shimmer, after which every motion is back where it began. */
 private const val CYCLE_NANOS = 4_500_000_000L
@@ -122,9 +121,90 @@ private const val REACH = 3f
 private val PROFILE_AT = floatArrayOf(0f, 1f / 6, 2f / 6, 3f / 6, 4f / 6, 5f / 6, 1f)
 private val PROFILE = floatArrayOf(1f, .8825f, .6065f, .3247f, .1353f, .0439f, 0f)
 
-private class SpotLight {
+/**
+ * The light, drawn from its spots. As an emblem ([along] false) it fills a square in the middle of
+ * the box it is given; that picture is the same at any box, so it is painted once for the whole
+ * app, off the main thread when [warmLight] is called ahead. Laid [along] a word it is turned so
+ * its length runs across the box, and its swell runs from the word's start to its end.
+ */
+private class SpotLight(private val along: Boolean) {
+    private var picture: Bitmap? = null
+    private val layPaint = Paint(Paint.FILTER_BITMAP_FLAG).apply { blendMode = BlendMode.PLUS }
+    private val layerPaint = Paint().apply { blendMode = BlendMode.PLUS }
+    private val swellPaint = Paint().apply { xfermode = PorterDuffXfermode(PorterDuff.Mode.DST_IN) }
+    private val hue = ColorMatrix()
+    private val gain = if (along) ALONG_GAIN else 1f
+    private val dst = android.graphics.RectF()
+
+    fun draw(canvas: android.graphics.Canvas, w: Int, h: Int, cycle: Float?) {
+        val image: Bitmap
+        if (along) {
+            image = picture?.takeIf { it.width == w && it.height == h } ?: Spots.paintAlong(w, h).also { picture = it }
+            dst.set(0f, 0f, w.toFloat(), h.toFloat())
+        } else {
+            // The picture is a square as wide as the box, the emblem in its middle; it reaches past
+            // a box shorter than it is wide, so it is cut to the box, as it was painted before.
+            image = Spots.emblem(w)
+            dst.set(0f, (h - w) / 2f, w.toFloat(), (h + w) / 2f)
+            canvas.save()
+            canvas.clipRect(0, 0, w, h)
+        }
+        drawLight(canvas, image, w, h, cycle)
+        if (!along) canvas.restore()
+    }
+
+    private fun drawLight(canvas: android.graphics.Canvas, image: Bitmap, w: Int, h: Int, cycle: Float?) {
+        if (cycle == null) {
+            hue.reset()
+            hue.setScale(1f, 1f, 1f, gain)
+            layPaint.colorFilter = ColorMatrixColorFilter(hue)
+            layPaint.alpha = 255
+            canvas.drawBitmap(image, null, dst, layPaint)
+            return
+        }
+        val phase = (2 * PI * cycle).toFloat()
+        hue.setHueRotation(HUE_DRIFT * sin(phase), gain)
+        layPaint.colorFilter = ColorMatrixColorFilter(hue)
+        // The dim pass: all of the light, at the floor it never goes under.
+        layPaint.alpha = (255 * SWELL_FLOOR).toInt()
+        canvas.drawBitmap(image, null, dst, layPaint)
+        // The bright pass, seen only through a band that travels along the light: from the lower
+        // end to the upper on the emblem, from the start of the word to its end along one.
+        swellPaint.shader = if (along) {
+            val band = w / ALONG_WAVES
+            val shift = band * cycle
+            LinearGradient(shift, 0f, shift + band, 0f, SWELL_COLOURS, SWELL_AT, Shader.TileMode.REPEAT)
+        } else {
+            val band = w / SWELL_WAVES
+            val shift = band * cycle
+            LinearGradient(shift, h - shift, shift + band, h - shift - band, SWELL_COLOURS, SWELL_AT, Shader.TileMode.REPEAT)
+        }
+        val layer = canvas.saveLayer(0f, 0f, w.toFloat(), h.toFloat(), layerPaint)
+        layPaint.alpha = (255 * (1 - SWELL_FLOOR)).toInt()
+        canvas.drawBitmap(image, null, dst, layPaint)
+        canvas.drawRect(0f, 0f, w.toFloat(), h.toFloat(), swellPaint)
+        canvas.restoreToCount(layer)
+    }
+}
+
+/** The emblem's square, as a share of the width of the box it is shown in. */
+private const val EMBLEM_SHARE = 0.8f
+private const val EMBLEM_MARGIN = (1 - EMBLEM_SHARE) / 2
+/** How many swells lie along a word at once. */
+private const val ALONG_WAVES = 1.04f
+
+/**
+ * Paints the light ahead, off the main thread, for an emblem [widthPx] wide (the width of the box
+ * it will be shown in), so the screen that shows it opens on its first frame without stopping to
+ * paint it.
+ */
+fun warmLight(widthPx: Int) {
+    if (widthPx > 0) Spots.emblem(widthPx)
+}
+
+/** The spots, and the pictures painted from them. */
+private object Spots {
     private val count = LIGHT_SPOTS.size / LIGHT_SPOT_FIELDS
-    private val spotPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { blendMode = BlendMode.PLUS }
     private val shaders: Array<Shader> = Array(count) { i ->
         val o = i * LIGHT_SPOT_FIELDS
         val r = LIGHT_SPOTS[o + 5]
@@ -139,54 +219,65 @@ private class SpotLight {
         RadialGradient(0f, 0f, REACH, colours, PROFILE_AT, Shader.TileMode.CLAMP)
     }
 
-    private var picture: Bitmap? = null
-    private val layPaint = Paint(Paint.FILTER_BITMAP_FLAG).apply { blendMode = BlendMode.PLUS }
-    private val layerPaint = Paint().apply { blendMode = BlendMode.PLUS }
-    private val swellPaint = Paint().apply { xfermode = PorterDuffXfermode(PorterDuff.Mode.DST_IN) }
-    private val hue = ColorMatrix()
-
-    fun draw(canvas: android.graphics.Canvas, w: Int, h: Int, cycle: Float?) {
-        val image = picture?.takeIf { it.width == w && it.height == h } ?: paint(w, h).also { picture = it }
-        if (cycle == null) {
-            layPaint.colorFilter = null
-            layPaint.alpha = 255
-            canvas.drawBitmap(image, 0f, 0f, layPaint)
-            return
+    /** The light's middle and the direction it runs in, weighted by how much light each spot gives. */
+    private val axis: FloatArray by lazy {
+        var sw = 0.0; var mx = 0.0; var my = 0.0
+        val wt = DoubleArray(count) { i ->
+            val o = i * LIGHT_SPOT_FIELDS
+            (LIGHT_SPOTS[o + 5] + LIGHT_SPOTS[o + 6] + LIGHT_SPOTS[o + 7]).toDouble() * LIGHT_SPOTS[o + 2] * LIGHT_SPOTS[o + 3]
         }
-        val phase = (2 * PI * cycle).toFloat()
-        hue.setHueRotation(HUE_DRIFT * sin(phase))
-        layPaint.colorFilter = ColorMatrixColorFilter(hue)
-        // The dim pass: all of the light, at the floor it never goes under.
-        layPaint.alpha = (255 * SWELL_FLOOR).toInt()
-        canvas.drawBitmap(image, 0f, 0f, layPaint)
-        // The bright pass, seen only through a band that travels from the lower end to the upper.
-        val band = w / SWELL_WAVES
-        val shift = band * cycle
-        swellPaint.shader = LinearGradient(
-            shift, h - shift, shift + band, h - shift - band,
-            SWELL_COLOURS, SWELL_AT, Shader.TileMode.REPEAT,
-        )
-        val layer = canvas.saveLayer(0f, 0f, w.toFloat(), h.toFloat(), layerPaint)
-        layPaint.alpha = (255 * (1 - SWELL_FLOOR)).toInt()
-        canvas.drawBitmap(image, 0f, 0f, layPaint)
-        canvas.drawRect(0f, 0f, w.toFloat(), h.toFloat(), swellPaint)
-        canvas.restoreToCount(layer)
+        for (i in 0 until count) {
+            sw += wt[i]; mx += wt[i] * LIGHT_SPOTS[i * LIGHT_SPOT_FIELDS]; my += wt[i] * LIGHT_SPOTS[i * LIGHT_SPOT_FIELDS + 1]
+        }
+        mx /= sw; my /= sw
+        var cxx = 0.0; var cyy = 0.0; var cxy = 0.0
+        for (i in 0 until count) {
+            val dx = LIGHT_SPOTS[i * LIGHT_SPOT_FIELDS] - mx
+            val dy = LIGHT_SPOTS[i * LIGHT_SPOT_FIELDS + 1] - my
+            cxx += wt[i] * dx * dx; cyy += wt[i] * dy * dy; cxy += wt[i] * dx * dy
+        }
+        // The direction of the greatest spread, pointing rightwards.
+        var angle = 0.5 * kotlin.math.atan2(2 * cxy, cxx - cyy)
+        if (cos(angle) < 0) angle += PI
+        floatArrayOf(mx.toFloat(), my.toFloat(), angle.toFloat())
     }
 
-    /** The light drawn once at [w]×[h], sized by the width: it runs corner to corner. */
-    private fun paint(w: Int, h: Int): Bitmap {
+    @Volatile private var emblemPicture: Bitmap? = null
+
+    /**
+     * The emblem for a box [width] pixels wide: a square that wide, the emblem's own square in its
+     * middle ([EMBLEM_SHARE] of it). Painted once; one already painted serves while it is at least
+     * as large, and close enough in size to stay sharp when laid down smaller.
+     */
+    fun emblem(width: Int): Bitmap = synchronized(this) {
+        emblemPicture?.takeIf { it.width >= width && it.width <= width * 3 / 2 } ?: paint(width, width) { c ->
+            c.translate(width * EMBLEM_MARGIN, width * EMBLEM_MARGIN)
+            c.scale(width * EMBLEM_SHARE, width * EMBLEM_SHARE)
+        }.also { emblemPicture = it }
+    }
+
+    /** The light turned to run along a [w]×[h] box, [ALONG_SPAN] of its length across the width. */
+    fun paintAlong(w: Int, h: Int): Bitmap = paint(w, h) { c ->
+        val (mx, my, angle) = axis
+        val k = w / ALONG_SPAN
+        c.translate(w / 2f, h / 2f)
+        c.scale(k, k)
+        c.rotate(-Math.toDegrees(angle.toDouble()).toFloat())
+        c.translate(-mx, -my)
+    }
+
+    private inline fun paint(w: Int, h: Int, place: (android.graphics.Canvas) -> Unit): Bitmap {
         val bitmap = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
         val c = android.graphics.Canvas(bitmap)
-        val side = w * 0.8f
-        val left = (w - side) / 2
-        val top = (h - side) / 2
+        place(c)
+        val spotPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { blendMode = BlendMode.PLUS }
         for (i in 0 until count) {
             val o = i * LIGHT_SPOT_FIELDS
             spotPaint.shader = shaders[i]
             c.save()
-            c.translate(left + LIGHT_SPOTS[o] * side, top + LIGHT_SPOTS[o + 1] * side)
+            c.translate(LIGHT_SPOTS[o], LIGHT_SPOTS[o + 1])
             c.rotate(Math.toDegrees(LIGHT_SPOTS[o + 4].toDouble()).toFloat())
-            c.scale(LIGHT_SPOTS[o + 2] * side, LIGHT_SPOTS[o + 3] * side)
+            c.scale(LIGHT_SPOTS[o + 2], LIGHT_SPOTS[o + 3])
             c.drawCircle(0f, 0f, REACH, spotPaint)
             c.restore()
         }
@@ -194,8 +285,8 @@ private class SpotLight {
     }
 }
 
-/** Turns a colour matrix into a rotation of hue by [degrees], keeping brightness. */
-private fun ColorMatrix.setHueRotation(degrees: Float) {
+/** Turns a colour matrix into a rotation of hue by [degrees], keeping brightness; [alphaScale] strengthens it. */
+private fun ColorMatrix.setHueRotation(degrees: Float, alphaScale: Float = 1f) {
     val r = Math.toRadians(degrees.toDouble())
     val c = cos(r).toFloat()
     val s = sin(r).toFloat()
@@ -204,7 +295,7 @@ private fun ColorMatrix.setHueRotation(degrees: Float) {
             .213f + c * .787f - s * .213f, .715f - c * .715f - s * .715f, .072f - c * .072f + s * .928f, 0f, 0f,
             .213f - c * .213f + s * .143f, .715f + c * .285f + s * .140f, .072f - c * .072f - s * .283f, 0f, 0f,
             .213f - c * .213f - s * .787f, .715f - c * .715f + s * .715f, .072f + c * .928f + s * .072f, 0f, 0f,
-            0f, 0f, 0f, 1f, 0f,
+            0f, 0f, 0f, alphaScale, 0f,
         ),
     )
 }

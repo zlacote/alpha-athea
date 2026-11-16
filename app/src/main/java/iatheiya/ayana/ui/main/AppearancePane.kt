@@ -30,7 +30,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BlurOn
-import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -196,12 +195,6 @@ internal fun AppearancePane(state: AppearanceState, actions: AppearanceActions, 
                 icon = Icons.Default.BlurOn,
                 title = stringResource(R.string.glass_title),
                 onClick = actions.onOpenGlassTuning,
-            )
-            SettingsDivider()
-            SettingsEntryRow(
-                icon = Icons.Default.LightMode,
-                title = stringResource(R.string.settings_glow_section),
-                onClick = actions.onOpenGlow,
             )
         }
 

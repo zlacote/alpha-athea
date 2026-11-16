@@ -677,10 +677,10 @@ private fun BottomBar(
     // corner of the screen.
     val keyRowShown = state.workspace.settings.keyRowVisible && state.workspace.search == null
     val current = state.workspace.sessions.firstOrNull { it.id == state.workspace.currentSessionId }
-    // With the key row shown, or while searching, the panel and the keys are one glass container:
+    // With the key row shown, the panel and the keys are one glass container:
     // rounded on top, flat at the bottom, one lens over both, so they refract as one surface.
-    val searching = state.workspace.search != null
-    val docked = keyRowShown || searching
+    // The search has no key row under it: it floats on its own, like the composer without keys.
+    val docked = keyRowShown
     // It spills just past the left, right and bottom screen edges, so its rim lies off screen there
     // and only the rounded top edge shows one. Only just: the further out, the less of the bend at
     // its ends is on screen.
@@ -754,9 +754,6 @@ private fun BottomBar(
                 cols = state.workspace.settings.keyCols,
                 glass = false,
             )
-        } else if (searching) {
-            // No key row under the search: the container still runs down to the screen's edge.
-            Spacer(Modifier.height(navigationBarTail()))
         }
     }
 }

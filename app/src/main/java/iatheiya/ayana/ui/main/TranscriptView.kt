@@ -43,6 +43,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -215,6 +216,8 @@ fun TranscriptView(
             RawStreamView(
                 text = rawCapped,
                 query = search?.query,
+                topPadding = contentTopPadding + Ui.contentPaddingV,
+                bottomPadding = contentBottomPadding,
                 modifier = Modifier.fillMaxSize(),
             )
             return@BoxWithConstraints
@@ -278,22 +281,25 @@ fun TranscriptView(
         // visible *item* is not sufficient to tell whether we are at the end:
         // it may only be the beginning of that last chunk.  Keep following
         // output only while its final line was actually visible.
-        // Extra responsive: immediate detach while dragging or not at bottom; re-stick only after 600ms idle at true bottom — prevents bounce on quick back-and-forth
+        // Only the finger lets go of the end: a jump of our own (after a send, say) is still in
+        // progress when the answer arrives, and must not count as the reader scrolling away.
         var stickToBottom by remember { mutableStateOf(true) }
+        val dragged by listState.interactionSource.collectIsDraggedAsState()
         LaunchedEffect(listState) {
-            snapshotFlow { (!listState.canScrollForward) to listState.isScrollInProgress }
-                .collect { (atBottom, inProgress) ->
-                    if (!atBottom || inProgress) {
+            snapshotFlow { Triple(!listState.canScrollForward, listState.isScrollInProgress, dragged) }
+                .collect { (atBottom, inProgress, byFinger) ->
+                    if (byFinger && !atBottom) {
                         stickToBottom = false
-                    } else {
+                    } else if (atBottom && !inProgress && !stickToBottom) {
                         kotlinx.coroutines.delay(600)
                         if (!listState.canScrollForward && !listState.isScrollInProgress) stickToBottom = true
                     }
                 }
         }
-        // Stick to the real bottom while output grows, including the tail of
-        // a last chunk that is taller than one viewport.
-        LaunchedEffect(itemCount, lastTextLength) {
+        // Stick to the real bottom while output grows, including the tail of a last chunk that is
+        // taller than one viewport, and while the room above the composer shrinks (the keyboard
+        // coming up, the composer growing), so the newest message stays just above the composer.
+        LaunchedEffect(itemCount, lastTextLength, constraints.maxHeight, contentBottomPadding) {
             if (itemCount > 0 && stickToBottom) {
                 try { listState.scrollToEnd(itemCount - 1) } catch (_: Exception) {}
             }
@@ -319,6 +325,7 @@ fun TranscriptView(
         // Forced jumps to the very bottom (e.g. right after sending). Slightly slower than instant — animate.
         LaunchedEffect(session.id, itemCount) {
             jumpToBottom.collect {
+                stickToBottom = true
                 val last = itemCount - 1
                 if (last >= 0) try { listState.animateScrollToEnd(last) } catch (_: Exception) {}
             }
@@ -454,10 +461,10 @@ private fun EmptyGreeting(animated: Boolean, modifier: Modifier = Modifier) {
 }
 
 /**
- * The name made of the icon's own light: its letters are filled with the light, stretched to run
- * corner to corner across the word, so the light's fibres, colours and swell flow through them, as
- * in About. Under the light the letters keep a soft white, so they read everywhere, and a faint
- * glow lies around them. Still, when [animated] is off.
+ * The name made of the icon's own light: its letters are filled with the light, turned to run
+ * along the word, so the light's fibres, colours and swell flow through them, as in About. Under
+ * the light the letters keep only a trace of white, so where the light is faint they still read
+ * without washing it out, and a faint glow lies around them. Still, when [animated] is off.
  */
 @Composable
 private fun ShimmeringName(text: String, style: TextStyle, animated: Boolean) {
@@ -480,7 +487,7 @@ private fun ShimmeringName(text: String, style: TextStyle, animated: Boolean) {
 }
 
 private const val NAME_GLOW_BLUR = 20f
-private val NAME_BASE = Color(0xB3FFFFFF)
+private val NAME_BASE = Color(0x26FFFFFF)
 private val NAME_GLOW = Color(0x66B9A0FF)
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -917,10 +924,13 @@ private fun AnnotatedString.withSearchHighlights(query: String?): AnnotatedStrin
 private fun RawStreamView(
     text: String,
     query: String?,
+    topPadding: Dp,
+    bottomPadding: Dp,
     modifier: Modifier = Modifier,
 ) {
     val scroll = rememberScrollState()
-    LaunchedEffect(text.length) { scroll.scrollTo(scroll.maxValue) }
+    // Kept at the end as the text grows and as the room above the composer shrinks.
+    LaunchedEffect(text.length, scroll.maxValue) { scroll.scrollTo(scroll.maxValue) }
     SelectionContainer {
         Text(
             text = AnnotatedString(text.ifEmpty { " " }).withSearchHighlights(query),
@@ -928,7 +938,7 @@ private fun RawStreamView(
             color = MaterialTheme.colorScheme.onBackground,
             modifier = modifier
                 .verticalScroll(scroll)
-                .padding(Ui.outputPaddingH),
+                .padding(start = Ui.outputPaddingH, end = Ui.outputPaddingH, top = topPadding, bottom = bottomPadding),
         )
     }
 }

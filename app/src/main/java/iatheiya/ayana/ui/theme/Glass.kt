@@ -1,6 +1,9 @@
 package iatheiya.ayana.ui.theme
 
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import iatheiya.ayana.ui.liquid.GlassTuning
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -90,6 +93,19 @@ internal fun glassWash(): Color? =
  * relative luminance of about 0.18, so a mid grey (a soft white accent) already takes black text.
  */
 fun contentOn(background: Color): Color = if (background.luminance() > EQUAL_CONTRAST_LUMINANCE) Color.Black else Color.White
+
+/**
+ * The ink for words and icons on a panel's glass (or its solid tone, with glass off): white, or
+ * black on a panel the accent has made bright. Taken from the panel's own tone, the accent mixed
+ * in as much as the panel mixes it, so it holds for every accent colour.
+ */
+@Composable
+internal fun glassInk(): Color {
+    val base = MaterialTheme.colorScheme.surfaceContainerHigh
+    val tint = AccentColor.color?.takeIf { AccentColor.tintsGlass } ?: return contentOn(base)
+    val mix = if (GlassTuning.enabled) AccentColor.GLASS_ALPHA else AccentColor.SOLID_MIX
+    return contentOn(lerp(base, tint, mix))
+}
 
 private const val EQUAL_CONTRAST_LUMINANCE = 0.179f
 

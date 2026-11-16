@@ -21,6 +21,7 @@ import androidx.compose.ui.graphics.drawscope.ContentDrawScope
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.layer.CompositingStrategy
 import androidx.compose.ui.graphics.layer.GraphicsLayer
@@ -57,15 +58,28 @@ class LiquidBackdrop internal constructor(internal val layer: GraphicsLayer) {
      * redraw, such as leaving and re-entering the app, ever corrected it.
      */
     internal var rootOrigin: Offset by mutableStateOf(Offset.Zero)
+
+    /**
+     * What lies under this content on screen, when it has no background of its own: the content
+     * of a glass panel (a drawer's list) over the page the panel frosts. Glass on that content
+     * sees [beneath] first, dimmed by [beneathTint], and the content over it. Without it, it saw
+     * the content on nothing, so its blur had nothing to soften and the sharp content under it
+     * showed straight through.
+     */
+    internal var beneath: LiquidBackdrop? = null
+    internal var beneathTint: Color = Color.Transparent
 }
 
 /** The backdrop that glass surfaces below this point refract. Null means plain glass. */
 val LocalLiquidBackdrop = compositionLocalOf<LiquidBackdrop?> { null }
 
 @Composable
-fun rememberLiquidBackdrop(): LiquidBackdrop {
+fun rememberLiquidBackdrop(beneath: LiquidBackdrop? = null, beneathTint: Color = Color.Transparent): LiquidBackdrop {
     val layer = rememberGraphicsLayer()
-    return remember(layer) { LiquidBackdrop(layer) }
+    return remember(layer) { LiquidBackdrop(layer) }.also {
+        it.beneath = beneath
+        it.beneathTint = beneathTint
+    }
 }
 
 /**
@@ -157,9 +171,11 @@ fun Modifier.liquidGlass(
                     AyanaLog.log("lens", "surface size=$pixels offset=$offset shaded=${lensEffect != null}")
                 }
                 lensLayer.record(this@onDrawWithContent, layoutDirection, pixels) {
-                    translate(-offset.x, -offset.y) {
-                        drawLayer(backdrop.layer)
+                    backdrop.beneath?.let { under ->
+                        drawBackdropMirrored(under.layer, placement.rootOrigin - under.rootOrigin)
+                        drawRect(backdrop.beneathTint)
                     }
+                    drawBackdropMirrored(backdrop.layer, offset)
                 }
                 if (lensEffect != null) {
                     val effect = lensEffect.effectFor(size, radiusPx, flat, bottomRadiusPx)
@@ -173,6 +189,33 @@ fun Modifier.liquidGlass(
                 drawContent()
             }
         }
+}
+
+/**
+ * Draws [layer], moved by [offset], and where this surface runs past the recorded content (a
+ * panel spilling over the screen's edge) fills the rest with the content mirrored at that edge.
+ * Left empty, the blur mixed the empty pixels in, and the glass faded out toward that edge.
+ */
+private fun DrawScope.drawBackdropMirrored(layer: GraphicsLayer, offset: Offset) {
+    val left = -offset.x
+    val top = -offset.y
+    val right = left + layer.size.width
+    val bottom = top + layer.size.height
+    fun content() = translate(left, top) { drawLayer(layer) }
+    content()
+    if (layer.size.width <= 0 || layer.size.height <= 0) return
+    if (bottom < size.height) {
+        clipRect(top = bottom) { scale(1f, -1f, pivot = Offset(0f, bottom)) { content() } }
+    }
+    if (top > 0f) {
+        clipRect(bottom = top) { scale(1f, -1f, pivot = Offset(0f, top)) { content() } }
+    }
+    if (left > 0f) {
+        clipRect(right = left) { scale(-1f, 1f, pivot = Offset(left, 0f)) { content() } }
+    }
+    if (right < size.width) {
+        clipRect(left = right) { scale(-1f, 1f, pivot = Offset(right, 0f)) { content() } }
+    }
 }
 
 /**
@@ -203,7 +246,7 @@ fun Modifier.backdropGap(backdrop: LiquidBackdrop?, blur: Dp = GAP_BLUR): Modifi
             val offset = placement.rootOrigin - backdrop.rootOrigin
             val pixels = IntSize((size.width + margin * 2).roundToInt(), (size.height + margin * 2).roundToInt())
             layer.record(this, layoutDirection, pixels) {
-                translate(margin - offset.x, margin - offset.y) { drawLayer(backdrop.layer) }
+                drawBackdropMirrored(backdrop.layer, offset - Offset(margin, margin))
             }
             clipRect { translate(-margin, -margin) { drawLayer(layer) } }
         }

@@ -1,5 +1,7 @@
 package iatheiya.ayana.ui.main
 
+import iatheiya.ayana.ui.theme.glassInk
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -137,6 +139,7 @@ fun InputBar(
             onPrevious = onSearchPrevious,
             onExit = onExitSearch,
             onPanelBounds = onPanelBounds,
+            backdrop = composerBackdrop,
             modifier = modifier,
         )
     }
@@ -344,9 +347,10 @@ private fun DraftPanel(
 }
 
 /**
- * Search in the session, built like the composer: it sits on the bottom edge in the same shared
- * container, rounded on top only, as wide and as tall, and grows with a longer query. The field
- * takes the whole start (no search icon), and the matches are walked up or down.
+ * Search in the session, built like the composer with the key row off: a panel of its own,
+ * rounded all round, floating above the bottom edge, as wide and as tall as the composer, and
+ * growing with a longer query. The field takes the whole start (no search icon), and the matches
+ * are walked up or down. Back closes it, as the cross does.
  */
 @Composable
 private fun SearchPanel(
@@ -358,8 +362,13 @@ private fun SearchPanel(
     onPrevious: () -> Unit,
     onExit: () -> Unit,
     onPanelBounds: (Rect) -> Unit,
+    backdrop: LiquidBackdrop?,
     modifier: Modifier = Modifier,
 ) {
+    BackHandler(onBack = onExit)
+    // Words and buttons in white, or black on a panel a bright accent has lit, so they read on
+    // the glass whatever its colour.
+    val ink = glassInk()
     // Like the composer: one line sits beside the buttons; once the query wraps, the field takes
     // the whole width and the buttons move to a row of their own under it (and stay there until
     // the query is cleared, so a query just at the edge does not flip back and forth).
@@ -372,8 +381,10 @@ private fun SearchPanel(
     Box(
         modifier
             .fillMaxWidth()
+            .barPadding()
+            .liquidGlass(backdrop, Ui.panelShape, Ui.panelRadius)
             .onGloballyPositioned { onPanelBounds(it.boundsInRoot()) }
-            .padding(horizontal = Ui.composerPaddingH, vertical = 4.dp),
+            .padding(horizontal = FLOATING_PADDING_H, vertical = 4.dp),
     ) {
         Box(
             Modifier
@@ -390,7 +401,7 @@ private fun SearchPanel(
                 value = query,
                 onValueChange = onQueryChange,
                 modifier = Modifier.fillMaxWidth(),
-                textStyle = messageStyle().copy(color = MaterialTheme.colorScheme.onSurface),
+                textStyle = messageStyle().copy(color = ink),
                 cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
                 maxLines = 6,
                 onTextLayout = { lineCount = it.lineCount },
@@ -406,7 +417,7 @@ private fun SearchPanel(
                             FittingText(
                                 text = stringResource(R.string.search_in_session_hint),
                                 style = messageStyle(),
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                color = ink.copy(alpha = HINT_ALPHA),
                             )
                         }
                         inner()
@@ -424,28 +435,28 @@ private fun SearchPanel(
             Text(
                 text = if (matchCount == 0) "0/0" else "${matchIndex + 1}/$matchCount",
                 style = MaterialTheme.typography.labelMedium.copy(fontFamily = FontFamily.Monospace),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = ink.copy(alpha = HINT_ALPHA),
                 modifier = Modifier.padding(horizontal = Ui.spaceXs),
             )
             IconButton(onClick = onPrevious, modifier = Modifier.size(Ui.composerButtonSize)) {
                 Icon(
                     Icons.Default.KeyboardArrowUp,
                     contentDescription = stringResource(R.string.cd_search_previous),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    tint = ink,
                 )
             }
             IconButton(onClick = onNext, modifier = Modifier.size(Ui.composerButtonSize)) {
                 Icon(
                     Icons.Default.KeyboardArrowDown,
                     contentDescription = stringResource(R.string.cd_search_next),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    tint = ink,
                 )
             }
             IconButton(onClick = onExit, modifier = Modifier.size(Ui.composerButtonSize)) {
                 Icon(
                     Icons.Default.Close,
                     contentDescription = stringResource(R.string.cd_close),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    tint = ink,
                 )
             }
         }
@@ -533,3 +544,6 @@ internal fun SendCircleButton(
         }
     }
 }
+
+/** How strongly the search's hint and count show, against its ink. */
+private const val HINT_ALPHA = 0.72f

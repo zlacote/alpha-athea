@@ -88,7 +88,12 @@ fun SessionsDrawerContent(
     // The bottom pill must refract the sessions scrolling above it, not the main page behind the
     // whole drawer. So the sessions list records into its own backdrop and only the pill samples
     // it; the drawer Surface keeps sampling the main backdrop for its overall frost.
-    val sessionsBackdrop = rememberLiquidBackdrop()
+    // Under the sessions lies the page the drawer frosts, darkened as the drawer darkens it, so the
+    // pill's blur softens a whole picture, not only the rows' words.
+    val sessionsBackdrop = rememberLiquidBackdrop(
+        beneath = LocalLiquidBackdrop.current,
+        beneathTint = Color.Black.copy(alpha = DRAWER_UNDER_DIM),
+    )
 
     // Surface (not a bare background) so inner text picks up the proper
     // content color instead of the default dark one.
@@ -122,41 +127,43 @@ fun SessionsDrawerContent(
             // to the screen edge, (2) compact pill on top — same pill as
             // the top-right in MainScreen.
             Box(Modifier.weight(1f)) {
-                Column(
-                    Modifier
-                        .fillMaxSize()
-                        .liquidBackdrop(sessionsBackdrop)
-                        .verticalScroll(rememberScrollState())
-                        .padding(bottom = 104.dp),
-                ) {
-                    ordered.forEach { session ->
-                        SessionRow(
-                            session = session,
-                            selected = session.id == currentSessionId,
-                            onSelect = { onSelectSession(session.id) },
-                            onRename = { onRenameSession(session.id) },
-                            onTogglePin = { onTogglePin(session.id) },
-                            onDelete = { onDeleteSession(session.id) },
-                        )
-                    }
-                }
-
-                // Tier 1: translucent full-width panel behind the pill,
-                // starts a bit higher above the pill and gets darker at the bottom.
-                Box(
-                    Modifier
-                        .align(Alignment.BottomCenter)
-                        .fillMaxWidth()
-                        .height(116.dp)
-                        .background(
-                            Brush.verticalGradient(
-                                0f to Color.Transparent,
-                                0.30f to Color.Black.copy(alpha = Ui.drawerScrimA),
-                                0.62f to Color.Black.copy(alpha = Ui.drawerScrimB),
-                                1f to Color.Black.copy(alpha = Ui.drawerScrimC),
+                // The rows and the shade under the pill, recorded together: what the pill sees.
+                Box(Modifier.fillMaxSize().liquidBackdrop(sessionsBackdrop)) {
+                    Column(
+                        Modifier
+                            .fillMaxSize()
+                            .verticalScroll(rememberScrollState())
+                            .padding(bottom = 104.dp),
+                    ) {
+                        ordered.forEach { session ->
+                            SessionRow(
+                                session = session,
+                                selected = session.id == currentSessionId,
+                                onSelect = { onSelectSession(session.id) },
+                                onRename = { onRenameSession(session.id) },
+                                onTogglePin = { onTogglePin(session.id) },
+                                onDelete = { onDeleteSession(session.id) },
                             )
-                        ),
-                )
+                        }
+                    }
+
+                    // Tier 1: translucent full-width panel behind the pill,
+                    // starts a bit higher above the pill and gets darker at the bottom.
+                    Box(
+                        Modifier
+                            .align(Alignment.BottomCenter)
+                            .fillMaxWidth()
+                            .height(116.dp)
+                            .background(
+                                Brush.verticalGradient(
+                                    0f to Color.Transparent,
+                                    0.30f to Color.Black.copy(alpha = Ui.drawerScrimA),
+                                    0.62f to Color.Black.copy(alpha = Ui.drawerScrimB),
+                                    1f to Color.Black.copy(alpha = Ui.drawerScrimC),
+                                )
+                            ),
+                    )
+                }
 
                 // Tier 2: compact pill — identical to TopBar right pill, now left-aligned. It
                 // refracts the sessions list (its own backdrop above), not the main page behind
@@ -271,3 +278,6 @@ private fun ProcessDot(running: Boolean) {
             ),
     )
 }
+
+/** How dark the page reads through the drawer: its own glass fill and its dark tint together. */
+private const val DRAWER_UNDER_DIM = 0.85f

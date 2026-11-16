@@ -109,5 +109,5 @@ fun AttachPanel(open: Boolean, anchor: Rect, origin: Offset, choices: List<Attac
     }
 }
 
-private val PANEL_MIN_WIDTH = 240.dp
-private val ROW_PADDING_V = 18.dp
+private val PANEL_MIN_WIDTH = 168.dp
+private val ROW_PADDING_V = 14.dp

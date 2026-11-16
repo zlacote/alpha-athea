@@ -4,8 +4,6 @@ import androidx.compose.material.icons.outlined.Description
 import androidx.compose.foundation.clickable
 import iatheiya.ayana.ui.common.AyanaPage
 import androidx.compose.foundation.layout.Box
-import iatheiya.ayana.ui.common.SheetChoice
-import iatheiya.ayana.ui.common.AyanaToggleSheet
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.layout.onSizeChanged
@@ -19,6 +17,11 @@ import iatheiya.ayana.ui.common.AyanaLight
 import iatheiya.ayana.BuildConfig
 import androidx.compose.foundation.layout.size
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.platform.LocalWindowInfo
+import androidx.compose.runtime.LaunchedEffect
+import iatheiya.ayana.ui.common.warmLight
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import iatheiya.ayana.util.toast
 import android.Manifest
 import android.app.Activity
@@ -42,6 +45,7 @@ import androidx.compose.material.icons.filled.Keyboard
 import androidx.compose.material.icons.filled.KeyboardCommandKey
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Terminal
+import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -124,6 +128,13 @@ internal fun SettingsScreen(
         if (pane != SettingsPane.ROOT) onPaneChange(SettingsPane.ROOT) else onBack()
     }
 
+    // The light About shows is painted now, away from the main thread, so About opens with it
+    // already shimmering instead of stopping on its first frame to paint it.
+    val windowWidth = LocalWindowInfo.current.containerSize.width
+    LaunchedEffect(windowWidth) {
+        withContext(Dispatchers.Default) { warmLight(windowWidth) }
+    }
+
     AyanaScaffold(onBack = handleBack, modifier = modifier) {
         when (pane) {
             SettingsPane.ROOT -> AyanaPage(stringResource(R.string.settings), scrollState) {
@@ -199,11 +210,18 @@ internal fun SettingsScreen(
                         onChange = onAutoScrollOnSendChange,
                     )
                     SettingsDivider()
-                    FavoritesRow(
-                        returnsHome = favoriteReturnsHome,
-                        sendsImmediately = favoriteSendsImmediately,
-                        onReturnsHomeChange = onFavoriteReturnsHomeChange,
-                        onSendsImmediatelyChange = onFavoriteSendsImmediatelyChange,
+                    SwitchRow(
+                        title = stringResource(R.string.settings_fav_return),
+                        subtitle = stringResource(R.string.settings_fav_return_desc),
+                        checked = favoriteReturnsHome,
+                        onChange = onFavoriteReturnsHomeChange,
+                    )
+                    SettingsDivider()
+                    SwitchRow(
+                        title = stringResource(R.string.settings_fav_send),
+                        subtitle = stringResource(R.string.settings_fav_send_desc),
+                        checked = favoriteSendsImmediately,
+                        onChange = onFavoriteSendsImmediatelyChange,
                     )
                 }
             }
@@ -267,6 +285,13 @@ internal fun SettingsScreen(
                         onChange = onLongCommandSecChange,
                         enabled = signalLongCommands,
                     )
+                    SettingsDivider()
+                    // The light at the top edge while a command runs: how a running command shows.
+                    SettingsEntryRow(
+                        icon = Icons.Default.LightMode,
+                        title = stringResource(R.string.settings_glow_section),
+                        onClick = appearanceActions.onOpenGlow,
+                    )
                 }
             }
 
@@ -281,6 +306,8 @@ internal fun SettingsScreen(
                 )
                 val uriHandler = LocalUriHandler.current
                 val sourceUrl = stringResource(R.string.about_source_url)
+                // Everything About offers, in one card, like the other rooms.
+                var confirmReset by remember { mutableStateOf(false) }
                 SettingsCard {
                     SettingsEntryRow(
                         icon = Icons.Default.Code,
@@ -288,21 +315,17 @@ internal fun SettingsScreen(
                         onClick = { uriHandler.openUri(sourceUrl) },
                         trailing = { OpenOutside() },
                     )
-                }
-                // An action, not a room: its words say what it does, so it needs no chevron.
-                SettingsCard {
+                    SettingsDivider()
+                    // Actions, not rooms: their words say what they do, so they need no chevron.
                     SettingsEntryRow(
                         icon = Icons.Outlined.Description,
                         title = stringResource(R.string.settings_diag_copy),
                         onClick = { copyDiagnostics(context) },
                         trailing = {},
                     )
-                }
-
-                // The one way back to the defaults, for every room at once. It asks first, as it
-                // undoes a lot.
-                var confirmReset by remember { mutableStateOf(false) }
-                SettingsCard {
+                    SettingsDivider()
+                    // The one way back to the defaults, for every room at once. It asks first, as
+                    // it undoes a lot.
                     SettingsEntryRow(
                         icon = Icons.Default.RestartAlt,
                         title = stringResource(R.string.glass_reset),
@@ -378,46 +401,5 @@ private fun OpenOutside() {
         tint = MaterialTheme.colorScheme.onSurfaceVariant,
     )
 }
-
-/**
- * How favorites behave, in one row: its value says which of the two options are on, and it opens
- * a sheet where either or both are turned on or off.
- */
-@Composable
-private fun FavoritesRow(
-    returnsHome: Boolean,
-    sendsImmediately: Boolean,
-    onReturnsHomeChange: (Boolean) -> Unit,
-    onSendsImmediatelyChange: (Boolean) -> Unit,
-) {
-    var choosing by remember { mutableStateOf(false) }
-    val returnLabel = stringResource(R.string.settings_fav_return)
-    val sendLabel = stringResource(R.string.settings_fav_send)
-    ChoiceSettingRow(
-        title = stringResource(R.string.favorites),
-        value = when {
-            returnsHome && sendsImmediately -> stringResource(R.string.settings_fav_both)
-            returnsHome -> returnLabel
-            sendsImmediately -> sendLabel
-            else -> stringResource(R.string.settings_fav_off)
-        },
-        onClick = { choosing = true },
-    )
-    if (choosing) {
-        AyanaToggleSheet(
-            title = stringResource(R.string.favorites),
-            choices = listOf(SheetChoice(FAV_RETURN, returnLabel), SheetChoice(FAV_SEND, sendLabel)),
-            on = buildSet {
-                if (returnsHome) add(FAV_RETURN)
-                if (sendsImmediately) add(FAV_SEND)
-            },
-            onToggle = { option, on -> if (option == FAV_RETURN) onReturnsHomeChange(on) else onSendsImmediatelyChange(on) },
-            onDismiss = { choosing = false },
-        )
-    }
-}
-
-private const val FAV_RETURN = "return"
-private const val FAV_SEND = "send"
 
 private val ABOUT_LIGHT_HEIGHT = 300.dp
