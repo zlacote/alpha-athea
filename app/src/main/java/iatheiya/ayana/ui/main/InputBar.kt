@@ -1,5 +1,8 @@
 package iatheiya.ayana.ui.main
 
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.foundation.text.selection.TextSelectionColors
+import androidx.compose.foundation.text.selection.LocalTextSelectionColors
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -110,6 +113,8 @@ fun InputBar(
      * the key row share one container (see [DockedPanelShape]), drawn by the caller.
      */
     docked: Boolean = false,
+    /** Hides the caret and its handle (the + panel is over the composer), keeping the focus. */
+    caretHidden: Boolean = false,
     /** Reports where the send circle is on screen, so the jump-down button can stand right above it. */
     onSendBounds: (Rect) -> Unit = {},
     /** Reports the panel's own outline on screen (composer or search), whatever its height. */
@@ -131,6 +136,7 @@ fun InputBar(
             directory = directory,
             running = running,
             docked = docked,
+            caretHidden = caretHidden,
             onSendBounds = onSendBounds,
             onPanelBounds = onPanelBounds,
             modifier = modifier,
@@ -184,6 +190,7 @@ private fun DraftPanel(
     directory: String?,
     running: Boolean,
     docked: Boolean,
+    caretHidden: Boolean,
     onSendBounds: (Rect) -> Unit,
     onPanelBounds: (Rect) -> Unit,
     modifier: Modifier = Modifier,
@@ -215,79 +222,88 @@ private fun DraftPanel(
             .onGloballyPositioned { onPanelBounds(it.boundsInRoot()) },
     ) {
         Column(Modifier.padding(horizontal = if (docked) Ui.composerPaddingH else FLOATING_PADDING_H, vertical = 4.dp)) {
+            val selectionColours = LocalTextSelectionColors.current
             Box {
-                BasicTextField(
-                    value = TextFieldValue(
-                        text = draft,
-                        selection = selection?.let {
-                            TextRange(
-                                it.start.coerceIn(0, draft.length),
-                                it.end.coerceIn(0, draft.length),
-                            )
-                        } ?: TextRange(draft.length),
-                    ),
-                    onValueChange = { value ->
-                        if (value.text != draft) onDraftChange(value.text)
-                        onSelectionChange(value.selection)
+                CompositionLocalProvider(
+                    LocalTextSelectionColors provides if (caretHidden) {
+                        TextSelectionColors(handleColor = Color.Transparent, backgroundColor = selectionColours.backgroundColor)
+                    } else {
+                        selectionColours
                     },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(
-                            start = if (compact) 50.dp else 16.dp,
-                            end = if (compact) Ui.composerButtonSpace else Ui.composerFieldEndGrown,
-                            top = if (compact) 4.dp else Ui.composerFieldTopGrown,
-                            bottom = if (compact) 0.dp else Ui.composerButtonRowHeight,
+                ) {
+                    BasicTextField(
+                        value = TextFieldValue(
+                            text = draft,
+                            selection = selection?.let {
+                                TextRange(
+                                    it.start.coerceIn(0, draft.length),
+                                    it.end.coerceIn(0, draft.length),
+                                )
+                            } ?: TextRange(draft.length),
                         ),
-                    textStyle = messageStyle().copy(color = MaterialTheme.colorScheme.onSurface),
-                    cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-                    maxLines = 6,
-                    // The ghost suggestion is part of the text as it is laid out, after its end: it
-                    // wraps with it and stays at the end wherever the cursor goes.
-                    visualTransformation = remember(draft, suggestion, ghostColor) { ghostTail(draft, suggestion, ghostColor) },
-                    onTextLayout = { lineCount = it.lineCount },
-                    keyboardOptions = KeyboardOptions(
-                        capitalization = KeyboardCapitalization.None,
-                        keyboardType = KeyboardType.Text,
-                        // None keeps the IME newline key: multi-line drafts stay possible.
-                        imeAction = if (enterSends) ImeAction.Send else ImeAction.None,
-                    ),
-                    keyboardActions = KeyboardActions(
-                        onSend = { onSend() },
-                    ),
-                    decorationBox = { inner ->
-                        Box(
-                            Modifier
-                                .fillMaxWidth()
-                                .then(if (compact) Modifier.heightIn(min = 40.dp) else Modifier),
-                            contentAlignment = Alignment.CenterStart,
-                        ) {
-                            if (draft.isEmpty()) {
-                                // The live prompt, like a terminal shows it: the shell's real working
-                                // directory, `~` for home, updated after every command. It shrinks to
-                                // fit; a path still too long loses its start, the end being what tells
-                                // where you are. While a command runs, the field feeds that program
-                                // instead, and the hint says so.
-                                Box(Modifier.align(Alignment.CenterStart).padding(bottom = 2.dp)) {
-                                    FittingText(
-                                        text = if (running) {
-                                            stringResource(R.string.input_hint_running)
-                                        } else {
-                                            stringResource(R.string.input_prompt, directory ?: "").trimStart()
-                                        },
-                                        style = if (running) {
-                                            messageStyle()
-                                        } else {
-                                            messageStyle().copy(fontFamily = FontFamily.Monospace)
-                                        },
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        cutStart = !running,
-                                    )
+                        onValueChange = { value ->
+                            if (value.text != draft) onDraftChange(value.text)
+                            onSelectionChange(value.selection)
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(
+                                start = if (compact) 50.dp else 16.dp,
+                                end = if (compact) Ui.composerButtonSpace else Ui.composerFieldEndGrown,
+                                top = if (compact) 4.dp else Ui.composerFieldTopGrown,
+                                bottom = if (compact) 0.dp else Ui.composerButtonRowHeight,
+                            ),
+                        textStyle = messageStyle().copy(color = MaterialTheme.colorScheme.onSurface),
+                        cursorBrush = SolidColor(if (caretHidden) Color.Transparent else MaterialTheme.colorScheme.primary),
+                        maxLines = 6,
+                        // The ghost suggestion is part of the text as it is laid out, after its end: it
+                        // wraps with it and stays at the end wherever the cursor goes.
+                        visualTransformation = remember(draft, suggestion, ghostColor) { ghostTail(draft, suggestion, ghostColor) },
+                        onTextLayout = { lineCount = it.lineCount },
+                        keyboardOptions = KeyboardOptions(
+                            capitalization = KeyboardCapitalization.None,
+                            keyboardType = KeyboardType.Text,
+                            // None keeps the IME newline key: multi-line drafts stay possible.
+                            imeAction = if (enterSends) ImeAction.Send else ImeAction.None,
+                        ),
+                        keyboardActions = KeyboardActions(
+                            onSend = { onSend() },
+                        ),
+                        decorationBox = { inner ->
+                            Box(
+                                Modifier
+                                    .fillMaxWidth()
+                                    .then(if (compact) Modifier.heightIn(min = 40.dp) else Modifier),
+                                contentAlignment = Alignment.CenterStart,
+                            ) {
+                                if (draft.isEmpty()) {
+                                    // The live prompt, like a terminal shows it: the shell's real working
+                                    // directory, `~` for home, updated after every command. It shrinks to
+                                    // fit; a path still too long loses its start, the end being what tells
+                                    // where you are. While a command runs, the field feeds that program
+                                    // instead, and the hint says so.
+                                    Box(Modifier.align(Alignment.CenterStart).padding(bottom = 2.dp)) {
+                                        FittingText(
+                                            text = if (running) {
+                                                stringResource(R.string.input_hint_running)
+                                            } else {
+                                                stringResource(R.string.input_prompt, directory ?: "").trimStart()
+                                            },
+                                            style = if (running) {
+                                                messageStyle()
+                                            } else {
+                                                messageStyle().copy(fontFamily = FontFamily.Monospace)
+                                            },
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            cutStart = !running,
+                                        )
+                                    }
                                 }
+                                Box(Modifier.align(Alignment.CenterStart)) { inner() }
                             }
-                            Box(Modifier.align(Alignment.CenterStart)) { inner() }
-                        }
-                    },
-                )
+                        },
+                    )
+                }
                 if (compact) {
                     IconButton(
                         onClick = { onAddClick(addBounds) },

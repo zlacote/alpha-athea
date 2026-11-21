@@ -1,9 +1,5 @@
 package iatheiya.ayana.ui.main
 
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -79,6 +75,8 @@ fun SessionsDrawerContent(
     /** Null while favorites are off: the pill then shows Settings alone. */
     onOpenFavorites: (() -> Unit)?,
     onSettings: () -> Unit,
+    /** The glow's period, which the dot of a running session pulses with. */
+    pulsePeriodMs: Int,
     modifier: Modifier = Modifier,
 ) {
     // Stable sort: pinned rise to the top, original order preserved otherwise.
@@ -144,6 +142,7 @@ fun SessionsDrawerContent(
                                     onRename = { onRenameSession(session.id) },
                                     onTogglePin = { onTogglePin(session.id) },
                                     onDelete = { onDeleteSession(session.id) },
+                                    pulsePeriodMs = pulsePeriodMs,
                                 )
                             }
                         }
@@ -204,6 +203,7 @@ private fun SessionRow(
     onRename: () -> Unit,
     onTogglePin: () -> Unit,
     onDelete: () -> Unit,
+    pulsePeriodMs: Int,
 ) {
     val menu = rememberAyanaMenu()
 
@@ -221,7 +221,7 @@ private fun SessionRow(
             Modifier.padding(start = 20.dp, end = 16.dp, top = 12.dp, bottom = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            ProcessDot(running = session.running)
+            ProcessDot(running = session.running, periodMs = pulsePeriodMs)
             Text(
                 text = session.name,
                 style = MaterialTheme.typography.bodyLarge,
@@ -263,22 +263,22 @@ private fun SessionRow(
 }
 
 @Composable
-private fun ProcessDot(running: Boolean) {
-    val transition = rememberInfiniteTransition(label = "dot")
-    val alpha by transition.animateFloat(
-        initialValue = 1f,
-        targetValue = if (running) 0.2f else 1f,
-        animationSpec = infiniteRepeatable(tween(700), RepeatMode.Reverse),
-        label = "dotAlpha",
-    )
+private fun ProcessDot(running: Boolean, periodMs: Int) {
     Box(
         Modifier
             .size(9.dp)
             .clip(CircleShape)
-            .background(
-                MaterialTheme.colorScheme.primary.copy(
-                    alpha = if (running) alpha else Ui.dotAlpha
-                )
+            .then(
+                if (running) {
+                    // In step with the glow at the top: the same pulse, from the same clock.
+                    val pulse by rememberCommandPulse(periodMs)
+                    Modifier.background(MaterialTheme.colorScheme.primary.copy(alpha = DOT_DIM + (1 - DOT_DIM) * pulse))
+                } else {
+                    Modifier.background(MaterialTheme.colorScheme.primary.copy(alpha = Ui.dotAlpha))
+                },
             ),
     )
 }
+
+/** How faint a running session's dot gets between pulses. */
+private const val DOT_DIM = 0.25f

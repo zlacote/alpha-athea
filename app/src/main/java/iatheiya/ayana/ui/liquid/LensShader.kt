@@ -165,7 +165,10 @@ half4 main(float2 xy) {
         return backdrop;
     }
     float minHalf = min(halfSize.x, halfSize.y);
-    float bezelWidth = min(bezel, minHalf);
+    // The bezel stops short of the middle: met there from both sides (a pill with the widest
+    // bezel), the two halves bent away from each other along a seam. A flat band between them
+    // joins them without one.
+    float bezelWidth = min(bezel, minHalf * 0.72);
     float2 n = outwardNormal(p, halfSize, r, max(bezelWidth * 0.25, 1.0));
 
     float depth = clamp(-sdf / bezelWidth, 0.0, 1.0);

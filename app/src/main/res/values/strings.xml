@@ -107,8 +107,6 @@
     <string name="settings_pinch_zoom_desc">Two-finger pinch on the transcript scales the font</string>
     <string name="settings_virtualize">Large output inside scroll</string>
     <string name="settings_virtualize_desc">When large, scroll inside instead of full page; uses same lines as collapsed view ×4</string>
-    <string name="settings_section_input">Input</string>
-    <string name="settings_section_output">Output</string>
     <string name="settings_favorites_desc">Long-press a sent command to keep it</string>
     <string name="settings_fav_action">What to do</string>
     <string name="settings_fav_nothing">Nothing</string>
@@ -146,6 +144,9 @@
     <string name="favorites_run">Run</string>
     <string name="favorites_edit">Edit</string>
     <string name="favorites_edit_title">Edit command</string>
+    <string name="favorites_add">Add command</string>
+    <string name="favorites_add_title">New command</string>
+    <string name="settings_section_chat">Chat</string>
 
     <!-- Glass tuning -->
     <string name="glass_title">Glass</string>

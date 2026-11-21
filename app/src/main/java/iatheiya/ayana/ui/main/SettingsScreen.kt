@@ -43,7 +43,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Keyboard
+import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material.icons.filled.KeyboardCommandKey
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Terminal
@@ -76,7 +76,7 @@ import iatheiya.ayana.util.copyToClipboard
 import java.io.File
 
 /** Which room of the settings is on screen: the entry list or one of its sub-rooms. */
-internal enum class SettingsPane { ROOT, INPUT, OUTPUT, NOTIFICATIONS, APPEARANCE, FONT, ABOUT }
+internal enum class SettingsPane { ROOT, CHAT, FAVORITES, NOTIFICATIONS, APPEARANCE, FONT, ABOUT }
 
 @Composable
 internal fun SettingsScreen(
@@ -148,15 +148,15 @@ internal fun SettingsScreen(
             SettingsPane.ROOT -> AyanaPage(stringResource(R.string.settings), scrollState) {
                 SettingsCard {
                     SettingsEntryRow(
-                        icon = Icons.Default.Keyboard,
-                        title = stringResource(R.string.settings_section_input),
-                        onClick = { onPaneChange(SettingsPane.INPUT) },
+                        icon = Icons.Default.Terminal,
+                        title = stringResource(R.string.settings_section_chat),
+                        onClick = { onPaneChange(SettingsPane.CHAT) },
                     )
                     SettingsDivider()
                     SettingsEntryRow(
-                        icon = Icons.Default.Terminal,
-                        title = stringResource(R.string.settings_section_output),
-                        onClick = { onPaneChange(SettingsPane.OUTPUT) },
+                        icon = Icons.Outlined.StarBorder,
+                        title = stringResource(R.string.favorites),
+                        onClick = { onPaneChange(SettingsPane.FAVORITES) },
                     )
                     SettingsDivider()
                     SettingsEntryRow(
@@ -199,7 +199,8 @@ internal fun SettingsScreen(
                 }
             }
 
-            SettingsPane.INPUT -> AyanaPage(stringResource(R.string.settings_section_input)) {
+            // Everything about the conversation, in one room: what you write, then what you see.
+            SettingsPane.CHAT -> AyanaPage(stringResource(R.string.settings_section_chat)) {
                 SettingsCard {
                     SwitchRow(
                         title = stringResource(R.string.settings_enter_sends),
@@ -229,6 +230,40 @@ internal fun SettingsScreen(
                         onChange = onAttachSendsNowChange,
                     )
                 }
+                SettingsCard {
+                    SwitchRow(
+                        title = stringResource(R.string.settings_raw_stream),
+                        subtitle = stringResource(R.string.settings_raw_stream_desc),
+                        checked = rawStream,
+                        onChange = onRawStreamChange,
+                    )
+                    SettingsDivider()
+                    SwitchRow(
+                        title = stringResource(R.string.settings_virtualize),
+                        subtitle = stringResource(R.string.settings_virtualize_desc),
+                        checked = virtualizeLargeOutput,
+                        onChange = onVirtualizeLargeOutputChange,
+                        // The raw stream is one continuous text, with no blocks to scroll inside.
+                        enabled = !rawStream,
+                    )
+                    SettingsDivider()
+                    SliderRow(
+                        title = stringResource(R.string.settings_preview_lines),
+                        value = previewLines,
+                        range = 1f..10f,
+                        onChange = onPreviewLinesChange,
+                    )
+                    SettingsDivider()
+                    SwitchRow(
+                        title = stringResource(R.string.settings_auto_scroll),
+                        subtitle = stringResource(R.string.settings_auto_scroll_desc),
+                        checked = autoScrollOnSend,
+                        onChange = onAutoScrollOnSendChange,
+                    )
+                }
+            }
+
+            SettingsPane.FAVORITES -> AyanaPage(stringResource(R.string.favorites)) {
                 // Favorites at all, and what a tap on one does: it waits in the input (Nothing),
                 // goes into the input and takes you back to the chat, or is sent and takes you
                 // back to see its answer.
@@ -269,40 +304,6 @@ internal fun SettingsScreen(
                             onDismiss = { choosingFav = false },
                         )
                     }
-                }
-            }
-
-            SettingsPane.OUTPUT -> AyanaPage(stringResource(R.string.settings_section_output)) {
-                SettingsCard {
-                    SwitchRow(
-                        title = stringResource(R.string.settings_raw_stream),
-                        subtitle = stringResource(R.string.settings_raw_stream_desc),
-                        checked = rawStream,
-                        onChange = onRawStreamChange,
-                    )
-                    SettingsDivider()
-                    SwitchRow(
-                        title = stringResource(R.string.settings_virtualize),
-                        subtitle = stringResource(R.string.settings_virtualize_desc),
-                        checked = virtualizeLargeOutput,
-                        onChange = onVirtualizeLargeOutputChange,
-                        // The raw stream is one continuous text, with no blocks to scroll inside.
-                        enabled = !rawStream,
-                    )
-                    SettingsDivider()
-                    SliderRow(
-                        title = stringResource(R.string.settings_preview_lines),
-                        value = previewLines,
-                        range = 1f..10f,
-                        onChange = onPreviewLinesChange,
-                    )
-                    SettingsDivider()
-                    SwitchRow(
-                        title = stringResource(R.string.settings_auto_scroll),
-                        subtitle = stringResource(R.string.settings_auto_scroll_desc),
-                        checked = autoScrollOnSend,
-                        onChange = onAutoScrollOnSendChange,
-                    )
                 }
             }
 

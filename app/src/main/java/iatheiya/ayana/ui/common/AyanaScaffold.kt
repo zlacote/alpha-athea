@@ -115,23 +115,25 @@ fun AyanaScrollHeader(title: String) {
                 .padding(horizontal = Ui.topButtonSize + Ui.topBarHorizontalPadding * 2),
             contentAlignment = Alignment.Center,
         ) {
+            // The same title as every room's (see AyanaPage), where a long room puts it.
             Text(
                 text = title,
-                style = MaterialTheme.typography.titleMedium,
+                style = MaterialTheme.typography.headlineSmall,
                 color = MaterialTheme.colorScheme.onBackground,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
         }
-        Spacer(Modifier.height(Ui.topBarBottomPadding))
+        Spacer(Modifier.height(Ui.spaceS))
     }
 }
 
 /**
  * A settings-like page: its title, and its content under it. When everything fits on the screen,
- * the title and the content stand together in the middle of the space below the back button, the
- * title just above the first card; when it does not fit, the page scrolls from the top. One rule
- * for every such page, so none of them crowds the top and leaves the bottom empty.
+ * the title and the content stand together in the middle of it, the title just above the first
+ * card, never higher than level with the back button; when it does not fit even so, the page
+ * scrolls from there. One rule for every such page, so none of them crowds the top and leaves the
+ * bottom empty.
  */
 @Composable
 fun AyanaPage(
@@ -142,7 +144,15 @@ fun AyanaPage(
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val page = maxHeight
         val density = LocalDensity.current
-        val top = WindowInsets.statusBars.getTop(density).let { with(density) { it.toDp() } } + PAGE_TOP_CLEAR
+        // The highest the title may stand: level with the back button, its middle on the
+        // button's middle. A room that would not fit below the button fits more often so, and
+        // does not scroll by a few pixels for nothing.
+        val headline = MaterialTheme.typography.headlineSmall
+        val titleLine = with(density) {
+            (if (headline.lineHeight.isSp) headline.lineHeight else headline.fontSize * TITLE_LINE_FACTOR).toDp()
+        }
+        val top = WindowInsets.statusBars.getTop(density).let { with(density) { it.toDp() } } +
+            Ui.topBarTopPadding + (Ui.topButtonSize - titleLine) / 2
         Column(
             Modifier
                 .fillMaxSize()
@@ -163,7 +173,9 @@ fun AyanaPage(
                     textAlign = TextAlign.Center,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(start = Ui.pageTextInset, end = Ui.pageTextInset, bottom = Ui.spaceS),
+                        // Clear of the back button, which it may stand level with.
+                        .padding(horizontal = Ui.topButtonSize + Ui.topBarHorizontalPadding * 2)
+                        .padding(bottom = Ui.spaceS),
                 )
                 content()
             }
@@ -171,8 +183,8 @@ fun AyanaPage(
     }
 }
 
-/** Room kept clear at the top of a page for the floating back button. */
-private val PAGE_TOP_CLEAR = Ui.topBarTopPadding + Ui.topButtonSize + Ui.topBarBottomPadding
+/** A title's line height for its font size, when its style does not give one. */
+private const val TITLE_LINE_FACTOR = 1.33f
 
 /** Room left under the last card of a page. */
 private val PAGE_BOTTOM_ROOM = Ui.spaceXl

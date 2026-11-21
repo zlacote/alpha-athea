@@ -34,5 +34,7 @@ data class OutputBlock(
 data class FavoriteCommand(
     val id: Long,
     val text: String,
+    /** Kept at the top of the favorites. */
+    val pinned: Boolean = false,
 )
 

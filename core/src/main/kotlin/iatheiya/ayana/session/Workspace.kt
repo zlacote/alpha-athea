@@ -496,6 +496,12 @@ class Workspace(
         }
     }
 
+    fun togglePinFavorite(id: Long) {
+        synchronized(lock) {
+            saveFavorites(_state.value.favorites.map { if (it.id == id) it.copy(pinned = !it.pinned) else it })
+        }
+    }
+
     fun deleteFavorite(id: Long) {
         synchronized(lock) {
             saveFavorites(_state.value.favorites.filterNot { it.id == id })

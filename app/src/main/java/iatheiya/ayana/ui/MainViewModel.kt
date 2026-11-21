@@ -472,6 +472,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun deleteFavorite(id: Long) = workspace.deleteFavorite(id)
 
+    fun togglePinFavorite(id: Long) = workspace.togglePinFavorite(id)
+
     fun setShowFavorites(visible: Boolean) = _state.update { it.copy(showFavorites = visible) }
 
     fun setShowKeys(visible: Boolean) = _state.update { it.copy(showKeys = visible) }

@@ -352,7 +352,9 @@ private fun MainScreenRoutes(viewModel: MainViewModel, state: UiState) {
                 }
             },
             onRun = viewModel::executeDirectly,
+            onAdd = viewModel::addFavorite,
             onEdit = viewModel::updateFavorite,
+            onTogglePin = viewModel::togglePinFavorite,
             onDelete = viewModel::deleteFavorite,
         )
         return
@@ -459,6 +461,7 @@ private fun MainScreenBody(viewModel: MainViewModel, state: UiState, composerBac
                     null
                 },
                 onSettings = { viewModel.setShowSettings(true) },
+                pulsePeriodMs = state.workspace.settings.glowPeriodMs,
             )
         },
     ) {
@@ -519,7 +522,7 @@ private fun MainScreenBody(viewModel: MainViewModel, state: UiState, composerBac
                                 contentBottomPadding = overlayBottom,
                                 onJumpAvailableChange = { jumpAvailable = it },
                                 pinchZoomEnabled = state.workspace.settings.pinchZoomEnabled,
-                                greetingAnimated = state.workspace.settings.greetingAnimated,
+                                greetingAnimated = state.workspace.settings.greetingAnimated || current.id == state.workspace.settings.introSessionId,
                                 virtualizeLargeOutput = state.workspace.settings.virtualizeLargeOutput,
                                 onTranscriptFontZoom = viewModel::onTranscriptFontZoom,
                                 onToggleBlock = viewModel::toggleBlockCollapsed,
@@ -573,12 +576,10 @@ private fun MainScreenBody(viewModel: MainViewModel, state: UiState, composerBac
                     composerBackdrop = composerBackdrop,
                     onSendBounds = { sendBounds = it },
                     onPanelBounds = { panelBounds = it },
-                    onAttach = {
-                        // The caret and its handle live above everything; they go, with the
-                        // keyboard, while the panel is open.
-                        focusManager.clearFocus()
-                        attachOpen = true
-                    },
+                    onAttach = { attachOpen = true },
+                    // The caret and its handle (which lives above everything) step aside while the
+                    // + panel is open; the keyboard stays.
+                    caretHidden = attachOpen,
                     modifier = Modifier
                         .align(Alignment.BottomStart)
                         .fillMaxWidth()
@@ -639,7 +640,6 @@ private fun MainScreenBody(viewModel: MainViewModel, state: UiState, composerBac
             onDraftChange = viewModel::onComposerTextChange,
             selection = state.composerSelection,
             onSelectionChange = viewModel::setComposerSelection,
-            enterSends = state.workspace.settings.enterSends,
             onSend = viewModel::sendFromExpandedEditor,
             onClose = { viewModel.setEditorExpanded(false) },
         )
@@ -690,6 +690,7 @@ private fun BottomBar(
     onSendBounds: (Rect) -> Unit,
     onPanelBounds: (Rect) -> Unit,
     onAttach: () -> Unit,
+    caretHidden: Boolean,
     modifier: Modifier = Modifier,
 ) {
     // One column aligned to the bottom edge: the composer sits directly above
@@ -733,6 +734,7 @@ private fun BottomBar(
             directory = current?.directory,
             running = current?.running == true,
             docked = keyRowShown,
+            caretHidden = caretHidden,
             onSendBounds = onSendBounds,
             onPanelBounds = onPanelBounds,
         )

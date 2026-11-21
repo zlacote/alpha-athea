@@ -1,5 +1,6 @@
 package iatheiya.ayana.ui.main
 
+import androidx.compose.ui.draw.alpha
 import iatheiya.ayana.ui.common.AyanaPage
 import android.net.Uri
 import android.os.Build
@@ -270,47 +271,47 @@ private fun TintChooser(state: AppearanceState, actions: AppearanceActions) {
             }
         },
     )
-    if (on) {
-        SettingsDivider()
-        // Two even rows of six: the accent and the neutrals, then the colours and the picker.
-        FlowRow(
-            Modifier
-                .fillMaxWidth()
-                .padding(horizontal = Ui.spaceL, vertical = Ui.spaceM),
-            maxItemsInEachRow = SWATCHES_PER_ROW,
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalArrangement = Arrangement.spacedBy(Ui.spaceS),
-        ) {
-            if (system != null) {
-                // The phone's accent: its colour, marked with an A for automatic.
-                Swatch(fill = SolidColor(system), selected = state.tintMode == TINT_SYSTEM, mark = { AutoMark() }) {
-                    actions.onTintChange(TINT_SYSTEM, null)
-                }
+    // Off, the colours stay where they are, greyed out and still, as any setting that cannot
+    // apply right now; turning the accent on wakes them.
+    SettingsDivider()
+    // Two even rows of six: the accent and the neutrals, then the colours and the picker.
+    FlowRow(
+        Modifier
+            .fillMaxWidth()
+            .padding(horizontal = Ui.spaceL, vertical = Ui.spaceM)
+            .alpha(if (on) 1f else Ui.ghostAlpha),
+        maxItemsInEachRow = SWATCHES_PER_ROW,
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalArrangement = Arrangement.spacedBy(Ui.spaceS),
+    ) {
+        if (system != null) {
+            // The phone's accent: its colour, marked with an A for automatic.
+            Swatch(fill = SolidColor(system), selected = state.tintMode == TINT_SYSTEM, mark = { AutoMark() }) {
+                if (on) actions.onTintChange(TINT_SYSTEM, null)
             }
-            PRESET_TINTS.forEach { argb ->
-                Swatch(
-                    fill = SolidColor(Color(argb)),
-                    selected = state.tintMode == TINT_COLOR && state.tintArgb == argb,
-                ) { actions.onTintChange(TINT_COLOR, argb) }
-            }
-            // Any colour: the picked one once chosen, a colour wheel until then, marked with a +.
-            val chosen = state.tintArgb?.let { Color(it) }
-            Swatch(
-                fill = if (custom && chosen != null) SolidColor(chosen) else Brush.sweepGradient(RAINBOW),
-                selected = custom,
-                mark = { Icon(Icons.Default.Add, contentDescription = null, tint = Color.Black, modifier = Modifier.size(18.dp)) },
-            ) { picking = true }
         }
+        PRESET_TINTS.forEach { argb ->
+            Swatch(
+                fill = SolidColor(Color(argb)),
+                selected = state.tintMode == TINT_COLOR && state.tintArgb == argb,
+            ) { if (on) actions.onTintChange(TINT_COLOR, argb) }
+        }
+        // Any colour: the picked one once chosen, a colour wheel until then, marked with a +.
+        val chosen = state.tintArgb?.let { Color(it) }
+        Swatch(
+            fill = if (custom && chosen != null) SolidColor(chosen) else Brush.sweepGradient(RAINBOW),
+            selected = custom,
+            mark = { Icon(Icons.Default.Add, contentDescription = null, tint = Color.Black, modifier = Modifier.size(18.dp)) },
+        ) { if (on) picking = true }
     }
-    if (on) {
-        SettingsDivider()
-        // The chosen colour exactly, by default; or softened toward the dark surfaces.
-        SwitchRow(
-            title = stringResource(R.string.appearance_tint_soft),
-            checked = state.tintSoft,
-            onChange = actions.onTintSoftChange,
-        )
-    }
+    SettingsDivider()
+    // The chosen colour exactly, by default; or softened toward the dark surfaces.
+    SwitchRow(
+        title = stringResource(R.string.appearance_tint_soft),
+        checked = state.tintSoft,
+        onChange = actions.onTintSoftChange,
+        enabled = on,
+    )
     if (picking) {
         ColorPickerDialog(
             initial = state.tintArgb?.let { Color(it) } ?: Color(BASIC_TINTS.first()),

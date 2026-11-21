@@ -1,11 +1,7 @@
 package iatheiya.ayana.ui.main
 
 import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.keyframes
-import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -14,7 +10,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.key
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.withFrameMillis
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.BlendMode
@@ -42,27 +42,7 @@ fun RunningGlow(running: Boolean, settings: AyanaSettings, modifier: Modifier = 
 
 @Composable
 private fun GlowPulse(presence: Float, settings: AyanaSettings, modifier: Modifier) {
-    val period = settings.glowPeriodMs
-    // One pulse has its own length: it flares quickly, then fades. The setting is how often one
-    // comes, so a longer period leaves the edge dark for longer between two pulses. Keyed on the
-    // period: an infinite transition keeps the timing it started with.
-    val pulse by key(period) {
-        val length = minOf(period, PULSE_MS)
-        rememberInfiniteTransition(label = "glowPulse").animateFloat(
-            initialValue = 0f,
-            targetValue = 0f,
-            animationSpec = infiniteRepeatable(
-                animation = keyframes<Float> {
-                    durationMillis = period
-                    0f at 0
-                    1f at length / 8 using FastOutSlowInEasing
-                    0f at length using FastOutSlowInEasing
-                    0f at period
-                },
-            ),
-            label = "glowPulse",
-        )
-    }
+    val pulse by rememberCommandPulse(settings.glowPeriodMs)
     val glow = MaterialTheme.colorScheme.primary
     val peak = settings.glowStrengthPct / 100f
     Box(
@@ -92,3 +72,29 @@ private fun GlowPulse(presence: Float, settings: AyanaSettings, modifier: Modifi
 
 /** How long one pulse lasts, flare and fade, however far apart the pulses come. */
 private const val PULSE_MS = 1200
+
+/**
+ * The pulse of a running command, 0 to 1: a quick flare, a slower fade, and dark until the next,
+ * one every [periodMs]. It is read from the frame clock, the same for everything on screen, so the
+ * glow at the top and the dot of the running session in the drawer pulse together.
+ */
+@Composable
+fun rememberCommandPulse(periodMs: Int): State<Float> {
+    val pulse = remember { mutableFloatStateOf(0f) }
+    LaunchedEffect(periodMs) {
+        val period = periodMs.coerceAtLeast(1).toLong()
+        val length = minOf(periodMs, PULSE_MS).toFloat()
+        while (true) {
+            withFrameMillis { now ->
+                val t = (now % period).toFloat()
+                val flare = length / 8
+                pulse.floatValue = when {
+                    t < flare -> FastOutSlowInEasing.transform(t / flare)
+                    t < length -> 1f - FastOutSlowInEasing.transform((t - flare) / (length - flare))
+                    else -> 0f
+                }
+            }
+        }
+    }
+    return pulse
+}

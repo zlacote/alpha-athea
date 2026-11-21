@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
@@ -35,7 +34,8 @@ import iatheiya.ayana.ui.theme.MessageStyle
 /**
  * Full-screen editing surface, chat-app style: plain text over the whole canvas, a collapse
  * control top-right, send bottom-right. It opens with the cursor (or the selection) where it was
- * in the composer, and Enter does what it does there: sends, when Enter sends commands.
+ * in the composer. Enter always starts a new line here, whatever it does in the composer: this
+ * is where long commands are written.
  */
 @Composable
 fun EditorOverlay(
@@ -44,7 +44,6 @@ fun EditorOverlay(
     /** The composer's own cursor or selection, shared with it both ways. */
     selection: TextRange?,
     onSelectionChange: (TextRange) -> Unit,
-    enterSends: Boolean,
     onSend: () -> Unit,
     onClose: () -> Unit,
     modifier: Modifier = Modifier,
@@ -81,10 +80,8 @@ fun EditorOverlay(
                 keyboardOptions = KeyboardOptions(
                     capitalization = KeyboardCapitalization.None,
                     keyboardType = KeyboardType.Text,
-                    // None keeps the IME newline key: multi-line drafts stay possible.
-                    imeAction = if (enterSends) ImeAction.Send else ImeAction.None,
+                    imeAction = ImeAction.None,
                 ),
-                keyboardActions = KeyboardActions(onSend = { if (draft.isNotBlank()) onSend() }),
             )
             IconButton(
                 onClick = onClose,

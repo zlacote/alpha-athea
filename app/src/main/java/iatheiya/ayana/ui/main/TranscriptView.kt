@@ -1,5 +1,9 @@
 package iatheiya.ayana.ui.main
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.runtime.SideEffect
 import androidx.compose.animation.animateContentSize
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.key
@@ -330,14 +334,14 @@ fun TranscriptView(
                         }
                     }
             }
-            // A new message, while at the end, is glided into view from under the composer.
-            var followedCount by remember { mutableIntStateOf(itemCount) }
-            LaunchedEffect(itemCount) {
-                val arrived = itemCount > followedCount
-                followedCount = itemCount
-                if (arrived && stickToBottom) {
-                    try { listState.animateScrollToItem(0) } catch (_: Exception) {}
-                }
+            // A new message, while at the end, takes its place at the bottom in the very layout
+            // that first shows it: no frame shows the old end first, and nothing glides to catch
+            // up. Asked for before that layout, as the composition that brings the message is
+            // applied.
+            val followed = remember { intArrayOf(itemCount) }
+            SideEffect {
+                if (itemCount > followed[0] && stickToBottom) listState.requestScrollToItem(0)
+                followed[0] = itemCount
             }
 
             // Search navigation: reveal the block, then scroll to its first chunk.
@@ -393,8 +397,6 @@ fun TranscriptView(
             LazyColumn(
                 state = listState,
                 reverseLayout = true,
-                // While there is room to spare, the messages still start at the top.
-                verticalArrangement = Arrangement.Top,
                 modifier = Modifier
                     .fillMaxSize()
                     .then(if (pinchZoomEnabled) Modifier.pinchToZoom(onTranscriptFontZoom) else Modifier),
@@ -409,7 +411,10 @@ fun TranscriptView(
                         is DisplayItem.Chunk -> "${item.blockId}-chunk-${item.chunkIndex}"
                     }
                 }) { item ->
-                    Box {
+                    // The new message fades in where it lands. The ones above are not animated
+                    // into place: an answer growing at the bottom moves them every frame, and a
+                    // sliding one would lag behind it and overlap it.
+                    Box(Modifier.animateItem(fadeInSpec = tween(ITEM_FADE_MS), placementSpec = null, fadeOutSpec = null)) {
                         when (item) {
                             is DisplayItem.Block -> {
                                 val view = item.view
@@ -514,13 +519,17 @@ private fun EmptyGreeting(animated: Boolean, modifier: Modifier = Modifier) {
 
 /**
  * The name in the icon's colours, sweeping across it from left to right in bands that lean like
- * a backslash, brightening and dimming as they go, with a faint glow around it. Still, when
- * [animated] is off.
+ * a backslash, brightening and dimming as they go, with a faint glow around it. With [animated]
+ * off it is the plain white name, nothing more.
  */
 @Composable
 private fun ShimmeringName(text: String, style: TextStyle, animated: Boolean) {
-    val shade = rememberShimmerCycle(animated)
-    val colours = rememberShimmerCycle(animated, COLOUR_CYCLE_NANOS)
+    if (!animated) {
+        Text(text = text, style = style, color = Color.White)
+        return
+    }
+    val shade = rememberShimmerCycle()
+    val colours = rememberShimmerCycle(cycleNanos = COLOUR_CYCLE_NANOS)
     // Two layers of the same text: the glow behind, on its own, so the colours never fill it; and
     // over it the letters, filled with the colours.
     Box(contentAlignment = Alignment.Center) {
@@ -533,10 +542,7 @@ private fun ShimmeringName(text: String, style: TextStyle, animated: Boolean) {
             text = text,
             style = style,
             color = Color.White,
-            modifier = Modifier.sweptWithIconColours(
-                colours = if (animated) colours else null,
-                shade = if (animated) shade else null,
-            ),
+            modifier = Modifier.sweptWithIconColours(colours = colours, shade = shade),
         )
     }
 }
@@ -572,6 +578,9 @@ private fun CommandBubble(
     val selectLabel = stringResource(R.string.select_text)
     val favoriteLabel = stringResource(R.string.add_to_favorites)
     var bubbleBounds by remember { mutableStateOf(Rect.Zero) }
+    val pressSource = remember { MutableInteractionSource() }
+    val pressed by pressSource.collectIsPressedAsState()
+    val pressWashAlpha by animateFloatAsState(if (pressed) BUBBLE_PRESS_ALPHA else 0f, tween(120), label = "bubblePress")
     // Long is counted in the lines the message takes on screen, not in its line breaks: one long
     // paragraph without a break wraps into many lines and must fold and scroll like any other.
     val measurer = rememberTextMeasurer()
@@ -608,6 +617,9 @@ private fun CommandBubble(
                 // square around it.
                 .clip(Ui.bubbleShape)
                 .combinedClickable(
+                    interactionSource = pressSource,
+                    // The press is shown by the wash below, in the bubble's own ink.
+                    indication = null,
                     // Tapping the bubble body is reserved for text
                     // selection; expand/collapse lives on the chevrons.
                     onClick = {},
@@ -621,6 +633,12 @@ private fun CommandBubble(
                         )
                     },
                 )
+                // Held, the bubble is washed with its own text colour: dark on a light accent,
+                // light on a dark one, so the press shows on any colour the bubble wears.
+                .drawWithContent {
+                    drawContent()
+                    if (pressWashAlpha > 0f) drawRect(bubbleText.copy(alpha = pressWashAlpha))
+                }
                 .then(
                     if (bubbleFill != null) {
                         Modifier.clip(Ui.bubbleShape).background(bubbleFill)
@@ -1059,3 +1077,8 @@ private fun Modifier.fadeOutBottom(height: Dp): Modifier =
             )
         }
 
+/** How long a new message takes to fade in where it lands. */
+private const val ITEM_FADE_MS = 180
+
+/** How strongly a held message is washed with its own ink. */
+private const val BUBBLE_PRESS_ALPHA = 0.18f
