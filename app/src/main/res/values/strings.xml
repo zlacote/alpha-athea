@@ -144,8 +144,10 @@
     <string name="favorites_run">Run</string>
     <string name="favorites_edit">Edit</string>
     <string name="favorites_edit_title">Edit command</string>
-    <string name="favorites_add">Add command</string>
-    <string name="favorites_add_title">New command</string>
+    <string name="favorites_add_hint">A command to keep</string>
+    <string name="favorites_search_hint">Search favorites</string>
+    <string name="cd_search_favorites">Search favorites</string>
+    <string name="favorites_no_match">No favorite has that in it</string>
     <string name="settings_section_chat">Chat</string>
 
     <!-- Glass tuning -->

@@ -1,5 +1,6 @@
 package iatheiya.ayana.ui.main
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -7,26 +8,38 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.PushPin
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -34,28 +47,45 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextLayoutResult
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import iatheiya.ayana.R
 import iatheiya.ayana.core.model.FavoriteCommand
-import iatheiya.ayana.ui.common.AyanaMenuHost
+import iatheiya.ayana.ui.common.AyanaRoundButton
 import iatheiya.ayana.ui.common.AyanaScaffold
 import iatheiya.ayana.ui.common.AyanaScrollHeader
 import iatheiya.ayana.ui.common.AyanaTextFieldDialog
-import iatheiya.ayana.ui.common.rememberAyanaMenu
+import iatheiya.ayana.ui.common.ContextMenuLayer
+import iatheiya.ayana.ui.common.ContextMenuRequest
+import iatheiya.ayana.ui.common.ContextMenuState
+import iatheiya.ayana.ui.liquid.LocalLiquidBackdrop
+import iatheiya.ayana.ui.liquid.liquidGlass
 import iatheiya.ayana.ui.theme.AccentColor
 import iatheiya.ayana.ui.theme.Ui
 import iatheiya.ayana.ui.theme.contentOn
 import iatheiya.ayana.ui.theme.glass
+import iatheiya.ayana.ui.theme.glassInk
 import iatheiya.ayana.ui.theme.messageStyle
 
 /**
  * The kept commands, each in a bubble like a sent message: a tap uses it (as Settings say), a
- * long press offers run, edit, pin and delete. Pinned ones stay at the top. A long command shows
- * its first lines and opens to the rest. A command can also be written here directly.
+ * long press offers run, edit, pin and delete in the same glass menu as a message's. Pinned ones
+ * stay at the top; a long command shows its first lines and opens to the rest. At the bottom, a
+ * field like the composer writes a new one; the magnifier at the top right swaps it for a search
+ * that narrows the list as you type, as the search in a chat does.
  */
 @Composable
 fun FavoritesScreen(
@@ -70,19 +100,88 @@ fun FavoritesScreen(
     modifier: Modifier = Modifier,
 ) {
     var editTarget by remember { mutableStateOf<FavoriteCommand?>(null) }
-    var adding by remember { mutableStateOf(false) }
+    var newCommand by remember { mutableStateOf("") }
+    var query by remember { mutableStateOf<String?>(null) }
+    val contextMenu = remember { ContextMenuState() }
+    var barHeightPx by remember { mutableIntStateOf(0) }
+    val barHeight = with(LocalDensity.current) { barHeightPx.toDp() }
     val title = stringResource(R.string.favorites)
-    // Pinned first, each part in the order the commands were kept.
+    // Pinned first, each part in the order the commands were kept; narrowed while searching.
     val ordered = remember(favorites) { favorites.sortedByDescending { it.pinned } }
+    val shown = query?.takeIf { it.isNotBlank() }?.let { q -> ordered.filter { it.text.contains(q, ignoreCase = true) } } ?: ordered
 
-    AyanaScaffold(onBack = onBack, modifier = modifier) {
-        LazyColumn(Modifier.fillMaxSize()) {
+    // Back closes the search first, then the screen.
+    BackHandler(enabled = query != null) { query = null }
+
+    AyanaScaffold(
+        onBack = onBack,
+        modifier = modifier,
+        floating = {
+            // The magnifier, in the corner the back button mirrors.
+            AyanaRoundButton(
+                onClick = { query = if (query == null) "" else null },
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .statusBarsPadding()
+                    .padding(end = Ui.topBarHorizontalPadding, top = Ui.topBarTopPadding),
+            ) {
+                Icon(
+                    if (query == null) Icons.Default.Search else Icons.Default.Close,
+                    contentDescription = stringResource(if (query == null) R.string.cd_search_favorites else R.string.cd_close),
+                    tint = MaterialTheme.colorScheme.onSurface,
+                )
+            }
+            FloatingBar(onHeight = { barHeightPx = it }) {
+                val q = query
+                if (q == null) {
+                    FavoriteField(
+                        value = newCommand,
+                        onValueChange = { newCommand = it },
+                        hint = stringResource(R.string.favorites_add_hint),
+                        trailing = {
+                            SendCircleButton(
+                                enabled = newCommand.isNotBlank(),
+                                onClick = {
+                                    onAdd(newCommand)
+                                    newCommand = ""
+                                },
+                            )
+                        },
+                    )
+                } else {
+                    FavoriteField(
+                        value = q,
+                        onValueChange = { query = it },
+                        hint = stringResource(R.string.favorites_search_hint),
+                        focusNow = true,
+                        singleLine = true,
+                        trailing = {
+                            Text(
+                                text = "${shown.size}/${ordered.size}",
+                                style = MaterialTheme.typography.labelMedium.copy(fontFamily = FontFamily.Monospace),
+                                color = glassInk().copy(alpha = HINT_ALPHA),
+                                modifier = Modifier.padding(horizontal = Ui.spaceS),
+                            )
+                            IconButton(onClick = { query = null }, modifier = Modifier.size(Ui.composerButtonSize)) {
+                                Icon(Icons.Default.Close, contentDescription = stringResource(R.string.cd_close), tint = glassInk())
+                            }
+                        },
+                    )
+                }
+            }
+            ContextMenuLayer(contextMenu)
+        },
+    ) {
+        LazyColumn(
+            Modifier.fillMaxSize(),
+            // The last bubble can always be scrolled clear of the bar over it.
+            contentPadding = PaddingValues(bottom = barHeight + Ui.spaceM),
+        ) {
             item { AyanaScrollHeader(title) }
-            item { AddCommandRow(onClick = { adding = true }) }
-            if (ordered.isEmpty()) {
+            if (shown.isEmpty()) {
                 item {
                     Text(
-                        text = stringResource(R.string.favorites_empty),
+                        text = stringResource(if (query.isNullOrBlank()) R.string.favorites_empty else R.string.favorites_no_match),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center,
@@ -92,14 +191,26 @@ fun FavoritesScreen(
                     )
                 }
             }
-            items(ordered, key = { it.id }) { favorite ->
+            items(shown, key = { it.id }) { favorite ->
+                val runLabel = stringResource(R.string.favorites_run)
+                val editLabel = stringResource(R.string.favorites_edit)
+                val pinLabel = stringResource(if (favorite.pinned) R.string.menu_unpin else R.string.menu_pin)
+                val deleteLabel = stringResource(R.string.menu_delete)
                 FavoriteBubble(
                     favorite = favorite,
                     onUse = { onInsert(favorite.text) },
-                    onRun = { onRun(favorite.text) },
-                    onEdit = { editTarget = favorite },
-                    onTogglePin = { onTogglePin(favorite.id) },
-                    onDelete = { onDelete(favorite.id) },
+                    onMenu = { bounds ->
+                        contextMenu.show(
+                            ContextMenuRequest(bounds) {
+                                item(icon = Icons.Default.PlayArrow, text = runLabel) { onRun(favorite.text) }
+                                item(icon = Icons.Default.Edit, text = editLabel) { editTarget = favorite }
+                                item(icon = Icons.Default.PushPin, text = pinLabel, crossed = favorite.pinned) {
+                                    onTogglePin(favorite.id)
+                                }
+                                item(icon = Icons.Default.Delete, text = deleteLabel, tinted = true) { onDelete(favorite.id) }
+                            },
+                        )
+                    },
                 )
             }
         }
@@ -117,30 +228,76 @@ fun FavoritesScreen(
             singleLine = false,
         )
     }
-    if (adding) {
-        AyanaTextFieldDialog(
-            title = stringResource(R.string.favorites_add_title),
-            initialValue = "",
-            onDismiss = { adding = false },
-            onSave = { text ->
-                adding = false
-                onAdd(text)
-            },
-            singleLine = false,
-        )
+}
+
+/**
+ * The glass bar along the bottom, over the list and above the keyboard, as the composer floats
+ * when the key row is off. It reports its height, so the list can keep clear of it.
+ */
+@Composable
+private fun BoxScope.FloatingBar(onHeight: (Int) -> Unit, content: @Composable () -> Unit) {
+    Box(
+        Modifier
+            .align(Alignment.BottomCenter)
+            .fillMaxWidth()
+            .navigationBarsPadding()
+            .imePadding()
+            .onSizeChanged { onHeight(it.height) }
+            .padding(horizontal = BAR_MARGIN_H)
+            .padding(top = 10.dp, bottom = 8.dp)
+            .liquidGlass(LocalLiquidBackdrop.current, Ui.panelShape, Ui.panelRadius)
+            .padding(horizontal = BAR_PADDING_H, vertical = 4.dp),
+    ) {
+        content()
     }
 }
 
-/** The row that writes a new favorite, at the top of the list, like an entry in the settings. */
+/**
+ * A field in the bar: it grows with what is written, up to a few lines, with [trailing] (the send
+ * button, or the search's count and cross) beside it.
+ */
 @Composable
-private fun AddCommandRow(onClick: () -> Unit) {
-    SettingsCard {
-        SettingsEntryRow(
-            icon = Icons.Default.Add,
-            title = stringResource(R.string.favorites_add),
-            onClick = onClick,
-            trailing = {},
-        )
+private fun FavoriteField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    hint: String,
+    trailing: @Composable () -> Unit,
+    focusNow: Boolean = false,
+    singleLine: Boolean = false,
+) {
+    val ink = glassInk()
+    val focus = remember { FocusRequester() }
+    if (focusNow) LaunchedEffect(Unit) { focus.requestFocus() }
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(
+            Modifier
+                .weight(1f)
+                .heightIn(min = Ui.composerFieldMinHeight)
+                .padding(start = Ui.spaceM, end = Ui.spaceXs),
+            contentAlignment = Alignment.CenterStart,
+        ) {
+            BasicTextField(
+                value = value,
+                onValueChange = onValueChange,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .focusRequester(focus),
+                textStyle = messageStyle().copy(color = ink),
+                cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                singleLine = singleLine,
+                maxLines = if (singleLine) 1 else FIELD_MAX_LINES,
+                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.None),
+                decorationBox = { inner ->
+                    Box(contentAlignment = Alignment.CenterStart) {
+                        if (value.isEmpty()) {
+                            Text(hint, style = messageStyle(), color = ink.copy(alpha = HINT_ALPHA), maxLines = 1)
+                        }
+                        inner()
+                    }
+                },
+            )
+        }
+        trailing()
     }
 }
 
@@ -154,76 +311,64 @@ private fun AddCommandRow(onClick: () -> Unit) {
 private fun FavoriteBubble(
     favorite: FavoriteCommand,
     onUse: () -> Unit,
-    onRun: () -> Unit,
-    onEdit: () -> Unit,
-    onTogglePin: () -> Unit,
-    onDelete: () -> Unit,
+    onMenu: (Rect) -> Unit,
 ) {
-    val menu = rememberAyanaMenu()
     val fill = AccentColor.shown
     val ink = fill?.let(::contentOn) ?: MaterialTheme.colorScheme.onSecondaryContainer
     var open by remember(favorite.id) { mutableStateOf(false) }
     var overflows by remember(favorite.text) { mutableStateOf(false) }
-    Box(
+    var bounds by remember { mutableStateOf(Rect.Zero) }
+    Column(
         Modifier
             .fillMaxWidth()
-            .padding(horizontal = Ui.screenGutter, vertical = Ui.spaceXs),
+            .padding(horizontal = Ui.screenGutter, vertical = Ui.spaceXs)
+            .onGloballyPositioned { bounds = it.boundsInRoot() }
+            .clip(Ui.bubbleShape)
+            .then(if (fill != null) Modifier.background(fill) else Modifier.glass(Ui.bubbleShape))
+            .combinedClickable(onClick = onUse, onLongClick = { onMenu(bounds) })
+            .animateContentSize()
+            .padding(horizontal = Ui.bubblePaddingH, vertical = Ui.spaceM),
     ) {
-        Column(
-            Modifier
-                .fillMaxWidth()
-                .clip(Ui.bubbleShape)
-                .then(if (fill != null) Modifier.background(fill) else Modifier.glass(Ui.bubbleShape))
-                .combinedClickable(onClick = onUse, onLongClick = menu::open)
-                .animateContentSize()
-                .padding(horizontal = Ui.bubblePaddingH, vertical = Ui.spaceM),
-        ) {
-            Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(Ui.spaceS)) {
-                Text(
-                    text = favorite.text,
-                    style = messageStyle(),
-                    color = ink,
-                    maxLines = if (open) Int.MAX_VALUE else FAVORITE_PREVIEW_LINES,
-                    overflow = TextOverflow.Ellipsis,
-                    onTextLayout = { layout: TextLayoutResult -> if (!open) overflows = layout.hasVisualOverflow },
-                    modifier = Modifier.weight(1f),
-                )
-                if (favorite.pinned) {
-                    Icon(
-                        Icons.Default.PushPin,
-                        contentDescription = null,
-                        tint = ink.copy(alpha = Ui.chevronAlphaCollapsedPreview),
-                        modifier = Modifier.size(PIN_SIZE),
-                    )
-                }
-            }
-            if (overflows || open) {
+        Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(Ui.spaceS)) {
+            Text(
+                text = favorite.text,
+                style = messageStyle(),
+                color = ink,
+                maxLines = if (open) Int.MAX_VALUE else FAVORITE_PREVIEW_LINES,
+                overflow = TextOverflow.Ellipsis,
+                onTextLayout = { layout: TextLayoutResult -> if (!open) overflows = layout.hasVisualOverflow },
+                modifier = Modifier.weight(1f),
+            )
+            if (favorite.pinned) {
                 Icon(
-                    Icons.Default.KeyboardArrowDown,
-                    contentDescription = stringResource(if (open) R.string.cd_collapse else R.string.cd_expand_editor),
+                    Icons.Default.PushPin,
+                    contentDescription = null,
                     tint = ink.copy(alpha = Ui.chevronAlphaCollapsedPreview),
-                    modifier = Modifier
-                        .align(Alignment.CenterHorizontally)
-                        .padding(top = Ui.spaceXs)
-                        .size(Ui.chevronExpandSize)
-                        .rotate(if (open) 180f else 0f)
-                        .clickable { open = !open },
+                    modifier = Modifier.size(PIN_SIZE),
                 )
             }
         }
-        AyanaMenuHost(menu) {
-            item(icon = Icons.Default.PlayArrow, text = stringResource(R.string.favorites_run)) { onRun() }
-            item(icon = Icons.Default.Edit, text = stringResource(R.string.favorites_edit)) { onEdit() }
-            item(
-                icon = Icons.Default.PushPin,
-                text = stringResource(if (favorite.pinned) R.string.menu_unpin else R.string.menu_pin),
-                crossed = favorite.pinned,
-            ) { onTogglePin() }
-            item(icon = Icons.Default.Delete, text = stringResource(R.string.menu_delete), tinted = true) { onDelete() }
+        if (overflows || open) {
+            Icon(
+                Icons.Default.KeyboardArrowDown,
+                contentDescription = stringResource(if (open) R.string.cd_collapse else R.string.cd_expand_editor),
+                tint = ink.copy(alpha = Ui.chevronAlphaCollapsedPreview),
+                modifier = Modifier
+                    .align(Alignment.CenterHorizontally)
+                    .padding(top = Ui.spaceXs)
+                    .size(Ui.chevronExpandSize)
+                    .rotate(if (open) 180f else 0f)
+                    .clickable { open = !open },
+            )
         }
     }
 }
 
 /** How many lines of a kept command show before it folds. */
 private const val FAVORITE_PREVIEW_LINES = 4
+/** How many lines the field at the bottom grows to before it scrolls. */
+private const val FIELD_MAX_LINES = 5
+private const val HINT_ALPHA = 0.72f
 private val PIN_SIZE = 15.dp
+private val BAR_MARGIN_H = 16.dp
+private val BAR_PADDING_H = 4.dp

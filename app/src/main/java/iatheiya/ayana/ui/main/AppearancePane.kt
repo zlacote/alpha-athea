@@ -154,44 +154,7 @@ internal fun AppearancePane(state: AppearanceState, actions: AppearanceActions, 
 
     AyanaPage(stringResource(R.string.settings_section_appearance), scrollState) {
 
-        // The screen.
-        SettingsCard {
-            SwitchRow(
-                title = stringResource(R.string.settings_immersive),
-                subtitle = stringResource(R.string.settings_immersive_desc),
-                checked = state.immersiveMode,
-                onChange = actions.onImmersiveModeChange,
-            )
-            SettingsDivider()
-            val awakeChoices = listOf(
-                SheetChoice(AWAKE_OFF, stringResource(R.string.appearance_screen_awake_off)),
-                SheetChoice(AWAKE_RUNNING, stringResource(R.string.appearance_screen_awake_running)),
-                SheetChoice(AWAKE_ALWAYS, stringResource(R.string.appearance_screen_awake_always)),
-            )
-            var choosingAwake by remember { mutableStateOf(false) }
-            ChoiceSettingRow(
-                title = stringResource(R.string.appearance_screen_awake),
-                value = awakeChoices.firstOrNull { it.value == state.screenAwake }?.label.orEmpty(),
-                onClick = { choosingAwake = true },
-            )
-            if (choosingAwake) {
-                AyanaChoiceSheet(
-                    title = stringResource(R.string.appearance_screen_awake),
-                    choices = awakeChoices,
-                    selected = state.screenAwake,
-                    onPick = actions.onScreenAwakeChange,
-                    onDismiss = { choosingAwake = false },
-                )
-            }
-            SettingsDivider()
-            SwitchRow(
-                title = stringResource(R.string.appearance_greeting_animated),
-                checked = state.greetingAnimated,
-                onChange = actions.onGreetingAnimatedChange,
-            )
-        }
-
-        // Their colour.
+        // The colour first: it is the first thing that makes Ayana look like yours.
         SettingsCard { TintChooser(state, actions) }
 
 
@@ -244,6 +207,43 @@ internal fun AppearancePane(state: AppearanceState, actions: AppearanceActions, 
             }
         }
 
+
+        // Then the screen itself: full screen, kept awake, the greeting on an empty chat.
+        SettingsCard {
+            SwitchRow(
+                title = stringResource(R.string.settings_immersive),
+                subtitle = stringResource(R.string.settings_immersive_desc),
+                checked = state.immersiveMode,
+                onChange = actions.onImmersiveModeChange,
+            )
+            SettingsDivider()
+            val awakeChoices = listOf(
+                SheetChoice(AWAKE_OFF, stringResource(R.string.appearance_screen_awake_off)),
+                SheetChoice(AWAKE_RUNNING, stringResource(R.string.appearance_screen_awake_running)),
+                SheetChoice(AWAKE_ALWAYS, stringResource(R.string.appearance_screen_awake_always)),
+            )
+            var choosingAwake by remember { mutableStateOf(false) }
+            ChoiceSettingRow(
+                title = stringResource(R.string.appearance_screen_awake),
+                value = awakeChoices.firstOrNull { it.value == state.screenAwake }?.label.orEmpty(),
+                onClick = { choosingAwake = true },
+            )
+            if (choosingAwake) {
+                AyanaChoiceSheet(
+                    title = stringResource(R.string.appearance_screen_awake),
+                    choices = awakeChoices,
+                    selected = state.screenAwake,
+                    onPick = actions.onScreenAwakeChange,
+                    onDismiss = { choosingAwake = false },
+                )
+            }
+            SettingsDivider()
+            SwitchRow(
+                title = stringResource(R.string.appearance_greeting_animated),
+                checked = state.greetingAnimated,
+                onChange = actions.onGreetingAnimatedChange,
+            )
+        }
     }
 }
 

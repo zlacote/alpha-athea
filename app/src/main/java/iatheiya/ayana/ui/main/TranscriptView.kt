@@ -1,5 +1,10 @@
 package iatheiya.ayana.ui.main
 
+import androidx.compose.animation.core.VisibilityThreshold
+import androidx.compose.ui.unit.IntSize
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -578,6 +583,13 @@ private fun CommandBubble(
     val selectLabel = stringResource(R.string.select_text)
     val favoriteLabel = stringResource(R.string.add_to_favorites)
     var bubbleBounds by remember { mutableStateOf(Rect.Zero) }
+    // Only a fold made by hand glides; one Ayana makes itself (the previous answer folding as a new
+    // command goes out) snaps, so nothing above slides about while the new message lands.
+    var foldByHand by remember { mutableStateOf(false) }
+    val toggle = {
+        foldByHand = true
+        onToggle()
+    }
     val pressSource = remember { MutableInteractionSource() }
     val pressed by pressSource.collectIsPressedAsState()
     val pressWashAlpha by animateFloatAsState(if (pressed) BUBBLE_PRESS_ALPHA else 0f, tween(120), label = "bubblePress")
@@ -650,7 +662,7 @@ private fun CommandBubble(
             // Folding and opening glide, instead of the bubble snapping to its new height.
             Column(
                 Modifier
-                    .animateContentSize()
+                    .animateContentSize(if (foldByHand) spring(stiffness = Spring.StiffnessMediumLow, visibilityThreshold = IntSize.VisibilityThreshold) else snap(), finishedListener = { _, _ -> foldByHand = false })
                     .padding(start = Ui.bubblePaddingH, end = Ui.bubblePaddingH, top = Ui.bubblePaddingTop, bottom = Ui.bubblePaddingBottom),
             ) {
                 if (collapsed && collapsible) {
@@ -673,7 +685,7 @@ private fun CommandBubble(
                             .align(Alignment.CenterHorizontally)
                             .padding(top = Ui.keyRowPaddingV)
                             .size(Ui.chevronExpandSize)
-                            .clickable(onClick = onToggle),
+                            .clickable(onClick = toggle),
                     )
                 } else {
                     if (scrollInside && shownLines > Ui.hugeLinesThreshold) {
@@ -710,7 +722,7 @@ private fun CommandBubble(
                                 .padding(top = Ui.keyRowPaddingV)
                                 .size(Ui.chevronExpandSize)
                                 .rotate(180f)
-                                .clickable(onClick = onToggle),
+                                .clickable(onClick = toggle),
                         )
                     }
                 }
@@ -732,12 +744,24 @@ private fun OutputPanel(
     onToggle: () -> Unit,
     onCopy: (String) -> Unit,
 ) {
+    // Only a fold made by hand glides; the one Ayana makes itself when a new command goes out snaps.
+    var foldByHand by remember { mutableStateOf(false) }
+    val toggle = {
+        foldByHand = true
+        onToggle()
+    }
     Column(
         Modifier
             .fillMaxWidth()
             // Folding and opening glide, instead of the panel snapping to its new height. Not
             // while it runs: there it grows with every line, and must keep up with the output.
-            .then(if (block.running) Modifier else Modifier.animateContentSize())
+            .then(
+                if (block.running) {
+                    Modifier
+                } else {
+                    Modifier.animateContentSize(if (foldByHand) spring(stiffness = Spring.StiffnessMediumLow, visibilityThreshold = IntSize.VisibilityThreshold) else snap(), finishedListener = { _, _ -> foldByHand = false })
+                },
+            )
             .padding(horizontal = Ui.outputPaddingH, vertical = Ui.headerPaddingV)
             .then(
                 if (currentMatch) {
@@ -811,7 +835,7 @@ private fun OutputPanel(
                 expandable = collapsible,
                 collapsed = collapsed,
                 onCopy = { onCopy(plainText) },
-                onToggle = onToggle,
+                onToggle = toggle,
             )
         }
     }

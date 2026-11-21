@@ -167,7 +167,8 @@ half4 main(float2 xy) {
     float minHalf = min(halfSize.x, halfSize.y);
     // The bezel stops short of the middle: met there from both sides (a pill with the widest
     // bezel), the two halves bent away from each other along a seam. A flat band between them
-    // joins them without one.
+    // joins them without one. Everything the bezel does (bend, fringe, highlight) fades to
+    // nothing at its inner edge, so the band meets it smoothly.
     float bezelWidth = min(bezel, minHalf * 0.72);
     float2 n = outwardNormal(p, halfSize, r, max(bezelWidth * 0.25, 1.0));
 
@@ -184,11 +185,15 @@ half4 main(float2 xy) {
     half bChannel = content.eval(xy - n * (shift - spread)).b;
     half3 refracted = half3(rChannel, gChannel, bChannel);
 
-    // The highlight is brightest where the rim faces the light and fades around the edge.
+    // The highlight is brightest where the rim faces the light and fades around the edge. It lives
+    // in the bezel, as the bend does, and fades out where the bezel ends: a wide highlight on a
+    // narrow surface (a pill) used to reach its middle, where the outward direction turns over
+    // from up to down, and stopped there in a hard line, lit above and dark below.
     float2 light = normalize(lightDir);
     float facing = max(dot(n, -light), 0.0);
     float rimBand = 1.0 - smoothstep(0.0, highlightWidth, -sdf);
-    refracted += half3(facing * facing * rimBand * highlightStrength);
+    float inBezel = 1.0 - smoothstep(0.6, 1.0, depth);
+    refracted += half3(facing * facing * rimBand * inBezel * highlightStrength);
 
     float alpha = 1.0 - smoothstep(-0.75, 0.75, sdf);
     return half4(mix(backdrop.rgb, refracted, alpha), backdrop.a);

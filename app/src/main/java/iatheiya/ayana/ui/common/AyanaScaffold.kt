@@ -52,6 +52,11 @@ fun AyanaScaffold(
     backIcon: ImageVector = Icons.AutoMirrored.Filled.ArrowBack,
     /** Drawn above the content and below the back button (which refracts it), e.g. a key being dragged. */
     overlay: @Composable BoxScope.() -> Unit = {},
+    /**
+     * Glass that floats over the content and refracts it (a bar at the bottom, a button in the
+     * corner, a context menu): drawn outside what is recorded, so it never refracts itself.
+     */
+    floating: @Composable BoxScope.() -> Unit = {},
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val backdrop = rememberLiquidBackdrop()
@@ -94,6 +99,7 @@ fun AyanaScaffold(
                         )
                     }
                 }
+                floating()
             }
         }
     }
