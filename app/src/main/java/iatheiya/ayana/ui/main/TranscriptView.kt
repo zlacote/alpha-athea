@@ -1,5 +1,6 @@
 package iatheiya.ayana.ui.main
 
+import androidx.compose.animation.animateContentSize
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.key
 import androidx.compose.runtime.compositionLocalOf
@@ -307,41 +308,35 @@ fun TranscriptView(
                 map
             }
             val itemCount = displayItems.size
-            val lastTextLength =
-                (views.lastOrNull()?.block as? OutputBlock)?.text?.length ?: 0
+            // The list runs from the bottom up, newest first, as a chat does: index 0 is the newest
+            // item, its end held at the bottom of the room above the composer. So an answer that
+            // grows, the keyboard rising or falling, and a message folding or opening above all
+            // leave the end where it is, with nothing to correct after the fact.
+            val listItems = remember(displayItems) { displayItems.reversed() }
+            fun listIndexOf(displayIndex: Int) = itemCount - 1 - displayIndex
 
-            // A chunk can be much taller than the viewport.  Therefore the last
-            // visible *item* is not sufficient to tell whether we are at the end:
-            // it may only be the beginning of that last chunk.  Keep following
-            // output only while its final line was actually visible.
-            // Only the finger lets go of the end: a jump of our own (after a send, say) is still in
-            // progress when the answer arrives, and must not count as the reader scrolling away.
+            // At the end means the newest item's end is in view: nothing newer below it.
+            // Only the finger lets go of the end; a glide of our own does not count as scrolling away.
             var stickToBottom by remember { mutableStateOf(true) }
             val dragged by listState.interactionSource.collectIsDraggedAsState()
             LaunchedEffect(listState) {
-                snapshotFlow { Triple(!listState.canScrollForward, listState.isScrollInProgress, dragged) }
+                snapshotFlow { Triple(!listState.canScrollBackward, listState.isScrollInProgress, dragged) }
                     .collect { (atBottom, inProgress, byFinger) ->
                         if (byFinger && !atBottom) {
                             stickToBottom = false
                         } else if (atBottom && !inProgress && !stickToBottom) {
                             kotlinx.coroutines.delay(600)
-                            if (!listState.canScrollForward && !listState.isScrollInProgress) stickToBottom = true
+                            if (!listState.canScrollBackward && !listState.isScrollInProgress) stickToBottom = true
                         }
                     }
             }
-            // Stick to the real bottom while output grows, including the tail of a last chunk that is
-            // taller than one viewport, and while the room above the composer shrinks (the keyboard
-            // coming up, the composer growing), so the newest message stays just above the composer.
-            // A new message is glided to, as it fades in; a growing answer and a rising keyboard
-            // are followed at once, step by step, as they move.
+            // A new message, while at the end, is glided into view from under the composer.
             var followedCount by remember { mutableIntStateOf(itemCount) }
-            LaunchedEffect(itemCount, lastTextLength, constraints.maxHeight, contentBottomPadding) {
-                // Still gliding (the answer started while the list was on its way): keep gliding
-                // to the new end, rather than cutting the glide short with a jump.
-                val arrived = itemCount > followedCount || listState.isScrollInProgress
+            LaunchedEffect(itemCount) {
+                val arrived = itemCount > followedCount
                 followedCount = itemCount
-                if (itemCount > 0 && stickToBottom) {
-                    try { listState.keepEnd(itemCount - 1, animated = arrived) } catch (_: Exception) {}
+                if (arrived && stickToBottom) {
+                    try { listState.animateScrollToItem(0) } catch (_: Exception) {}
                 }
             }
 
@@ -351,38 +346,40 @@ fun TranscriptView(
                     val index = blockToDisplayIndex[blockId] ?: onLocateBlock(blockId)
                     if (index >= 0) {
                         onRevealBlock(blockId)
-                        listState.animateScrollToItem(index)
+                        listState.animateScrollToItem(listIndexOf(index).coerceAtLeast(0))
                     } else {
                         val fallback = onLocateBlock(blockId)
                         if (fallback >= 0) {
                             onRevealBlock(blockId)
-                            listState.animateScrollToItem(blockToDisplayIndex[views[fallback].block.id] ?: fallback)
+                            val at = blockToDisplayIndex[views[fallback].block.id] ?: fallback
+                            listState.animateScrollToItem(listIndexOf(at).coerceAtLeast(0))
                         }
                     }
                 }
             }
 
-            // Forced jumps to the very bottom (e.g. right after sending). Slightly slower than instant — animate.
-            LaunchedEffect(session.id, itemCount) {
+            // Forced jumps to the very bottom (after sending, the jump-down button): one glide to
+            // the newest item's end.
+            LaunchedEffect(session.id) {
                 jumpToBottom.collect {
                     stickToBottom = true
-                    val last = itemCount - 1
-                    if (last >= 0) try { listState.keepEnd(last, animated = true) } catch (_: Exception) {}
+                    try { listState.animateScrollToItem(0) } catch (_: Exception) {}
                 }
             }
 
-            // The page keys at an idle prompt: scroll most of a screen, keeping a few lines for context.
+            // The page keys at an idle prompt: scroll most of a screen, keeping a few lines for
+            // context. The list runs upward, so a page down is a scroll back.
             LaunchedEffect(session.id) {
                 pageScroll.collect { direction ->
                     val viewport = listState.layoutInfo.viewportEndOffset - listState.layoutInfo.viewportStartOffset
-                    listState.animateScrollBy(direction * viewport * PAGE_FRACTION)
+                    listState.animateScrollBy(-direction * viewport * PAGE_FRACTION)
                 }
             }
 
-            // The jump-down button (in the composer) shows whenever even part of a tall final chunk
-            // is below the viewport, and goes away only at the true end.
+            // The jump-down button (in the composer) shows whenever even part of the newest item
+            // is below the room, and goes away only at the true end.
             LaunchedEffect(listState) {
-                snapshotFlow { listState.canScrollForward }.collect { onJumpAvailableChange(it) }
+                snapshotFlow { listState.canScrollBackward }.collect { onJumpAvailableChange(it) }
             }
             DisposableEffect(Unit) { onDispose { onJumpAvailableChange(false) } }
 
@@ -395,6 +392,9 @@ fun TranscriptView(
 
             LazyColumn(
                 state = listState,
+                reverseLayout = true,
+                // While there is room to spare, the messages still start at the top.
+                verticalArrangement = Arrangement.Top,
                 modifier = Modifier
                     .fillMaxSize()
                     .then(if (pinchZoomEnabled) Modifier.pinchToZoom(onTranscriptFontZoom) else Modifier),
@@ -403,15 +403,13 @@ fun TranscriptView(
                     bottom = contentBottomPadding,
                 ),
             ) {
-                items(displayItems, key = { item ->
+                items(listItems, key = { item ->
                     when (item) {
                         is DisplayItem.Block -> item.view.block.id
                         is DisplayItem.Chunk -> "${item.blockId}-chunk-${item.chunkIndex}"
                     }
                 }) { item ->
-                    // A new message fades in and the ones around it slide to make room, rather than
-                    // everything jumping at once.
-                    Box(Modifier.animateItem(fadeInSpec = tween(ITEM_FADE_MS), fadeOutSpec = null)) {
+                    Box {
                         when (item) {
                             is DisplayItem.Block -> {
                                 val view = item.view
@@ -606,6 +604,9 @@ private fun CommandBubble(
             modifier = Modifier
                 .widthIn(max = maxWidth)
                 .onGloballyPositioned { bubbleBounds = it.boundsInRoot() }
+                // Clipped first, so the press shows in the bubble's own round shape, not as a
+                // square around it.
+                .clip(Ui.bubbleShape)
                 .combinedClickable(
                     // Tapping the bubble body is reserved for text
                     // selection; expand/collapse lives on the chevrons.
@@ -628,7 +629,12 @@ private fun CommandBubble(
                     },
                 ),
         ) {
-            Column(Modifier.padding(start = Ui.bubblePaddingH, end = Ui.bubblePaddingH, top = Ui.bubblePaddingTop, bottom = Ui.bubblePaddingBottom)) {
+            // Folding and opening glide, instead of the bubble snapping to its new height.
+            Column(
+                Modifier
+                    .animateContentSize()
+                    .padding(start = Ui.bubblePaddingH, end = Ui.bubblePaddingH, top = Ui.bubblePaddingTop, bottom = Ui.bubblePaddingBottom),
+            ) {
                 if (collapsed && collapsible) {
                     // The tail fades out to transparent, so it sinks into whatever the bubble is
                     // (a tinted glass, a wallpaper behind it) instead of under a painted black band.
@@ -711,6 +717,9 @@ private fun OutputPanel(
     Column(
         Modifier
             .fillMaxWidth()
+            // Folding and opening glide, instead of the panel snapping to its new height. Not
+            // while it runs: there it grows with every line, and must keep up with the output.
+            .then(if (block.running) Modifier else Modifier.animateContentSize())
             .padding(horizontal = Ui.outputPaddingH, vertical = Ui.headerPaddingV)
             .then(
                 if (currentMatch) {
@@ -859,27 +868,6 @@ private fun chunkAnnotated(annotated: AnnotatedString, chunkSize: Int = Ui.chunk
 private suspend fun LazyListState.scrollToEnd(lastIndex: Int) {
     scrollToItem(lastIndex)
     scrollRemainingToEnd()
-}
-
-/**
- * Keeps the end in view while it moves: when the last item is already on screen, moves by just
- * the distance its end has gone past the bottom, in one step. Jumping to the last item first (as
- * [scrollToEnd] does) put its top at the top of the screen and then scrolled down again, so every
- * new line of output, and every step of the keyboard rising, showed as a jolt.
- */
-private suspend fun LazyListState.keepEnd(lastIndex: Int, animated: Boolean = false) {
-    // Twice at most: what was measured before the newest lines may fall short by them.
-    repeat(2) {
-        val past = pastEnd(lastIndex)
-        if (past == null) {
-            // The end is not on screen (or not laid out yet): go there through the list.
-            if (animated) animateScrollToEnd(lastIndex) else scrollToEnd(lastIndex)
-            return
-        }
-        if (past <= 0) return
-        val moved = if (animated) animateScrollBy(past.toFloat(), END_GLIDE) else scrollBy(past.toFloat())
-        if (moved <= 0f) return
-    }
 }
 
 /** How far the last item's end lies below the bottom of the list's room, or null when it is not on screen. */
@@ -1071,6 +1059,3 @@ private fun Modifier.fadeOutBottom(height: Dp): Modifier =
             )
         }
 
-
-/** How long a new message takes to fade in. */
-private const val ITEM_FADE_MS = 220

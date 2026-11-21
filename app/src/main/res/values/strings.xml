@@ -51,6 +51,7 @@
     <!-- Misc -->
     <string name="shell_start_failed">Could not start the shell</string>
     <string name="shell_exited">Shell exited (code %1$d)</string>
+    <string name="shell_restarted">The shell stopped (code %1$d) and was started again</string>
     <string name="exit_code">exit %1$d</string>
 
     <!-- Settings screen -->
@@ -83,7 +84,6 @@
     <string name="appearance_tint">Accent color</string>
     <string name="appearance_font">Font</string>
     <string name="appearance_greeting_animated">Shimmering greeting</string>
-    <string name="appearance_greeting_animated_desc">The light over the name shimmers on every empty chat, not only on the first one</string>
     <string name="appearance_font_system">Default</string>
     <string name="appearance_font_mono">Monospace</string>
     <string name="appearance_font_serif">Serif</string>
@@ -176,8 +176,9 @@
     <string name="glass_needs_bezel">needs a bezel above 0</string>
     <string name="glass_needs_highlight">needs highlight strength above 0</string>
     <string name="attach_path">Path</string>
-    <string name="settings_attach_sends_now">Send file commands at once</string>
-    <string name="settings_attach_sends_now_desc">Off: the command goes into the input on a new line</string>
+    <string name="settings_attach_sends_now">Run file commands at once</string>
+    <string name="settings_attach_sends_now_desc">Copy and Symlink in the + menu run their command; off, it waits in the input</string>
+    <string name="settings_section_notifications">Notifications</string>
     <string name="settings_glow_section">Glow</string>
     <string name="settings_glow">Glow while a command runs</string>
     <string name="settings_glow_desc">A soft light glows down from the top edge</string>

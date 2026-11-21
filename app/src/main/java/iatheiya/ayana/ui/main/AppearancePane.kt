@@ -29,7 +29,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.BlurOn
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -100,7 +99,6 @@ class AppearanceActions(
     val onOutputFontSizeChange: (Int) -> Unit,
     val onBubbleFontSizeChange: (Int) -> Unit,
     val onOpenGlassTuning: () -> Unit,
-    val onOpenGlow: () -> Unit,
 )
 
 /** The basic colours offered for buttons and panels. */
@@ -143,15 +141,12 @@ internal fun tintWhenEnabled(lastArgb: Long?): Pair<String, Long?> =
     if (lastArgb != null) TINT_COLOR to lastArgb else TINT_SYSTEM to null
 
 /**
- * How Ayana looks, in one room: the screen, the surfaces (glass, glow), their colour, the text and
- * the wallpaper. The colour has a card of its own and sits outside glass on purpose: it tints the
- * glass when glass is on and the solid tone when it is off.
+ * How Ayana looks: the screen, the colour and the wallpaper. Glass and the font have rooms of
+ * their own, next to this one in the settings. The colour has a card of its own and sits outside
+ * glass on purpose: it tints the glass when glass is on and the solid tone when it is off.
  */
 @Composable
 internal fun AppearancePane(state: AppearanceState, actions: AppearanceActions, scrollState: ScrollState) {
-    val pickFont = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        if (uri != null) actions.onFontPicked(uri)
-    }
     val pickWallpaper = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) actions.onWallpaperPicked(uri)
     }
@@ -187,75 +182,17 @@ internal fun AppearancePane(state: AppearanceState, actions: AppearanceActions, 
                     onDismiss = { choosingAwake = false },
                 )
             }
-        }
-
-        // The surfaces.
-        SettingsCard {
-            SettingsEntryRow(
-                icon = Icons.Default.BlurOn,
-                title = stringResource(R.string.glass_title),
-                onClick = actions.onOpenGlassTuning,
+            SettingsDivider()
+            SwitchRow(
+                title = stringResource(R.string.appearance_greeting_animated),
+                checked = state.greetingAnimated,
+                onChange = actions.onGreetingAnimatedChange,
             )
         }
 
         // Their colour.
         SettingsCard { TintChooser(state, actions) }
 
-        // The text, everywhere in the app.
-        SettingsCard {
-            val fontChoices = buildList {
-                add(SheetChoice(FONT_SYSTEM, stringResource(R.string.appearance_font_system)))
-                add(SheetChoice(FONT_MONO, stringResource(R.string.appearance_font_mono)))
-                add(SheetChoice(FONT_SERIF, stringResource(R.string.appearance_font_serif)))
-                if (state.hasCustomFont) add(SheetChoice(FONT_CUSTOM, stringResource(R.string.appearance_font_custom)))
-                add(SheetChoice(PICK_FONT_FILE, stringResource(R.string.appearance_font_change), Icons.Default.Add))
-            }
-            var choosingFont by remember { mutableStateOf(false) }
-            ChoiceSettingRow(
-                title = stringResource(R.string.appearance_font),
-                value = fontChoices.firstOrNull { it.value == state.font }?.label.orEmpty(),
-                onClick = { choosingFont = true },
-            )
-            if (choosingFont) {
-                AyanaChoiceSheet(
-                    title = stringResource(R.string.appearance_font),
-                    choices = fontChoices,
-                    selected = state.font,
-                    onPick = { picked ->
-                        if (picked == PICK_FONT_FILE) pickFont.launch(arrayOf("*/*")) else actions.onFontChange(picked)
-                    },
-                    onDismiss = { choosingFont = false },
-                )
-            }
-            SettingsDivider()
-            SliderRow(
-                title = stringResource(R.string.settings_font_size),
-                value = state.outputFontSizeSp,
-                range = 10f..22f,
-                onChange = actions.onOutputFontSizeChange,
-            )
-            SettingsDivider()
-            SliderRow(
-                title = stringResource(R.string.settings_bubble_size),
-                value = state.bubbleFontSizeSp,
-                range = 12f..24f,
-                onChange = actions.onBubbleFontSizeChange,
-            )
-            SettingsDivider()
-            SwitchRow(
-                title = stringResource(R.string.settings_pinch_zoom),
-                subtitle = stringResource(R.string.settings_pinch_zoom_desc),
-                checked = state.pinchZoomEnabled,
-                onChange = actions.onPinchZoomEnabledChange,
-            )
-            SettingsDivider()
-            SwitchRow(
-                title = stringResource(R.string.appearance_greeting_animated),
-                subtitle = stringResource(R.string.appearance_greeting_animated_desc),
-                checked = state.greetingAnimated,
-                onChange = actions.onGreetingAnimatedChange,
-            )
-        }
 
         // The wallpaper behind the transcript; the glass refracts it like any other content.
         SettingsCard {
@@ -523,5 +460,65 @@ private fun PickerSlider(
             Text(shown, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Slider(value = value, onValueChange = onChange, valueRange = range)
+    }
+}
+
+/**
+ * The text, everywhere in the app, in a room of its own: the typeface, the sizes of the output
+ * and of what you write, and pinching to zoom.
+ */
+@Composable
+internal fun FontPane(state: AppearanceState, actions: AppearanceActions) {
+    val pickFont = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) actions.onFontPicked(uri)
+    }
+    AyanaPage(stringResource(R.string.appearance_font)) {
+        SettingsCard {
+            val fontChoices = buildList {
+                add(SheetChoice(FONT_SYSTEM, stringResource(R.string.appearance_font_system)))
+                add(SheetChoice(FONT_MONO, stringResource(R.string.appearance_font_mono)))
+                add(SheetChoice(FONT_SERIF, stringResource(R.string.appearance_font_serif)))
+                if (state.hasCustomFont) add(SheetChoice(FONT_CUSTOM, stringResource(R.string.appearance_font_custom)))
+                add(SheetChoice(PICK_FONT_FILE, stringResource(R.string.appearance_font_change), Icons.Default.Add))
+            }
+            var choosingFont by remember { mutableStateOf(false) }
+            ChoiceSettingRow(
+                title = stringResource(R.string.appearance_font),
+                value = fontChoices.firstOrNull { it.value == state.font }?.label.orEmpty(),
+                onClick = { choosingFont = true },
+            )
+            if (choosingFont) {
+                AyanaChoiceSheet(
+                    title = stringResource(R.string.appearance_font),
+                    choices = fontChoices,
+                    selected = state.font,
+                    onPick = { picked ->
+                        if (picked == PICK_FONT_FILE) pickFont.launch(arrayOf("*/*")) else actions.onFontChange(picked)
+                    },
+                    onDismiss = { choosingFont = false },
+                )
+            }
+            SettingsDivider()
+            SliderRow(
+                title = stringResource(R.string.settings_font_size),
+                value = state.outputFontSizeSp,
+                range = 10f..22f,
+                onChange = actions.onOutputFontSizeChange,
+            )
+            SettingsDivider()
+            SliderRow(
+                title = stringResource(R.string.settings_bubble_size),
+                value = state.bubbleFontSizeSp,
+                range = 12f..24f,
+                onChange = actions.onBubbleFontSizeChange,
+            )
+            SettingsDivider()
+            SwitchRow(
+                title = stringResource(R.string.settings_pinch_zoom),
+                subtitle = stringResource(R.string.settings_pinch_zoom_desc),
+                checked = state.pinchZoomEnabled,
+                onChange = actions.onPinchZoomEnabledChange,
+            )
+        }
     }
 }

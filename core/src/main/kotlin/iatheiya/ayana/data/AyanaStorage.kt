@@ -33,6 +33,8 @@ data class SessionMeta(
 internal data class SessionsIndex(
     val items: List<SessionMeta> = emptyList(),
     val nextSessionId: Long = 1,
+    /** The session that was open, so the app comes back to it rather than to the first one. */
+    val currentSessionId: Long? = null,
 )
 
 @Serializable
@@ -69,7 +71,7 @@ data class AyanaSettings(
     val keyRows: Int = DEFAULT_KEY_ROWS,
     /** Columns of the key grid visible before it scrolls. */
     val keyCols: Int = DEFAULT_KEY_COLS,
-    val enterSends: Boolean = true,
+    val enterSends: Boolean = false,
     val autoScrollOnSend: Boolean = true,
     val rawStream: Boolean = false,
     /**
@@ -78,11 +80,11 @@ data class AyanaSettings(
      */
     val introSessionId: Long = INTRO_UNSET,
     /** The name on every empty chat shimmers, not only on the first one. */
-    val greetingAnimated: Boolean = true,
+    val greetingAnimated: Boolean = false,
     /** Full screen: the status bar with the clock is hidden until swiped in. */
     val immersiveMode: Boolean = false,
     /** When the screen is kept from going dark: [AWAKE_OFF], [AWAKE_RUNNING] or [AWAKE_ALWAYS]. */
-    val screenAwake: String = AWAKE_OFF,
+    val screenAwake: String = AWAKE_RUNNING,
     /** A vibration, or a notification when Ayana is in the background, as a long command ends. */
     val signalLongCommands: Boolean = false,
     /** Ayana has asked for notifications once; after a refusal Android stops showing the dialog. */

@@ -1,5 +1,11 @@
 package iatheiya.ayana.ui.main
 
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.input.OffsetMapping
+import androidx.compose.ui.text.input.TransformedText
+import androidx.compose.ui.text.input.VisualTransformation
 import iatheiya.ayana.ui.theme.glassInk
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
@@ -183,6 +189,7 @@ private fun DraftPanel(
     modifier: Modifier = Modifier,
 ) {
     var addBounds by remember { mutableStateOf(Rect.Zero) }
+    val ghostColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = Ui.ghostAlpha)
     var lineCount by remember { mutableStateOf(1) }
     var grown by remember { mutableStateOf(false) }
     if (draft.isEmpty()) grown = false
@@ -234,6 +241,9 @@ private fun DraftPanel(
                     textStyle = messageStyle().copy(color = MaterialTheme.colorScheme.onSurface),
                     cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
                     maxLines = 6,
+                    // The ghost suggestion is part of the text as it is laid out, after its end: it
+                    // wraps with it and stays at the end wherever the cursor goes.
+                    visualTransformation = remember(draft, suggestion, ghostColor) { ghostTail(draft, suggestion, ghostColor) },
                     onTextLayout = { lineCount = it.lineCount },
                     keyboardOptions = KeyboardOptions(
                         capitalization = KeyboardCapitalization.None,
@@ -273,18 +283,6 @@ private fun DraftPanel(
                                         cutStart = !running,
                                     )
                                 }
-                            }
-                            // Ghost suggestion: the opaque draft text covers the
-                            // prefix, the gray tail sticks out past the cursor. Only once
-                            // something is typed: an empty field shows the prompt alone.
-                            if (draft.isNotEmpty() && suggestion != null && suggestion.startsWith(draft)) {
-                                Text(
-                                    suggestion,
-                                    style = messageStyle(),
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        .copy(alpha = Ui.ghostAlpha),
-                                    maxLines = 1,
-                                )
                             }
                             Box(Modifier.align(Alignment.CenterStart)) { inner() }
                         }
@@ -547,3 +545,29 @@ internal fun SendCircleButton(
 
 /** How strongly the search's hint and count show, against its ink. */
 private const val HINT_ALPHA = 0.72f
+
+/**
+ * Shows the rest of [suggestion] after the end of [draft], in [colour], as if it were part of the
+ * text: laid out with it, so it starts right after its last character and wraps with it, on
+ * whatever line that is. The cursor and the selection never enter it. Only once something is
+ * typed: an empty field shows the prompt alone.
+ */
+private fun ghostTail(draft: String, suggestion: String?, colour: Color): VisualTransformation {
+    if (draft.isEmpty() || suggestion == null || suggestion.length <= draft.length || !suggestion.startsWith(draft)) {
+        return VisualTransformation.None
+    }
+    val tail = suggestion.substring(draft.length)
+    return VisualTransformation { text ->
+        val shown = buildAnnotatedString {
+            append(text)
+            withStyle(SpanStyle(color = colour)) { append(tail) }
+        }
+        TransformedText(
+            shown,
+            object : OffsetMapping {
+                override fun originalToTransformed(offset: Int) = offset
+                override fun transformedToOriginal(offset: Int) = offset.coerceAtMost(text.length)
+            },
+        )
+    }
+}

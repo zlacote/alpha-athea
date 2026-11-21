@@ -1,5 +1,7 @@
 package iatheiya.ayana.ui
 
+import iatheiya.ayana.ui.main.WallpaperCache
+import iatheiya.ayana.ui.main.shrinkWallpaper
 import iatheiya.ayana.util.toast
 import android.app.Application
 import android.content.Context
@@ -61,7 +63,6 @@ data class UiState(
     val showFavorites: Boolean = false,
     val showKeys: Boolean = false,
     val showGlassTuning: Boolean = false,
-    val showGlow: Boolean = false,
     val renameTargetId: Long? = null,
     val deleteTargetId: Long? = null,
     val selectTextPayload: String? = null,
@@ -116,6 +117,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     init {
         rememberIntroSession()
+        // The wallpaper is decoded now, while the first screen is still being built, so it is
+        // there when that screen first draws.
+        viewModelScope.launch {
+            WallpaperCache.prefetch(storage.wallpaperFile(), workspace.state.value.settings.wallpaperVersion)
+        }
         viewModelScope.launch {
             workspace.state.collect { projection ->
                 _state.update { it.copy(workspace = projection) }
@@ -509,7 +515,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun setShowGlassTuning(visible: Boolean) = _state.update { it.copy(showGlassTuning = visible) }
 
-    fun setShowGlow(visible: Boolean) = _state.update { it.copy(showGlow = visible) }
 
     fun setKeyRowVisible(visible: Boolean) = workspace.updateSettings { it.copy(keyRowVisible = visible) }
 
@@ -617,7 +622,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun customFontFile(): File = storage.customFontFile()
 
     /** Copies a picked image in as the wallpaper; the new version makes every screen reload it. */
-    fun importWallpaper(uri: Uri, context: Context) = importAppearanceFile(uri, context, storage.wallpaperFile()) {
+    fun importWallpaper(uri: Uri, context: Context) = importAppearanceFile(
+        uri,
+        context,
+        storage.wallpaperFile(),
+        prepare = ::shrinkWallpaper,
+    ) {
         workspace.updateSettings { it.copy(wallpaperVersion = System.currentTimeMillis()) }
     }
 
@@ -637,12 +647,20 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    private fun importAppearanceFile(uri: Uri, context: Context, target: File, done: (File) -> Unit) {
+    private fun importAppearanceFile(
+        uri: Uri,
+        context: Context,
+        target: File,
+        /** Run on the copied file, off the main thread, before [done]. */
+        prepare: (File) -> Unit = {},
+        done: (File) -> Unit,
+    ) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 context.contentResolver.openInputStream(uri)?.use { input ->
                     target.outputStream().use { output -> input.copyTo(output) }
                 } ?: throw IllegalStateException("cannot open $uri")
+                prepare(target)
                 withContext(Dispatchers.Main) { done(target) }
             } catch (e: Exception) {
                 AyanaLog.error("appearance", "import failed", e)

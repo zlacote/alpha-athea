@@ -1,5 +1,6 @@
 package iatheiya.ayana.ui.common
 
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.heightIn
@@ -154,11 +155,15 @@ fun AyanaPage(
                     .padding(top = top, bottom = PAGE_BOTTOM_ROOM),
                 verticalArrangement = Arrangement.Center,
             ) {
+                // The room's name, centred over its cards, as on every room.
                 Text(
                     text = title,
                     style = MaterialTheme.typography.headlineSmall,
                     color = MaterialTheme.colorScheme.onBackground,
-                    modifier = Modifier.padding(start = Ui.pageTextInset, end = Ui.pageTextInset, bottom = Ui.spaceS),
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = Ui.pageTextInset, end = Ui.pageTextInset, bottom = Ui.spaceS),
                 )
                 content()
             }

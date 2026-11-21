@@ -45,7 +45,8 @@ data class WorkspaceState(
 sealed interface WorkspaceEvent {
     data object ShellStartFailed : WorkspaceEvent
 
-    data class ShellExited(val exitCode: Int) : WorkspaceEvent
+    /** A session's shell ended; [restarted] when a fresh one took its place. */
+    data class ShellExited(val exitCode: Int, val restarted: Boolean = false) : WorkspaceEvent
 }
 
 /** Creates the terminal backend for a new session. The workspace starts it. */

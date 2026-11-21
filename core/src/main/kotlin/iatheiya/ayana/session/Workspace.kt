@@ -78,6 +78,11 @@ class Workspace(
     private val backends = HashMap<Long, TerminalEngine>()
     private val backendJobs = HashMap<Long, Job>()
     private val rawQueues = HashMap<Long, Channel<EngineEvent>>()
+    /** When each session's shell started, to tell a shell that dies at once from one that lived. */
+    private val shellStarts = HashMap<Long, Long>()
+    /** The last size the screen reported, for a shell started again later. */
+    @Volatile private var lastRows = INITIAL_ROWS
+    @Volatile private var lastCols = INITIAL_COLS
     private val nextCommandSeqs = HashMap<Long, Long>()
 
     /** Submitted command texts per session, newest last (autocomplete source). */
@@ -165,7 +170,9 @@ class Workspace(
             if (pipes.isEmpty()) {
                 createSessionLocked()
             } else {
-                _state.update { it.copy(currentSessionId = pipes.keys.first()) }
+                // Back where the user was, when that session is still there.
+                val open = index.currentSessionId?.takeIf { it in pipes } ?: pipes.keys.first()
+                _state.update { it.copy(currentSessionId = open) }
             }
         }
     }
@@ -174,7 +181,8 @@ class Workspace(
 
     private fun attachEngine(id: Long, shellPath: String) {
         val engine = engines.create(shellPath)
-        if (!engine.start(INITIAL_ROWS, INITIAL_COLS)) {
+        shellStarts[id] = System.currentTimeMillis()
+        if (!engine.start(lastRows, lastCols)) {
             // The session still appears; submissions to it will be dropped.
             eventQueue.trySend(WorkspaceEvent.ShellStartFailed)
             return
@@ -242,10 +250,28 @@ class Workspace(
             for (event in parsed) event.applyTo(pipe.builder)
             if (shellExited) {
                 pipe.builder.applyCommandEnd(null)
-                eventQueue.trySend(WorkspaceEvent.ShellExited(exitCode))
+                restartShellLocked(id, exitCode)
             }
             dirtySessions.add(id)
         }
+    }
+
+    /**
+     * A session's shell has ended: by `exit`, or killed, by the system (code -9, which Android
+     * does to a background app's processes after a while) or otherwise. The session is a
+     * conversation and goes on, so a fresh shell takes its place at once. One that ends again
+     * within moments of starting is left ended, so a broken shell cannot loop.
+     */
+    private fun restartShellLocked(id: Long, exitCode: Int) {
+        val lived = System.currentTimeMillis() - (shellStarts[id] ?: 0L)
+        backends.remove(id)
+        rawQueues.remove(id)?.cancel()
+        // This very worker is the one being replaced: it stops once this batch is done.
+        val worker = backendJobs.remove(id)
+        val restarted = lived >= MIN_SHELL_LIFE_MS
+        if (restarted) attachEngine(id, _state.value.settings.shellPath)
+        eventQueue.trySend(WorkspaceEvent.ShellExited(exitCode, restarted))
+        worker?.cancel()
     }
 
     // ---------------------------------------------------------------- sessions
@@ -255,7 +281,10 @@ class Workspace(
     }
 
     fun selectSession(id: Long) {
-        _state.update { it.copy(currentSessionId = id, search = null) }
+        synchronized(lock) {
+            _state.update { it.copy(currentSessionId = id, search = null) }
+            persistIndexLocked()
+        }
     }
 
     fun renameSession(id: Long, name: String) {
@@ -284,8 +313,8 @@ class Workspace(
             if (pipes.isEmpty()) {
                 createSessionLocked()
             } else {
-                persistIndexLocked()
                 _state.update { it.copy(currentSessionId = successor, search = null) }
+                persistIndexLocked()
             }
             rebuildAllSessions()
         }
@@ -391,6 +420,8 @@ class Workspace(
         val id = _state.value.currentSessionId ?: return
         val safeRows = rows.coerceAtLeast(1)
         val safeCols = cols.coerceAtLeast(1)
+        lastRows = safeRows
+        lastCols = safeCols
         val (backend, screen) = synchronized(lock) { backends[id] to pipes[id]?.screen }
         screen?.resize(safeRows, safeCols)
         backend?.resize(safeRows, safeCols)
@@ -637,9 +668,9 @@ class Workspace(
         )
         nextCommandSeqs[id] = journal.nextCommandSeq() + 1
         attachEngine(id, settings.shellPath)
-        persistIndexLocked()
         refreshSession(id)
         _state.update { it.copy(currentSessionId = id, search = null) }
+        persistIndexLocked()
     }
 
     private fun mutateMeta(id: Long, persist: Boolean = true, transform: (SessionMeta) -> SessionMeta) {
@@ -655,7 +686,9 @@ class Workspace(
         val items = metas.values.sortedBy { it.id }
         val nextId = maxOf(nextSessionIdValue, (items.maxOfOrNull { it.id } ?: 0L) + 1)
         nextSessionIdValue = nextId
-        storage.saveIndex(SessionsIndex(items = items, nextSessionId = nextId))
+        storage.saveIndex(
+            SessionsIndex(items = items, nextSessionId = nextId, currentSessionId = _state.value.currentSessionId),
+        )
     }
 
     private fun refreshSession(id: Long) {
@@ -722,6 +755,8 @@ class Workspace(
 
     private companion object {
         const val INITIAL_ROWS = 24
+        /** A shell that ends sooner than this after starting is not started again. */
+        const val MIN_SHELL_LIFE_MS = 3_000L
         const val INITIAL_COLS = 80
         const val HISTORY_CAP = 500
         const val SHARED_HISTORY_CAP = 2000

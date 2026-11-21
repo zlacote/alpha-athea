@@ -223,24 +223,6 @@ private fun MainScreenRoutes(viewModel: MainViewModel, state: UiState) {
         return
     }
 
-    if (state.showGlow) {
-        BackHandler { viewModel.setShowGlow(false) }
-        GlowScreen(
-            glowEnabled = state.workspace.settings.glowEnabled,
-            glowStrengthPct = state.workspace.settings.glowStrengthPct,
-            glowHeightDp = state.workspace.settings.glowHeightDp,
-            glowWidthPct = state.workspace.settings.glowWidthPct,
-            glowPeriodMs = state.workspace.settings.glowPeriodMs,
-            onGlowEnabledChange = viewModel::setGlowEnabled,
-            onGlowStrengthChange = viewModel::setGlowStrengthPct,
-            onGlowHeightChange = viewModel::setGlowHeightDp,
-            onGlowWidthChange = viewModel::setGlowWidthPct,
-            onGlowPeriodChange = viewModel::setGlowPeriodMs,
-            onBack = { viewModel.setShowGlow(false) },
-        )
-        return
-    }
-
     if (state.showKeys) {
         BackHandler { viewModel.setShowKeys(false) }
         KeysScreen(
@@ -304,8 +286,21 @@ private fun MainScreenRoutes(viewModel: MainViewModel, state: UiState) {
                 onOutputFontSizeChange = viewModel::setOutputFontSize,
                 onBubbleFontSizeChange = viewModel::setBubbleFontSize,
                 onOpenGlassTuning = { viewModel.setShowGlassTuning(true) },
-                onOpenGlow = { viewModel.setShowGlow(true) },
             ),
+            glowCard = {
+                GlowCard(
+                    glowEnabled = settings.glowEnabled,
+                    glowStrengthPct = settings.glowStrengthPct,
+                    glowHeightDp = settings.glowHeightDp,
+                    glowWidthPct = settings.glowWidthPct,
+                    glowPeriodMs = settings.glowPeriodMs,
+                    onGlowEnabledChange = viewModel::setGlowEnabled,
+                    onGlowStrengthChange = viewModel::setGlowStrengthPct,
+                    onGlowHeightChange = viewModel::setGlowHeightDp,
+                    onGlowWidthChange = viewModel::setGlowWidthPct,
+                    onGlowPeriodChange = viewModel::setGlowPeriodMs,
+                )
+            },
             enterSends = state.workspace.settings.enterSends,
             autoScrollOnSend = state.workspace.settings.autoScrollOnSend,
             rawStream = state.workspace.settings.rawStream,
@@ -410,13 +405,24 @@ private fun MainScreenBody(viewModel: MainViewModel, state: UiState, composerBac
 
     // Native toasts: the system renders them, no custom surfaces needed.
     LaunchedEffect(viewModel) {
+        // Several shells ended together (the system stopping them all while Ayana was away) say
+        // so once, not once each.
+        var lastExitToast = 0L
         viewModel.events.collect { event ->
             val message = when (event) {
                 WorkspaceEvent.ShellStartFailed ->
                     context.getString(R.string.shell_start_failed)
 
-                is WorkspaceEvent.ShellExited ->
-                    context.getString(R.string.shell_exited, event.exitCode)
+                is WorkspaceEvent.ShellExited -> {
+                    val now = android.os.SystemClock.uptimeMillis()
+                    if (now - lastExitToast < EXIT_TOAST_QUIET_MS) return@collect
+                    lastExitToast = now
+                    if (event.restarted) {
+                        context.getString(R.string.shell_restarted, event.exitCode)
+                    } else {
+                        context.getString(R.string.shell_exited, event.exitCode)
+                    }
+                }
             }
             context.toast(message)
         }
@@ -513,7 +519,7 @@ private fun MainScreenBody(viewModel: MainViewModel, state: UiState, composerBac
                                 contentBottomPadding = overlayBottom,
                                 onJumpAvailableChange = { jumpAvailable = it },
                                 pinchZoomEnabled = state.workspace.settings.pinchZoomEnabled,
-                                greetingAnimated = state.workspace.settings.greetingAnimated || current.id == state.workspace.settings.introSessionId,
+                                greetingAnimated = state.workspace.settings.greetingAnimated,
                                 virtualizeLargeOutput = state.workspace.settings.virtualizeLargeOutput,
                                 onTranscriptFontZoom = viewModel::onTranscriptFontZoom,
                                 onToggleBlock = viewModel::toggleBlockCollapsed,
@@ -533,6 +539,29 @@ private fun MainScreenBody(viewModel: MainViewModel, state: UiState, composerBac
                                 modifier = Modifier.fillMaxSize(),
                             )
                         }
+                        // The top shade and the glow of a running command are part of what the glass
+                        // sees, so a panel over them (the drawer) shows them through it, dimmed as
+                        // it dims the rest; they stay under the top buttons.
+                        Box(
+                            Modifier
+                                .fillMaxWidth()
+                                .height(topScrimHeight)
+                                .align(Alignment.TopStart)
+                                .background(
+                                    Brush.verticalGradient(
+                                        0f to Color.Black,
+                                        1f to Color.Transparent,
+                                    )
+                                ),
+                        )
+
+                        // The light of a running command comes down from the top edge, over the scrim and
+                        // under the top buttons.
+                        RunningGlow(
+                            running = current.running,
+                            settings = state.workspace.settings,
+                            modifier = Modifier.align(Alignment.TopCenter),
+                        )
                     }
                 }
 
@@ -544,26 +573,16 @@ private fun MainScreenBody(viewModel: MainViewModel, state: UiState, composerBac
                     composerBackdrop = composerBackdrop,
                     onSendBounds = { sendBounds = it },
                     onPanelBounds = { panelBounds = it },
-                    onAttach = { attachOpen = true },
+                    onAttach = {
+                        // The caret and its handle live above everything; they go, with the
+                        // keyboard, while the panel is open.
+                        focusManager.clearFocus()
+                        attachOpen = true
+                    },
                     modifier = Modifier
                         .align(Alignment.BottomStart)
                         .fillMaxWidth()
                         .onSizeChanged { bottomBarHeight = with(density) { it.height.toDp() } },
-                )
-
-                // Top scrim: same gradient as before, now sibling of Column
-                // so it sits above transcript but below TopBar.
-                Box(
-                    Modifier
-                        .fillMaxWidth()
-                        .height(topScrimHeight)
-                        .align(Alignment.TopStart)
-                        .background(
-                            Brush.verticalGradient(
-                                0f to Color.Black,
-                                1f to Color.Transparent,
-                            )
-                        ),
                 )
 
                 // Back to the newest output: in the send button's column, centred on it and the
@@ -576,14 +595,6 @@ private fun MainScreenBody(viewModel: MainViewModel, state: UiState, composerBac
                     panelTop = panelBounds.top,
                     origin = screenOrigin,
                     onClick = viewModel::requestJumpToBottom,
-                )
-
-                // The light of a running command comes down from the top edge, over the scrim and
-                // under the top buttons.
-                RunningGlow(
-                    running = current?.running == true,
-                    settings = state.workspace.settings,
-                    modifier = Modifier.align(Alignment.TopCenter),
                 )
 
                 // TopBar overlay — its internal menu scrim is now full-screen
@@ -626,6 +637,9 @@ private fun MainScreenBody(viewModel: MainViewModel, state: UiState, composerBac
         EditorOverlay(
             draft = current.draft,
             onDraftChange = viewModel::onComposerTextChange,
+            selection = state.composerSelection,
+            onSelectionChange = viewModel::setComposerSelection,
+            enterSends = state.workspace.settings.enterSends,
             onSend = viewModel::sendFromExpandedEditor,
             onClose = { viewModel.setEditorExpanded(false) },
         )
@@ -763,6 +777,9 @@ private fun BottomBar(
         }
     }
 }
+
+/** How long after one shell's end the ends of others go unannounced. */
+private const val EXIT_TOAST_QUIET_MS = 5_000L
 
 private val DOCK_BLEED = 2.dp
 private val DOCK_GAP = 3.dp

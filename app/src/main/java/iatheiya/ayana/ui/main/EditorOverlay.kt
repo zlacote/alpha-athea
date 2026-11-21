@@ -7,6 +7,17 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CloseFullscreen
 import androidx.compose.material3.Icon
@@ -22,14 +33,18 @@ import iatheiya.ayana.ui.theme.Ui
 import iatheiya.ayana.ui.theme.MessageStyle
 
 /**
- * Full-screen editing surface, chat-app style: plain text over the whole
- * canvas, a collapse control top-right, send bottom-right. Enter always
- * inserts a newline; submission happens only through the send button.
+ * Full-screen editing surface, chat-app style: plain text over the whole canvas, a collapse
+ * control top-right, send bottom-right. It opens with the cursor (or the selection) where it was
+ * in the composer, and Enter does what it does there: sends, when Enter sends commands.
  */
 @Composable
 fun EditorOverlay(
     draft: String,
     onDraftChange: (String) -> Unit,
+    /** The composer's own cursor or selection, shared with it both ways. */
+    selection: TextRange?,
+    onSelectionChange: (TextRange) -> Unit,
+    enterSends: Boolean,
     onSend: () -> Unit,
     onClose: () -> Unit,
     modifier: Modifier = Modifier,
@@ -43,14 +58,33 @@ fun EditorOverlay(
                 .fillMaxSize()
                 .safeDrawingPadding(),
         ) {
+            val focus = remember { FocusRequester() }
+            // Focused at once, so the keyboard is up and the cursor shows where it was.
+            LaunchedEffect(Unit) { focus.requestFocus() }
             BasicTextField(
-                value = draft,
-                onValueChange = onDraftChange,
+                value = TextFieldValue(
+                    text = draft,
+                    selection = selection?.let {
+                        TextRange(it.start.coerceIn(0, draft.length), it.end.coerceIn(0, draft.length))
+                    } ?: TextRange(draft.length),
+                ),
+                onValueChange = { value ->
+                    if (value.text != draft) onDraftChange(value.text)
+                    onSelectionChange(value.selection)
+                },
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(start = Ui.spaceL, end = EDITOR_LANE, top = Ui.spaceS, bottom = Ui.spaceS),
+                    .padding(start = Ui.spaceL, end = EDITOR_LANE, top = Ui.spaceS, bottom = Ui.spaceS)
+                    .focusRequester(focus),
                 textStyle = MessageStyle.copy(color = MaterialTheme.colorScheme.onBackground),
                 cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                keyboardOptions = KeyboardOptions(
+                    capitalization = KeyboardCapitalization.None,
+                    keyboardType = KeyboardType.Text,
+                    // None keeps the IME newline key: multi-line drafts stay possible.
+                    imeAction = if (enterSends) ImeAction.Send else ImeAction.None,
+                ),
+                keyboardActions = KeyboardActions(onSend = { if (draft.isNotBlank()) onSend() }),
             )
             IconButton(
                 onClick = onClose,

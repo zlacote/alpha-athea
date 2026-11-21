@@ -47,7 +47,9 @@ import androidx.compose.material.icons.filled.Keyboard
 import androidx.compose.material.icons.filled.KeyboardCommandKey
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Terminal
-import androidx.compose.material.icons.filled.LightMode
+import androidx.compose.material.icons.filled.BlurOn
+import androidx.compose.material.icons.filled.TextFields
+import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -74,7 +76,7 @@ import iatheiya.ayana.util.copyToClipboard
 import java.io.File
 
 /** Which room of the settings is on screen: the entry list or one of its sub-rooms. */
-internal enum class SettingsPane { ROOT, INPUT, OUTPUT, APPEARANCE, ABOUT }
+internal enum class SettingsPane { ROOT, INPUT, OUTPUT, NOTIFICATIONS, APPEARANCE, FONT, ABOUT }
 
 @Composable
 internal fun SettingsScreen(
@@ -118,6 +120,8 @@ internal fun SettingsScreen(
     appearance: AppearanceState,
     appearanceActions: AppearanceActions,
     scrollState: ScrollState,
+    /** The glow's card, for the Notifications room. */
+    glowCard: @Composable () -> Unit,
     /** Everything back to how Ayana ships: every room's settings, the keys, the glass. */
     onResetAll: () -> Unit,
     onBack: () -> Unit,
@@ -154,12 +158,30 @@ internal fun SettingsScreen(
                         title = stringResource(R.string.settings_section_output),
                         onClick = { onPaneChange(SettingsPane.OUTPUT) },
                     )
+                    SettingsDivider()
+                    SettingsEntryRow(
+                        icon = Icons.Outlined.Notifications,
+                        title = stringResource(R.string.settings_section_notifications),
+                        onClick = { onPaneChange(SettingsPane.NOTIFICATIONS) },
+                    )
                 }
                 SettingsCard {
                     SettingsEntryRow(
                         icon = Icons.Default.Palette,
                         title = stringResource(R.string.settings_section_appearance),
                         onClick = { onPaneChange(SettingsPane.APPEARANCE) },
+                    )
+                    SettingsDivider()
+                    SettingsEntryRow(
+                        icon = Icons.Default.BlurOn,
+                        title = stringResource(R.string.glass_title),
+                        onClick = appearanceActions.onOpenGlassTuning,
+                    )
+                    SettingsDivider()
+                    SettingsEntryRow(
+                        icon = Icons.Default.TextFields,
+                        title = stringResource(R.string.appearance_font),
+                        onClick = { onPaneChange(SettingsPane.FONT) },
                     )
                     SettingsDivider()
                     SettingsEntryRow(
@@ -205,13 +227,6 @@ internal fun SettingsScreen(
                         subtitle = stringResource(R.string.settings_attach_sends_now_desc),
                         checked = attachSendsNow,
                         onChange = onAttachSendsNowChange,
-                    )
-                    SettingsDivider()
-                    SwitchRow(
-                        title = stringResource(R.string.settings_auto_scroll),
-                        subtitle = stringResource(R.string.settings_auto_scroll_desc),
-                        checked = autoScrollOnSend,
-                        onChange = onAutoScrollOnSendChange,
                     )
                 }
                 // Favorites at all, and what a tap on one does: it waits in the input (Nothing),
@@ -281,7 +296,19 @@ internal fun SettingsScreen(
                         range = 1f..10f,
                         onChange = onPreviewLinesChange,
                     )
+                    SettingsDivider()
+                    SwitchRow(
+                        title = stringResource(R.string.settings_auto_scroll),
+                        subtitle = stringResource(R.string.settings_auto_scroll_desc),
+                        checked = autoScrollOnSend,
+                        onChange = onAutoScrollOnSendChange,
+                    )
                 }
+            }
+
+            // How a command tells you about itself: its end, felt or in the notifications, and the
+            // light at the top edge while it runs.
+            SettingsPane.NOTIFICATIONS -> AyanaPage(stringResource(R.string.settings_section_notifications)) {
                 // A long command's end: felt, or seen in the notifications while Ayana is away. The
                 // switch turns on only once notifications are allowed: asked for in a dialog, or,
                 // when Android no longer shows one, in the app's notification settings.
@@ -316,17 +343,14 @@ internal fun SettingsScreen(
                         onChange = onLongCommandSecChange,
                         enabled = signalLongCommands,
                     )
-                    SettingsDivider()
-                    // The light at the top edge while a command runs: how a running command shows.
-                    SettingsEntryRow(
-                        icon = Icons.Default.LightMode,
-                        title = stringResource(R.string.settings_glow_section),
-                        onClick = appearanceActions.onOpenGlow,
-                    )
                 }
+                // The light at the top edge while a command runs: how a running command shows.
+                glowCard()
             }
 
             SettingsPane.APPEARANCE -> AppearancePane(state = appearance, actions = appearanceActions, scrollState = appearanceScroll)
+
+            SettingsPane.FONT -> FontPane(state = appearance, actions = appearanceActions)
 
             SettingsPane.ABOUT -> AyanaPage(stringResource(R.string.settings_about)) {
                 // The icon's light as the room's emblem, across the whole width.
