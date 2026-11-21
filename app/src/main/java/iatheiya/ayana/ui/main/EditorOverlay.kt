@@ -1,5 +1,8 @@
 package iatheiya.ayana.ui.main
 
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -60,16 +63,40 @@ fun EditorOverlay(
             val focus = remember { FocusRequester() }
             // Focused at once, so the keyboard is up and the cursor shows where it was.
             LaunchedEffect(Unit) { focus.requestFocus() }
+            // The field holds its own value while it is open and tells the app of every change.
+            // Fed back through the app instead, each step of a selection being dragged arrived a
+            // frame late, and the dragged end jumped back and forth at the edge of the screen.
+            var value by remember {
+                mutableStateOf(
+                    TextFieldValue(
+                        text = draft,
+                        selection = selection?.let {
+                            TextRange(it.start.coerceIn(0, draft.length), it.end.coerceIn(0, draft.length))
+                        } ?: TextRange(draft.length),
+                    ),
+                )
+            }
+            // A change made elsewhere (a favorite, a key) still comes in: a draft that is neither
+            // the field's own text nor the last text it sent out. Its own text comes back a frame
+            // after it is typed, and must not be taken for a change from elsewhere.
+            val sent = remember { ArrayDeque<String>() }
+            val echo = sent.indexOf(draft)
+            if (echo >= 0) {
+                // Our own text, coming back: what was sent before it is past.
+                repeat(echo + 1) { sent.removeFirst() }
+            } else if (draft != value.text) {
+                value = TextFieldValue(draft, TextRange(draft.length))
+            }
             BasicTextField(
-                value = TextFieldValue(
-                    text = draft,
-                    selection = selection?.let {
-                        TextRange(it.start.coerceIn(0, draft.length), it.end.coerceIn(0, draft.length))
-                    } ?: TextRange(draft.length),
-                ),
-                onValueChange = { value ->
-                    if (value.text != draft) onDraftChange(value.text)
-                    onSelectionChange(value.selection)
+                value = value,
+                onValueChange = { next ->
+                    val changed = next.text != value.text
+                    value = next
+                    if (changed) {
+                        sent.addLast(next.text)
+                        onDraftChange(next.text)
+                    }
+                    onSelectionChange(next.selection)
                 },
                 modifier = Modifier
                     .fillMaxSize()

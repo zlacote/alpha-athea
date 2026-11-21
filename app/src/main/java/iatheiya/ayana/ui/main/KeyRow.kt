@@ -121,20 +121,20 @@ object DefaultKeys {
 
     // Two rows of seven: what a shell asks for most and a phone keyboard hides. The keys it has
     // no key for at all (Esc, Tab, Ctrl, the arrows, Home, End), and the symbols it keeps a page
-    // or two away: - for every flag, ~ for home, | for pipes, / for paths.
-    //   ESC  -     ~   HOME  ↑  END  |
-    //   TAB  CTRL  FN  ←     ↓  →    /
+    // or two away: | for pipes, ~ for home, / for paths, - for every flag.
+    //   ESC  |     ~   HOME  ↑  END  /
+    //   TAB  CTRL  FN  ←     ↓  →    -
     // The grid is column-major, so the list runs down each column in turn. Ctrl is a modifier:
     // press it, then the next key, from the row or the keyboard, combines with it. FN swaps every
     // other key for the second layer below, until it is pressed again.
     val row = listOf(
         ESC, TAB,
-        DASH, CTRL,
+        PIPE, CTRL,
         TILDE, FN,
         HOME, LEFT,
         UP, DOWN,
         END, RIGHT,
-        PIPE, SLASH,
+        SLASH, DASH,
     )
 
     private fun function(n: Int, sequence: String) = TerminalKey("F$n", KeyActionKind.SEND_TO_TERMINAL, sequence)

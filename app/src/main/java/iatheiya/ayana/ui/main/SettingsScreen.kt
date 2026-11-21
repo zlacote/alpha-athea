@@ -218,16 +218,8 @@ internal fun SettingsScreen(
                         onChange = onDownSetsDraftAsideChange,
                     )
                 }
-                // Sending: where the transcript goes after a send, the commands the + menu makes,
-                // and favorites, with what a tap on one does.
+                // The commands made for you to send: by the + menu, and the favorites.
                 SettingsCard {
-                    SwitchRow(
-                        title = stringResource(R.string.settings_auto_scroll),
-                        subtitle = stringResource(R.string.settings_auto_scroll_desc),
-                        checked = autoScrollOnSend,
-                        onChange = onAutoScrollOnSendChange,
-                    )
-                    SettingsDivider()
                     SwitchRow(
                         title = stringResource(R.string.settings_attach_sends_now),
                         subtitle = stringResource(R.string.settings_attach_sends_now_desc),
@@ -274,26 +266,10 @@ internal fun SettingsScreen(
                 }
                 SettingsCard {
                     SwitchRow(
-                        title = stringResource(R.string.settings_raw_stream),
-                        subtitle = stringResource(R.string.settings_raw_stream_desc),
-                        checked = rawStream,
-                        onChange = onRawStreamChange,
-                    )
-                    SettingsDivider()
-                    SwitchRow(
-                        title = stringResource(R.string.settings_virtualize),
-                        subtitle = stringResource(R.string.settings_virtualize_desc),
-                        checked = virtualizeLargeOutput,
-                        onChange = onVirtualizeLargeOutputChange,
-                        // The raw stream is one continuous text, with no blocks to scroll inside.
-                        enabled = !rawStream,
-                    )
-                    SettingsDivider()
-                    SliderRow(
-                        title = stringResource(R.string.settings_preview_lines),
-                        value = previewLines,
-                        range = 1f..10f,
-                        onChange = onPreviewLinesChange,
+                        title = stringResource(R.string.settings_auto_scroll),
+                        subtitle = stringResource(R.string.settings_auto_scroll_desc),
+                        checked = autoScrollOnSend,
+                        onChange = onAutoScrollOnSendChange,
                     )
                 }
             }
@@ -340,7 +316,39 @@ internal fun SettingsScreen(
                 glowCard()
             }
 
-            SettingsPane.APPEARANCE -> AppearancePane(state = appearance, actions = appearanceActions, scrollState = appearanceScroll)
+            SettingsPane.APPEARANCE -> AppearancePane(
+                state = appearance,
+                actions = appearanceActions,
+                scrollState = appearanceScroll,
+                // How the answers look: as a raw stream or in blocks, how a large one is held, how
+                // much of a folded one shows.
+                outputCard = {
+                    SettingsCard {
+                        SwitchRow(
+                            title = stringResource(R.string.settings_raw_stream),
+                            subtitle = stringResource(R.string.settings_raw_stream_desc),
+                            checked = rawStream,
+                            onChange = onRawStreamChange,
+                        )
+                        SettingsDivider()
+                        SwitchRow(
+                            title = stringResource(R.string.settings_virtualize),
+                            subtitle = stringResource(R.string.settings_virtualize_desc),
+                            checked = virtualizeLargeOutput,
+                            onChange = onVirtualizeLargeOutputChange,
+                            // The raw stream is one continuous text, with no blocks to scroll inside.
+                            enabled = !rawStream,
+                        )
+                        SettingsDivider()
+                        SliderRow(
+                            title = stringResource(R.string.settings_preview_lines),
+                            value = previewLines,
+                            range = 1f..10f,
+                            onChange = onPreviewLinesChange,
+                        )
+                    }
+                },
+            )
 
             SettingsPane.FONT -> FontPane(state = appearance, actions = appearanceActions)
 

@@ -174,13 +174,19 @@ half4 main(float2 xy) {
 
     float depth = clamp(-sdf / bezelWidth, 0.0, 1.0);
     float edge = circleMap(1.0 - depth);
-    float shift = bend * edge;
+    // A rim draws its light from further in, never from past the middle: bent further than
+    // that (a strong bend on a slim pill), the top rim showed what lies under the bottom one and
+    // the bottom rim what lies over the top, and the two halves met in a hard line, each showing
+    // the other's side. The room to the middle shrinks to nothing there, so the bend does too.
+    float toMiddle = max(minHalf + sdf, 0.0) * 0.95;
+    float shift = min(bend * edge, toMiddle);
 
     // The chromatic fringe splits the channels along the normal near the rim. It is
     // scaled to real pixels and keyed to the edge, not to the bend, so it stays visible
-    // even with little or no bend. 14px at full strength reads clearly at the rim.
+    // even with little or no bend. 14px at full strength reads clearly at the rim. It keeps
+    // to the same side of the middle as the bend.
     float spread = chroma * edge * 14.0;
-    half rChannel = content.eval(xy - n * (shift + spread)).r;
+    half rChannel = content.eval(xy - n * min(shift + spread, toMiddle)).r;
     half gChannel = content.eval(xy - n * shift).g;
     half bChannel = content.eval(xy - n * (shift - spread)).b;
     half3 refracted = half3(rChannel, gChannel, bChannel);

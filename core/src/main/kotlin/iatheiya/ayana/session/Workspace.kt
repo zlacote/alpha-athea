@@ -386,9 +386,12 @@ class Workspace(
         val id = _state.value.currentSessionId ?: return
         val suggestion = _state.value.suggestion ?: return
         // A suggestion left over from an earlier draft is not shown on an empty field, so it is not taken.
-        if (_state.value.sessions.firstOrNull { it.id == id }?.draft.isNullOrEmpty()) return
-        mutateMeta(id) { it.copy(draft = suggestion) }
-        _state.update { it.copy(suggestion = null) }
+        val draft = _state.value.sessions.firstOrNull { it.id == id }?.draft.orEmpty()
+        if (draft.isEmpty()) return
+        // One line at a time, as it is shown: the rest of this line, or the next line.
+        val step = suggestionStep(draft, suggestion) ?: return
+        mutateMeta(id) { it.copy(draft = draft + step) }
+        if (!suggestionHasMore(draft, suggestion, step)) _state.update { it.copy(suggestion = null) }
     }
 
     /**

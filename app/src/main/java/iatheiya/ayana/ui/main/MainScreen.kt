@@ -1,5 +1,7 @@
 package iatheiya.ayana.ui.main
 
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.ui.zIndex
 import iatheiya.ayana.session.Attachments
 import iatheiya.ayana.ui.common.AyanaDrawer
 import iatheiya.ayana.ui.common.rememberAyanaDrawerState
@@ -386,6 +388,8 @@ private fun MainScreenBody(viewModel: MainViewModel, state: UiState, composerBac
     val density = LocalDensity.current
     // Measured height of the composer and key row: the transcript keeps its last line above them.
     var bottomBarHeight by remember { mutableStateOf(0.dp) }
+    // The same height in pixels, read by the transcript while it is laid out (see BottomBar).
+    val barHeightPx = remember { mutableIntStateOf(0) }
     // The transcript is scrolled up from its end: the composer offers a jump back down.
     var jumpAvailable by remember { mutableStateOf(false) }
     // Where the send circle is, and where this screen's box is, both in window coordinates.
@@ -484,6 +488,32 @@ private fun MainScreenBody(viewModel: MainViewModel, state: UiState, composerBac
                     .background(MaterialTheme.colorScheme.background)
                     .onGloballyPositioned { screenOrigin = it.positionInRoot() },
             ) {
+                // The bottom bar is measured first, so the transcript's room under it is known in
+                // the same layout that changes it: a send that shrinks the composer moves the
+                // newest message down with it at once, not a frame later.
+                BottomBar(
+                    viewModel = viewModel,
+                    state = state,
+                    draft = if (current != null) current.draft.orEmpty() else "",
+                    suggestion = if (state.workspace.search == null) state.workspace.suggestion else null,
+                    composerBackdrop = composerBackdrop,
+                    onSendBounds = { sendBounds = it },
+                    onPanelBounds = { panelBounds = it },
+                    onAttach = { attachOpen = true },
+                    // The caret and its handle (which lives above everything) step aside while the
+                    // + panel is open; the keyboard stays.
+                    caretHidden = attachOpen,
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .fillMaxWidth()
+                        // Drawn over the transcript, though measured before it.
+                        .zIndex(1f)
+                        .onSizeChanged {
+                            barHeightPx.intValue = it.height
+                            bottomBarHeight = with(density) { it.height.toDp() }
+                        },
+                )
+
                 // Transcript fills the available area; the bottom bar
                 // (InputBar + key row) floats above it for both the
                 // session and the empty state, wired in exactly one place.
@@ -520,6 +550,7 @@ private fun MainScreenBody(viewModel: MainViewModel, state: UiState, composerBac
                                 previewLines = state.workspace.settings.previewLines,
                                 contentTopPadding = statusBarTop + Ui.topBarContentTop,
                                 contentBottomPadding = overlayBottom,
+                                contentBottomPaddingNow = { with(density) { barHeightPx.intValue.toDp() } + Ui.contentPaddingV },
                                 onJumpAvailableChange = { jumpAvailable = it },
                                 pinchZoomEnabled = state.workspace.settings.pinchZoomEnabled,
                                 greetingAnimated = state.workspace.settings.greetingAnimated || current.id == state.workspace.settings.introSessionId,
@@ -568,41 +599,25 @@ private fun MainScreenBody(viewModel: MainViewModel, state: UiState, composerBac
                     }
                 }
 
-                BottomBar(
-                    viewModel = viewModel,
-                    state = state,
-                    draft = if (current != null) current.draft.orEmpty() else "",
-                    suggestion = if (state.workspace.search == null) state.workspace.suggestion else null,
-                    composerBackdrop = composerBackdrop,
-                    onSendBounds = { sendBounds = it },
-                    onPanelBounds = { panelBounds = it },
-                    onAttach = { attachOpen = true },
-                    // The caret and its handle (which lives above everything) step aside while the
-                    // + panel is open; the keyboard stays.
-                    caretHidden = attachOpen,
-                    modifier = Modifier
-                        .align(Alignment.BottomStart)
-                        .fillMaxWidth()
-                        .onSizeChanged { bottomBarHeight = with(density) { it.height.toDp() } },
-                )
-
                 // Back to the newest output: in the send button's column, centred on it and the
                 // same size, a fixed distance above the top of the panel (composer or search),
                 // so a tall draft pushes it up rather than covering it. Placed from measured
                 // positions, not by hand.
-                JumpDownButton(
-                    visible = jumpAvailable && sendBounds != Rect.Zero && panelBounds != Rect.Zero,
-                    centreX = sendBounds.center.x,
-                    panelTop = panelBounds.top,
-                    origin = screenOrigin,
-                    onClick = viewModel::requestJumpToBottom,
-                )
+                Box(Modifier.zIndex(2f)) {
+                    JumpDownButton(
+                        visible = jumpAvailable && sendBounds != Rect.Zero && panelBounds != Rect.Zero,
+                        centreX = sendBounds.center.x,
+                        panelTop = panelBounds.top,
+                        origin = screenOrigin,
+                        onClick = viewModel::requestJumpToBottom,
+                    )
+                }
 
                 // TopBar overlay — its internal menu scrim is now full-screen
                 // (covers transcript + composer + key row) because TopBar
                 // fills the outer Box, not just the transcript Box.
                 TopBar(
-                    modifier = Modifier.align(Alignment.TopCenter),
+                    modifier = Modifier.align(Alignment.TopCenter).zIndex(2f),
                     hasMessages = current?.blocks?.isNotEmpty() == true,
                     pinned = current?.pinned ?: false,
                     onOpenDrawer = { drawerState.open() },
@@ -614,20 +629,22 @@ private fun MainScreenBody(viewModel: MainViewModel, state: UiState, composerBac
                 )
 
                 // Context menus (a long-pressed message) open in the screen, above everything.
-                LocalContextMenu.current?.let { ContextMenuLayer(it) }
+                LocalContextMenu.current?.let { Box(Modifier.fillMaxSize().zIndex(2f)) { ContextMenuLayer(it) } }
 
-                // The + panel grows out of the composer's lower left corner.
-                AttachPanel(
-                    open = attachOpen,
-                    anchor = panelBounds,
-                    origin = screenOrigin,
-                    choices = listOf(
-                        AttachChoice(Icons.Filled.ContentCopy, stringResource(R.string.attach_copy)) { pickFiles(Attachments.COPY) },
-                        AttachChoice(Icons.Filled.InsertLink, stringResource(R.string.attach_link)) { pickFiles(Attachments.LINK) },
-                        AttachChoice(Icons.Filled.TextFields, stringResource(R.string.attach_path)) { pickFiles(Attachments.PATH) },
-                    ),
-                    onDismiss = { attachOpen = false },
-                )
+                // The + panel grows up from the composer's top left corner.
+                Box(Modifier.fillMaxSize().zIndex(2f)) {
+                    AttachPanel(
+                        open = attachOpen,
+                        anchor = panelBounds,
+                        origin = screenOrigin,
+                        choices = listOf(
+                            AttachChoice(Icons.Filled.ContentCopy, stringResource(R.string.attach_copy)) { pickFiles(Attachments.COPY) },
+                            AttachChoice(Icons.Filled.InsertLink, stringResource(R.string.attach_link)) { pickFiles(Attachments.LINK) },
+                            AttachChoice(Icons.Filled.TextFields, stringResource(R.string.attach_path)) { pickFiles(Attachments.PATH) },
+                        ),
+                        onDismiss = { attachOpen = false },
+                    )
+                }
             }
         }
     }

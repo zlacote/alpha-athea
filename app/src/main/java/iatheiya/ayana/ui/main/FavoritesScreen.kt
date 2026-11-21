@@ -1,5 +1,10 @@
 package iatheiya.ayana.ui.main
 
+import androidx.compose.animation.core.VisibilityThreshold
+import androidx.compose.ui.unit.IntSize
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -318,6 +323,9 @@ private fun FavoriteBubble(
     var open by remember(favorite.id) { mutableStateOf(false) }
     var overflows by remember(favorite.text) { mutableStateOf(false) }
     var bounds by remember { mutableStateOf(Rect.Zero) }
+    // Only an opening or folding by hand glides: a folded command shows folded from the start,
+    // with no fold played as the screen opens.
+    var foldByHand by remember { mutableStateOf(false) }
     Column(
         Modifier
             .fillMaxWidth()
@@ -326,7 +334,10 @@ private fun FavoriteBubble(
             .clip(Ui.bubbleShape)
             .then(if (fill != null) Modifier.background(fill) else Modifier.glass(Ui.bubbleShape))
             .combinedClickable(onClick = onUse, onLongClick = { onMenu(bounds) })
-            .animateContentSize()
+            .animateContentSize(
+                if (foldByHand) spring(stiffness = Spring.StiffnessMediumLow, visibilityThreshold = IntSize.VisibilityThreshold) else snap(),
+                finishedListener = { _, _ -> foldByHand = false },
+            )
             .padding(horizontal = Ui.bubblePaddingH, vertical = Ui.spaceM),
     ) {
         Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(Ui.spaceS)) {
@@ -358,7 +369,10 @@ private fun FavoriteBubble(
                     .padding(top = Ui.spaceXs)
                     .size(Ui.chevronExpandSize)
                     .rotate(if (open) 180f else 0f)
-                    .clickable { open = !open },
+                    .clickable {
+                        foldByHand = true
+                        open = !open
+                    },
             )
         }
     }

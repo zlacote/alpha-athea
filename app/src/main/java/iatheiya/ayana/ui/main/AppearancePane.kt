@@ -147,7 +147,13 @@ internal fun tintWhenEnabled(lastArgb: Long?): Pair<String, Long?> =
  * glass on purpose: it tints the glass when glass is on and the solid tone when it is off.
  */
 @Composable
-internal fun AppearancePane(state: AppearanceState, actions: AppearanceActions, scrollState: ScrollState) {
+internal fun AppearancePane(
+    state: AppearanceState,
+    actions: AppearanceActions,
+    scrollState: ScrollState,
+    /** How the answers look; owned by the caller, which holds those settings. */
+    outputCard: @Composable () -> Unit,
+) {
     val pickWallpaper = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) actions.onWallpaperPicked(uri)
     }
@@ -208,7 +214,7 @@ internal fun AppearancePane(state: AppearanceState, actions: AppearanceActions, 
         }
 
 
-        // Then the screen itself: full screen, kept awake, the greeting on an empty chat.
+        // Then the screen itself: full screen, and kept awake.
         SettingsCard {
             SwitchRow(
                 title = stringResource(R.string.settings_immersive),
@@ -237,7 +243,13 @@ internal fun AppearancePane(state: AppearanceState, actions: AppearanceActions, 
                     onDismiss = { choosingAwake = false },
                 )
             }
-            SettingsDivider()
+        }
+
+        // The answers in the chat.
+        outputCard()
+
+        // The greeting of an empty chat.
+        SettingsCard {
             SwitchRow(
                 title = stringResource(R.string.appearance_greeting_animated),
                 checked = state.greetingAnimated,

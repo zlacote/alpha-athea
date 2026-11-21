@@ -1,5 +1,7 @@
 package iatheiya.ayana.ui.main
 
+import iatheiya.ayana.session.suggestionStep
+import iatheiya.ayana.session.suggestionHasMore
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.foundation.text.selection.TextSelectionColors
 import androidx.compose.foundation.text.selection.LocalTextSelectionColors
@@ -563,16 +565,16 @@ internal fun SendCircleButton(
 private const val HINT_ALPHA = 0.72f
 
 /**
- * Shows the rest of [suggestion] after the end of [draft], in [colour], as if it were part of the
- * text: laid out with it, so it starts right after its last character and wraps with it, on
- * whatever line that is. The cursor and the selection never enter it. Only once something is
- * typed: an empty field shows the prompt alone.
+ * Shows the next part of [suggestion] after the end of [draft], in [colour], as if it were part
+ * of the text: laid out with it, so it starts right after its last character and wraps with it.
+ * Only one line of it at a time (the rest of this line, or the next line), and an ellipsis when
+ * more follows, as Tab takes that one line too. The cursor and the selection never enter it.
+ * Only once something is typed: an empty field shows the prompt alone.
  */
 private fun ghostTail(draft: String, suggestion: String?, colour: Color): VisualTransformation {
-    if (draft.isEmpty() || suggestion == null || suggestion.length <= draft.length || !suggestion.startsWith(draft)) {
-        return VisualTransformation.None
-    }
-    val tail = suggestion.substring(draft.length)
+    val step = suggestionStep(draft, suggestion) ?: return VisualTransformation.None
+    val more = suggestion != null && suggestionHasMore(draft, suggestion, step)
+    val tail = if (more) step + GHOST_MORE else step
     return VisualTransformation { text ->
         val shown = buildAnnotatedString {
             append(text)
@@ -587,3 +589,6 @@ private fun ghostTail(draft: String, suggestion: String?, colour: Color): Visual
         )
     }
 }
+
+/** Marks a suggestion that goes on past the line shown. */
+private const val GHOST_MORE = "\u2026"

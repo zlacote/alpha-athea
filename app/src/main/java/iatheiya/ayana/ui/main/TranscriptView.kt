@@ -1,5 +1,8 @@
 package iatheiya.ayana.ui.main
 
+import iatheiya.ayana.ui.common.pressWash
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.animation.core.VisibilityThreshold
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.animation.core.snap
@@ -184,6 +187,11 @@ fun TranscriptView(
     previewLines: Int,
     contentTopPadding: Dp,
     contentBottomPadding: Dp = Ui.contentPaddingV,
+    /**
+     * The room under the list, read while the list is laid out rather than when it is composed,
+     * so it follows the composer in the same frame. Falls back to [contentBottomPadding].
+     */
+    contentBottomPaddingNow: (() -> Dp)? = null,
     /** Whether the transcript is scrolled up from its end; the composer shows a jump-down button then. */
     onJumpAvailableChange: (Boolean) -> Unit = {},
     pinchZoomEnabled: Boolean,
@@ -405,10 +413,12 @@ fun TranscriptView(
                 modifier = Modifier
                     .fillMaxSize()
                     .then(if (pinchZoomEnabled) Modifier.pinchToZoom(onTranscriptFontZoom) else Modifier),
-                contentPadding = PaddingValues(
-                    top = contentTopPadding + Ui.contentPaddingV,
-                    bottom = contentBottomPadding,
-                ),
+                contentPadding = remember(contentTopPadding, contentBottomPadding, contentBottomPaddingNow) {
+                    LivePadding(
+                        top = contentTopPadding + Ui.contentPaddingV,
+                        bottom = contentBottomPaddingNow ?: { contentBottomPadding },
+                    )
+                },
             ) {
                 items(listItems, key = { item ->
                     when (item) {
@@ -858,7 +868,16 @@ private fun OutputFooter(
             .padding(top = Ui.keyRowPaddingV),
         contentAlignment = Alignment.Center,
     ) {
-        TextButton(onClick = onCopy, modifier = Modifier.align(Alignment.CenterStart)) {
+        // Its press shows as the same soft wash as the glass buttons', in its own rounded shape.
+        val copySource = remember { MutableInteractionSource() }
+        TextButton(
+            onClick = onCopy,
+            interactionSource = copySource,
+            modifier = Modifier
+                .align(Alignment.CenterStart)
+                .clip(ButtonDefaults.textShape)
+                .background(pressWash(copySource)),
+        ) {
             Icon(
                 Icons.Default.ContentCopy,
                 contentDescription = null,
@@ -1106,3 +1125,11 @@ private const val ITEM_FADE_MS = 180
 
 /** How strongly a held message is washed with its own ink. */
 private const val BUBBLE_PRESS_ALPHA = 0.18f
+
+/** Padding whose bottom is read each time the list is laid out, not fixed when it is composed. */
+private class LivePadding(private val top: Dp, private val bottom: () -> Dp) : PaddingValues {
+    override fun calculateLeftPadding(layoutDirection: LayoutDirection): Dp = 0.dp
+    override fun calculateRightPadding(layoutDirection: LayoutDirection): Dp = 0.dp
+    override fun calculateTopPadding(): Dp = top
+    override fun calculateBottomPadding(): Dp = bottom()
+}
