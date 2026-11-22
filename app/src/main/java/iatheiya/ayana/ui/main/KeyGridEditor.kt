@@ -132,7 +132,7 @@ fun KeyGridEditor(
         val dragAt = remember { DragPlace() }
         fun targetNow(from: Int): Int = targetFor(
             from,
-            dragAt.moved + Offset(scroll.value - dragAt.startScroll, 0f),
+            dragAt.moved + Offset((scroll.value - dragAt.startScroll).toFloat(), 0f),
             pitchXpx, pitchYpx, rowCount, keys.size,
         )
         // Held at an edge, the carried key turns the page that way, and on while it stays.
@@ -229,7 +229,7 @@ fun KeyGridEditor(
                                         val moved = ghost.offset.value + delta
                                         scope.launch { ghost.offset.snapTo(moved) }
                                         dragAt.moved = moved
-                                        val inGrid = moved + Offset(scroll.value - dragAt.startScroll, 0f)
+                                        val inGrid = moved + Offset((scroll.value - dragAt.startScroll).toFloat(), 0f)
                                         val outside = isFarOutside(index, inGrid, pitchXpx, pitchYpx, rowCount, columns.size)
                                         ghost.outside = outside
                                         // At an edge of the visible page, the hold starts there.
@@ -252,7 +252,7 @@ fun KeyGridEditor(
                                         // was far outside), and only then does the list reorder.
                                         scope.launch {
                                             ghost.offset.animateTo(
-                                                slotOffset(to) - slotOffset(from) - Offset(scroll.value - dragAt.startScroll, 0f),
+                                                slotOffset(to) - slotOffset(from) - Offset((scroll.value - dragAt.startScroll).toFloat(), 0f),
                                                 tween(durationMillis = 160),
                                             )
                                             if (to != from) onKeysChange(swapItems(keys, from, to))
