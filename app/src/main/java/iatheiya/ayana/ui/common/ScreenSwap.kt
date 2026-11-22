@@ -10,7 +10,6 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
-import androidx.compose.animation.togetherWith
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.layout.fillMaxSize
@@ -57,8 +56,7 @@ private fun screenSwap(forward: Boolean, scaleIn: Boolean, scaleOut: Boolean): C
         exit += scaleOut(tween(SWAP_MS, easing = FastOutSlowInEasing), targetScale = if (forward) SWAP_FAR else SWAP_NEAR)
     }
     // The screen coming in is drawn above the one leaving, either way.
-    return (enter togetherWith exit).apply { targetContentZIndex = 1f }
-        .using(SizeTransform(clip = false))
+    return ContentTransform(enter, exit, targetContentZIndex = 1f, sizeTransform = SizeTransform(clip = false))
 }
 
 /** How long a swap takes, for whatever must wait until the leaving screen is gone. */
