@@ -109,8 +109,8 @@ private const val DEGREES_TO_RADIANS = 0.017453292f
 
 /**
  * Lens in AGSL. Inside a rounded rectangle the backdrop is sampled from nearer the
- * centre, so it is magnified toward the rim. The bend follows a circular profile:
- * strongest at the rim and falling to zero across the bezel. Each colour channel
+ * centre, so it is magnified toward the rim. The bend is strongest at the rim and falls to
+ * zero across the bezel, gently enough that the picture is never folded. Each colour channel
  * is sampled at a slightly different offset, which gives the prismatic fringe.
  * A thin highlight catches the rim on the side that faces the light.
  * Outside the lens the backdrop passes through untouched.
@@ -144,11 +144,6 @@ float2 outwardNormal(float2 p, float2 halfSize, float r, float softness) {
     return s * normalize(soft + float2(1e-4));
 }
 
-// 1 at the rim, 0 at the inner edge of the bezel, along a quarter circle.
-float circleMap(float x) {
-    return 1.0 - sqrt(max(1.0 - x * x, 0.0));
-}
-
 half4 main(float2 xy) {
     float2 halfSize = lensSize * 0.5;
     float2 p = xy - halfSize;
@@ -173,20 +168,23 @@ half4 main(float2 xy) {
     float2 n = outwardNormal(p, halfSize, r, max(bezelWidth * 0.25, 1.0));
 
     float depth = clamp(-sdf / bezelWidth, 0.0, 1.0);
-    float edge = circleMap(1.0 - depth);
-    // A rim draws its light from further in, never from past the middle: bent further than
-    // that (a strong bend on a slim pill), the top rim showed what lies under the bottom one and
-    // the bottom rim what lies over the top, and the two halves met in a hard line, each showing
-    // the other's side. The room to the middle shrinks to nothing there, so the bend does too.
-    float toMiddle = max(minHalf + sdf, 0.0) * 0.95;
-    float shift = min(bend * edge, toMiddle);
+    // How the bezel bends: a point at a depth into the bezel shows what lies a little deeper in,
+    // most at the rim, nothing at the bezel's inner edge. The amount falls off as the square of
+    // the way left to that edge, and is held to under half the bezel, so going inward always
+    // shows what lies further inward: the picture is magnified toward the middle in one piece,
+    // never folded back on itself. (The steeper quarter circle used before folded it near the
+    // rim, so each half of a slim pill showed its own mirrored lens, and the two met in a seam.)
+    // Held inside the bezel, which stops short of the middle, it never draws from the other side.
+    float inner = 1.0 - depth;
+    float profile = inner * inner;
+    float reach = 0.45 * bezelWidth;
+    float shift = min(bend, reach) * profile;
 
-    // The chromatic fringe splits the channels along the normal near the rim. It is
-    // scaled to real pixels and keyed to the edge, not to the bend, so it stays visible
-    // even with little or no bend. 14px at full strength reads clearly at the rim. It keeps
-    // to the same side of the middle as the bend.
-    float spread = chroma * edge * 14.0;
-    half rChannel = content.eval(xy - n * min(shift + spread, toMiddle)).r;
+    // The chromatic fringe splits the channels along the normal near the rim, keyed to the bezel,
+    // not to the bend, so it shows even with little or no bend; 14px at full strength. Bend and
+    // fringe together stay within the same reach, so no channel folds either.
+    float spread = min(chroma * 14.0, max(reach - min(bend, reach), 0.0)) * profile;
+    half rChannel = content.eval(xy - n * (shift + spread)).r;
     half gChannel = content.eval(xy - n * shift).g;
     half bChannel = content.eval(xy - n * (shift - spread)).b;
     half3 refracted = half3(rChannel, gChannel, bChannel);

@@ -1,5 +1,17 @@
 package iatheiya.ayana.ui.common
 
+import kotlin.math.roundToInt
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -54,7 +66,18 @@ fun <T> EqualCellGrid(
     val scrollState = rememberScrollState()
     val rowCount = rows.coerceAtLeast(1)
     val cols = columnsVisible.coerceAtLeast(1)
-    BoxWithConstraints(modifier.fillMaxWidth()) {
+    // Turned off its first screen, a swipe to the right is the grid's own way back, not the
+    // drawer's: it says so for the place it covers while it is away from its start.
+    val drawer = LocalAyanaDrawer.current
+    val owner = remember { Any() }
+    var bounds by remember { mutableStateOf(Rect.Zero) }
+    val away = scrollState.value > 0
+    LaunchedEffect(drawer, away, bounds) {
+        if (drawer == null) return@LaunchedEffect
+        if (away) drawer.swipeOwners[owner] = bounds else drawer.swipeOwners.remove(owner)
+    }
+    DisposableEffect(drawer) { onDispose { drawer?.swipeOwners?.remove(owner) } }
+    BoxWithConstraints(modifier.fillMaxWidth().onGloballyPositioned { bounds = it.boundsInRoot() }) {
         // maxWidth.value is a plain Float member, and Float.isFinite() is a
         // stdlib function. Compose's Dp.isFinite is a top-level extension
         // property and would need its own import; the stdlib route needs
@@ -67,6 +90,19 @@ fun <T> EqualCellGrid(
         val columns = items.chunked(rowCount)
         val rowGaps = if (rowSeparator != null) separatorWidth * (rowCount - 1) else 0.dp
         val columnHeight = cellHeight * rowCount + rowGaps + tail
+        // A swipe turns whole screens of [cols] columns, settling on the nearest one when the
+        // finger lets go, as the pages of a keyboard do.
+        val pageWidthPx = with(LocalDensity.current) { ((cellWidth + separatorWidth) * cols).toPx() }
+        LaunchedEffect(scrollState, pageWidthPx) {
+            if (pageWidthPx <= 0f) return@LaunchedEffect
+            snapshotFlow { scrollState.isScrollInProgress }.collect { moving ->
+                if (!moving) {
+                    val page = (scrollState.value / pageWidthPx).roundToInt()
+                    val target = (page * pageWidthPx).roundToInt().coerceIn(0, scrollState.maxValue)
+                    if (target != scrollState.value) scrollState.animateScrollTo(target)
+                }
+            }
+        }
         Row(
             Modifier
                 .fillMaxWidth()

@@ -58,12 +58,11 @@ internal fun keyModeLabel(mode: KeyMode): String = when (mode) {
 
 /**
  * The mode a stored key represents, read back from its kind + sticky/lock flags. The built-in
- * modifiers say what they do: Ctrl and Alt latch for the next key (sticky), FN stays on until it is
- * pressed again (lock).
+ * modifiers say what they do: Ctrl and Alt latch for the next key (sticky). FN, kept from rows
+ * made before it went, is read as Alt.
  */
 internal fun CustomKey.keyMode(): KeyMode = when {
-    kind == KeyKind.CTRL || kind == KeyKind.ALT -> KeyMode.STICKY
-    kind == KeyKind.FN -> KeyMode.LOCK
+    kind == KeyKind.CTRL || kind == KeyKind.ALT || kind == KeyKind.FN -> KeyMode.STICKY
     sticky && lock -> KeyMode.LOCK
     sticky -> KeyMode.STICKY
     kind == KeyKind.INSERT -> KeyMode.INSERT

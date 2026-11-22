@@ -1106,7 +1106,7 @@ private fun BlinkingCursor() {
 }
 
 /** Fades the last [height] of the content out to transparent: what is behind shows through, untouched. */
-private fun Modifier.fadeOutBottom(height: Dp): Modifier =
+internal fun Modifier.fadeOutBottom(height: Dp): Modifier =
     graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
         .drawWithContent {
             drawContent()

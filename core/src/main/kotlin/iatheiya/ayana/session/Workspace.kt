@@ -388,10 +388,11 @@ class Workspace(
         // A suggestion left over from an earlier draft is not shown on an empty field, so it is not taken.
         val draft = _state.value.sessions.firstOrNull { it.id == id }?.draft.orEmpty()
         if (draft.isEmpty()) return
-        // One line at a time, as it is shown: the rest of this line, or the next line.
-        val step = suggestionStep(draft, suggestion) ?: return
-        mutateMeta(id) { it.copy(draft = draft + step) }
-        if (!suggestionHasMore(draft, suggestion, step)) _state.update { it.copy(suggestion = null) }
+        // All of it, the lines not yet shown included: it is shown a line at a time only so that
+        // it never covers what is being written.
+        if (suggestionStep(draft, suggestion) == null) return
+        mutateMeta(id) { it.copy(draft = suggestion) }
+        _state.update { it.copy(suggestion = null) }
     }
 
     /**

@@ -123,6 +123,11 @@ fun Modifier.liquidGlass(
     flat: Boolean = false,
     /** The radius of the two bottom corners, when they differ from the top ones. */
     bottomCornerRadius: Dp = cornerRadius,
+    /**
+     * More to see, laid over [backdrop] where it lies on screen: glass above other glass (a
+     * panel over the composer) sees that glass and its words too, not only what is behind both.
+     */
+    over: LiquidBackdrop? = null,
 ): Modifier {
     // A render effect is only drawn through an offscreen buffer; without it the lens is dropped.
     val lensLayer = rememberGraphicsLayer().apply {
@@ -159,6 +164,10 @@ fun Modifier.liquidGlass(
                 }
                 lensLayer.record(this@onDrawWithContent, layoutDirection, pixels) {
                     drawBackdropMirrored(backdrop.layer, offset)
+                    if (over != null) {
+                        val above = placement.rootOrigin - over.rootOrigin
+                        translate(-above.x, -above.y) { drawLayer(over.layer) }
+                    }
                 }
                 if (lensEffect != null) {
                     val effect = lensEffect.effectFor(size, radiusPx, flat, bottomRadiusPx)

@@ -567,8 +567,9 @@ private const val HINT_ALPHA = 0.72f
 /**
  * Shows the next part of [suggestion] after the end of [draft], in [colour], as if it were part
  * of the text: laid out with it, so it starts right after its last character and wraps with it.
- * Only one line of it at a time (the rest of this line, or the next line), and an ellipsis when
- * more follows, as Tab takes that one line too. The cursor and the selection never enter it.
+ * Only one line of it at a time (the rest of this line, or, once the line is written, the next
+ * line), and an ellipsis when more follows; Tab still takes all of it. The cursor and the
+ * selection never enter it.
  * Only once something is typed: an empty field shows the prompt alone.
  */
 private fun ghostTail(draft: String, suggestion: String?, colour: Color): VisualTransformation {

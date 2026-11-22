@@ -1,5 +1,9 @@
 package iatheiya.ayana.ui.common
 
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
@@ -40,6 +44,13 @@ import kotlin.math.roundToInt
 class AyanaDrawerState internal constructor(private val scope: CoroutineScope) {
     internal val progress = Animatable(0f)
     internal var widthPx by mutableFloatStateOf(1f)
+
+    /**
+     * Places where a swipe to the right belongs to what is there, not to the drawer: a strip
+     * scrolled away from its start (the key row on its second screen) swipes back itself. In
+     * window coordinates, by whoever holds them.
+     */
+    val swipeOwners = mutableStateMapOf<Any, Rect>()
 
     /** Out at all: opening, open or closing. */
     val isVisible: Boolean get() = progress.value > 0f || progress.isRunning
@@ -115,37 +126,42 @@ fun AyanaDrawer(
     content: @Composable () -> Unit,
 ) {
     BackHandler(enabled = state.isVisible) { state.close() }
-    Box(
-        Modifier
-            .fillMaxSize()
-            .then(if (enabled) Modifier.drawerSwipes(state) else Modifier),
-    ) {
-        content()
-        val p = state.progress.value
-        if (p > 0f) {
-            Box(
-                Modifier
-                    .fillMaxSize()
-                    .background(Color.Black.copy(alpha = SCRIM_ALPHA * p))
-                    .pointerInput(state) {
-                        awaitEachGesture {
-                            awaitFirstDown()
-                            val up = awaitPointerEventUp()
-                            if (up) state.close()
-                        }
-                    },
-            )
-        }
+    CompositionLocalProvider(LocalAyanaDrawer provides state) {
         Box(
             Modifier
-                .onSizeChanged { state.widthPx = it.width.toFloat().coerceAtLeast(1f) }
-                .offset { IntOffset(((p - 1f) * state.widthPx).roundToInt(), 0) },
+                .fillMaxSize()
+                .then(if (enabled) Modifier.drawerSwipes(state) else Modifier),
         ) {
-            // Kept composed while hidden, so pulling it out does not stall on its first frame.
-            drawerContent()
+            content()
+            val p = state.progress.value
+            if (p > 0f) {
+                Box(
+                    Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = SCRIM_ALPHA * p))
+                        .pointerInput(state) {
+                            awaitEachGesture {
+                                awaitFirstDown()
+                                val up = awaitPointerEventUp()
+                                if (up) state.close()
+                            }
+                        },
+                )
+            }
+            Box(
+                Modifier
+                    .onSizeChanged { state.widthPx = it.width.toFloat().coerceAtLeast(1f) }
+                    .offset { IntOffset(((p - 1f) * state.widthPx).roundToInt(), 0) },
+            ) {
+                // Kept composed while hidden, so pulling it out does not stall on its first frame.
+                drawerContent()
+            }
         }
     }
 }
+
+/** The drawer around this content, for what must keep its swipes from it ([AyanaDrawerState.swipeOwners]). */
+val LocalAyanaDrawer = compositionLocalOf<AyanaDrawerState?> { null }
 
 private const val SCRIM_ALPHA = 0.4f
 
@@ -165,6 +181,8 @@ private fun Modifier.drawerSwipes(state: AyanaDrawerState): Modifier = pointerIn
     awaitEachGesture {
         val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
         val opening = state.progress.value < 0.5f
+        // A swipe that starts on something that swipes back by itself is left to it.
+        if (opening && state.swipeOwners.values.any { it.contains(down.position) }) return@awaitEachGesture
         var travel = Offset.Zero
         var dragging = false
         val tracker = VelocityTracker()

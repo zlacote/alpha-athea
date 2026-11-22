@@ -346,9 +346,12 @@ private fun FavoriteBubble(
                 style = messageStyle(),
                 color = ink,
                 maxLines = if (open) Int.MAX_VALUE else FAVORITE_PREVIEW_LINES,
-                overflow = TextOverflow.Ellipsis,
+                // Folded, its last lines fade out, as a folded message in the chat does.
+                overflow = TextOverflow.Clip,
                 onTextLayout = { layout: TextLayoutResult -> if (!open) overflows = layout.hasVisualOverflow },
-                modifier = Modifier.weight(1f),
+                modifier = Modifier
+                    .weight(1f)
+                    .then(if (!open && overflows) Modifier.fadeOutBottom(Ui.tailFadeHeight) else Modifier),
             )
             if (favorite.pinned) {
                 Icon(

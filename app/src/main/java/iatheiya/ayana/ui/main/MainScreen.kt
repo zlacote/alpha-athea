@@ -390,6 +390,8 @@ private fun MainScreenBody(viewModel: MainViewModel, state: UiState, composerBac
     var bottomBarHeight by remember { mutableStateOf(0.dp) }
     // The same height in pixels, read by the transcript while it is laid out (see BottomBar).
     val barHeightPx = remember { mutableIntStateOf(0) }
+    // The bottom bar as drawn, which the + panel's glass bends along with the chat behind it.
+    val barBackdrop = rememberLiquidBackdrop()
     // The transcript is scrolled up from its end: the composer offers a jump back down.
     var jumpAvailable by remember { mutableStateOf(false) }
     // Where the send circle is, and where this screen's box is, both in window coordinates.
@@ -508,6 +510,8 @@ private fun MainScreenBody(viewModel: MainViewModel, state: UiState, composerBac
                         .fillMaxWidth()
                         // Drawn over the transcript, though measured before it.
                         .zIndex(1f)
+                        // Recorded as drawn (its glass and its words), for the + panel over it.
+                        .liquidBackdrop(barBackdrop)
                         .onSizeChanged {
                             barHeightPx.intValue = it.height
                             bottomBarHeight = with(density) { it.height.toDp() }
@@ -631,7 +635,7 @@ private fun MainScreenBody(viewModel: MainViewModel, state: UiState, composerBac
                 // Context menus (a long-pressed message) open in the screen, above everything.
                 LocalContextMenu.current?.let { Box(Modifier.fillMaxSize().zIndex(2f)) { ContextMenuLayer(it) } }
 
-                // The + panel grows up from the composer's top left corner.
+                // The + panel grows out of the composer's lower left corner, over it.
                 Box(Modifier.fillMaxSize().zIndex(2f)) {
                     AttachPanel(
                         open = attachOpen,
@@ -643,6 +647,7 @@ private fun MainScreenBody(viewModel: MainViewModel, state: UiState, composerBac
                             AttachChoice(Icons.Filled.TextFields, stringResource(R.string.attach_path)) { pickFiles(Attachments.PATH) },
                         ),
                         onDismiss = { attachOpen = false },
+                        over = barBackdrop,
                     )
                 }
             }
@@ -767,11 +772,8 @@ private fun BottomBar(
             val keys = remember(state.workspace.customKeys) {
                 effectiveKeyRow(state.workspace.customKeys).map { it.toTerminalKey() }
             }
-            var fnOn by remember { mutableStateOf(false) }
             KeyRow(
                 keys = keys,
-                fnOn = fnOn,
-                onToggleFn = { fnOn = !fnOn },
                 stickyCtrl = state.stickyCtrl,
                 stickyAlt = state.stickyAlt,
                 stickyPrefix = state.stickyPrefix,

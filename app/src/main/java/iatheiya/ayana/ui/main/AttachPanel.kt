@@ -37,6 +37,7 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import iatheiya.ayana.ui.liquid.LiquidBackdrop
 import iatheiya.ayana.ui.liquid.LocalLiquidBackdrop
 import iatheiya.ayana.ui.liquid.liquidGlass
 import iatheiya.ayana.ui.theme.Ui
@@ -46,15 +47,23 @@ import kotlin.math.roundToInt
 class AttachChoice(val icon: ImageVector, val label: String, val onPick: () -> Unit)
 
 /**
- * The panel the composer's + opens: a glass card that grows up from the composer's top left
- * corner, above it, so what is written in the composer stays in sight; in the same glass as the
- * other menus (tinted with them), with a large row per choice. A tap anywhere else puts it away;
- * there is no Cancel.
+ * The panel the composer's + opens: a glass card that grows out of the composer's lower left
+ * corner, over it, in the same glass as the other menus (tinted with them), with a large row per
+ * choice. Its glass bends the composer under it too, the words in it included, not only the chat
+ * behind ([over]). A tap anywhere else puts it away; there is no Cancel.
  *
  * [anchor] is the composer panel's bounds in the root, [origin] this screen's own position there.
  */
 @Composable
-fun AttachPanel(open: Boolean, anchor: Rect, origin: Offset, choices: List<AttachChoice>, onDismiss: () -> Unit) {
+fun AttachPanel(
+    open: Boolean,
+    anchor: Rect,
+    origin: Offset,
+    choices: List<AttachChoice>,
+    onDismiss: () -> Unit,
+    /** The composer and key row as drawn, laid over the chat in what the glass sees. */
+    over: LiquidBackdrop? = null,
+) {
     if (open) {
         Box(
             Modifier
@@ -71,8 +80,7 @@ fun AttachPanel(open: Boolean, anchor: Rect, origin: Offset, choices: List<Attac
         modifier = Modifier.offset {
             IntOffset(
                 (anchor.left - origin.x).roundToInt() + inset,
-                // Above the composer, not over it: what is written there stays in sight.
-                (anchor.top - origin.y).roundToInt() - inset - height,
+                (anchor.bottom - origin.y).roundToInt() - inset - height,
             )
         },
     ) {
@@ -80,7 +88,7 @@ fun AttachPanel(open: Boolean, anchor: Rect, origin: Offset, choices: List<Attac
             Modifier
                 .onSizeChanged { height = it.height }
                 .widthIn(min = PANEL_MIN_WIDTH)
-                .liquidGlass(LocalLiquidBackdrop.current, Ui.menuShape, Ui.menuRadius)
+                .liquidGlass(LocalLiquidBackdrop.current, Ui.menuShape, Ui.menuRadius, over = over)
                 // Rows reach the panel's edges, so a pressed row lights up to them and no further.
                 .clip(Ui.menuShape)
                 .width(IntrinsicSize.Max),
