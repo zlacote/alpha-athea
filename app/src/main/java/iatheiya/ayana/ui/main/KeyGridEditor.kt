@@ -1,5 +1,10 @@
 package iatheiya.ayana.ui.main
 
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.geometry.Rect
+import kotlinx.coroutines.delay
+import androidx.compose.runtime.LaunchedEffect
+import iatheiya.ayana.ui.common.PageFling
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.VectorConverter
@@ -73,8 +78,9 @@ class KeyDragGhost {
 
 /**
  * The key grid as an editable preview: it lays the keys out exactly as the live row
- * shows them (column-major, [rows] per column) and scrolls horizontally. Hold a key
- * and drag it onto another key to trade their places, and tap a key to open
+ * shows them (column-major, [rows] per column), a page of the row's screen at a time, turned by a
+ * swipe. Hold a key and drag it onto another key to trade their places (held at a page's edge, it
+ * turns the page, to reach another screen), and tap a key to open
  * its editor (where it can also be removed). Dropped far outside the grid, the key
  * returns to its place.
  */
@@ -117,7 +123,38 @@ fun KeyGridEditor(
         fun slotOffset(k: Int) = Offset((k / rowCount) * pitchXpx, (k % rowCount) * pitchYpx)
 
         val columns = keys.chunked(rowCount)
-        Row(Modifier.horizontalScroll(rememberScrollState())) {
+        // Pages of the row's screens, turned by a swipe as on the row itself. A key carried to
+        // the edge and held there turns the page, so it can be taken to another screen.
+        val scroll = rememberScrollState()
+        val pageWidthPx = pitchXpx * colsVisible
+        val paging = remember(scroll, pageWidthPx) { PageFling(scroll, pageWidthPx) }
+        // Where the drag stands: the scroll it began at, and the carried key's last offset.
+        val dragAt = remember { DragPlace() }
+        fun targetNow(from: Int): Int = targetFor(
+            from,
+            dragAt.moved + Offset(scroll.value - dragAt.startScroll, 0f),
+            pitchXpx, pitchYpx, rowCount, keys.size,
+        )
+        // Held at an edge, the carried key turns the page that way, and on while it stays.
+        LaunchedEffect(dragAt.edge, draggedIndex) {
+            val from = draggedIndex ?: return@LaunchedEffect
+            val way = dragAt.edge
+            if (way == 0 || pageWidthPx <= 0f) return@LaunchedEffect
+            while (true) {
+                delay(EDGE_HOLD_MS)
+                val page = (scroll.value / pageWidthPx).roundToInt() + way
+                val to = (page * pageWidthPx).roundToInt().coerceIn(0, scroll.maxValue)
+                if (to == scroll.value) break
+                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                scroll.animateScrollTo(to)
+                if (!ghost.outside) targetIndex = targetNow(from)
+            }
+        }
+        Row(
+            Modifier
+                .onGloballyPositioned { dragAt.gridBounds = it.boundsInRoot() }
+                .horizontalScroll(scroll, flingBehavior = paging),
+        ) {
             columns.forEachIndexed { columnIndex, columnKeys ->
                 if (columnIndex > 0) {
                     Box(
@@ -178,6 +215,9 @@ fun KeyGridEditor(
                                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                         draggedIndex = index
                                         targetIndex = index
+                                        dragAt.startScroll = scroll.value
+                                        dragAt.moved = Offset.Zero
+                                        dragAt.edge = 0
                                         ghost.origin = cellOrigin
                                         ghost.size = cellSize
                                         ghost.outside = false
@@ -188,23 +228,31 @@ fun KeyGridEditor(
                                         if (draggedIndex != index) return@EditableKeyCell
                                         val moved = ghost.offset.value + delta
                                         scope.launch { ghost.offset.snapTo(moved) }
-                                        val outside = isFarOutside(index, moved, pitchXpx, pitchYpx, rowCount, columns.size)
+                                        dragAt.moved = moved
+                                        val inGrid = moved + Offset(scroll.value - dragAt.startScroll, 0f)
+                                        val outside = isFarOutside(index, inGrid, pitchXpx, pitchYpx, rowCount, columns.size)
                                         ghost.outside = outside
-                                        // Out there, the others slide back: the drop would change nothing.
-                                        targetIndex = if (outside) {
-                                            index
-                                        } else {
-                                            targetFor(index, moved, pitchXpx, pitchYpx, rowCount, keys.size)
+                                        // At an edge of the visible page, the hold starts there.
+                                        val centreX = ghost.origin.x + moved.x + cellSize.width / 2f
+                                        val zone = pitchXpx * EDGE_ZONE
+                                        dragAt.edge = when {
+                                            outside -> 0
+                                            centreX < dragAt.gridBounds.left + zone -> -1
+                                            centreX > dragAt.gridBounds.right - zone -> 1
+                                            else -> 0
                                         }
+                                        // Out there, the others slide back: the drop would change nothing.
+                                        targetIndex = if (outside) index else targetNow(index)
                                     },
                                     onDragEnd = {
                                         val from = draggedIndex ?: return@EditableKeyCell
                                         val to = targetIndex ?: from
+                                        dragAt.edge = 0
                                         // The key glides into the slot it lands in (its own, when the drop
                                         // was far outside), and only then does the list reorder.
                                         scope.launch {
                                             ghost.offset.animateTo(
-                                                slotOffset(to) - slotOffset(from),
+                                                slotOffset(to) - slotOffset(from) - Offset(scroll.value - dragAt.startScroll, 0f),
                                                 tween(durationMillis = 160),
                                             )
                                             if (to != from) onKeysChange(swapItems(keys, from, to))
@@ -368,3 +416,17 @@ private fun KeyCellFace(key: CustomKey, highlighted: Boolean, modifier: Modifier
         )
     }
 }
+
+/** Where a drag in [KeyGridEditor] stands, kept between its events. */
+private class DragPlace {
+    var startScroll = 0
+    var moved = Offset.Zero
+    var gridBounds = Rect.Zero
+    /** -1 or 1 while the carried key is held at the left or right edge of the page; 0 elsewhere. */
+    var edge by mutableStateOf(0)
+}
+
+/** How long a carried key is held at a page's edge before the page turns. */
+private const val EDGE_HOLD_MS = 450L
+/** How near a page's edge counts as at it, in key widths. */
+private const val EDGE_ZONE = 0.45f

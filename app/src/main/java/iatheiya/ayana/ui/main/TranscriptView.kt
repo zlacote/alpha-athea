@@ -193,6 +193,12 @@ fun TranscriptView(
      * so it follows the composer in the same frame. Falls back to [contentBottomPadding].
      */
     contentBottomPaddingNow: (() -> Dp)? = null,
+    /**
+     * How much taller than at rest the composer is right now. A message sent from a tall composer
+     * lands over it and goes down with it as it shrinks, so it rises from under it by only what
+     * is left of its height.
+     */
+    composerExtraPx: () -> Float = { 0f },
     /** Whether the transcript is scrolled up from its end; the composer shows a jump-down button then. */
     onJumpAvailableChange: (Boolean) -> Unit = {},
     pinchZoomEnabled: Boolean,
@@ -414,7 +420,7 @@ fun TranscriptView(
                 reverseLayout = true,
                 modifier = Modifier
                     .fillMaxSize()
-                    .arrivalLift(lift, armed = { stickToBottom })
+                    .arrivalLift(lift, armed = { stickToBottom }, composerExtraPx = composerExtraPx)
                     .then(if (pinchZoomEnabled) Modifier.pinchToZoom(onTranscriptFontZoom) else Modifier),
                 contentPadding = remember(contentTopPadding, contentBottomPadding, contentBottomPaddingNow) {
                     LivePadding(
@@ -423,13 +429,9 @@ fun TranscriptView(
                     )
                 },
             ) {
-                items(listItems, key = { item ->
-                    when (item) {
-                        is DisplayItem.Block -> item.view.block.id
-                        is DisplayItem.Chunk -> "${item.blockId}-chunk-${item.chunkIndex}"
-                    }
-                }) { item ->
-                    Box {
+                items(listItems, key = ::listKeyOf) { item ->
+                    // The message arriving shows as it rises clear of the composer, not through its glass.
+                    Box(Modifier.graphicsLayer { alpha = lift.alphaOf(listKeyOf(item)) }) {
                         when (item) {
                             is DisplayItem.Block -> {
                                 val view = item.view
@@ -1144,14 +1146,29 @@ private class ArrivalLift(val listState: LazyListState, val scope: kotlinx.corou
     var offset by mutableFloatStateOf(0f)
     var glide: kotlinx.coroutines.Job? = null
 
-    /** Called as the list is placed: notes an arrival and lowers the list by its height. */
-    fun onPlaced(armed: Boolean) {
+    /** The item arriving, and how far it had to rise when it came. */
+    private var arrivingKey: Any? = null
+    private var rise = 0f
+
+    /** How much of [key] shows: an arriving item comes in as it rises, the rest are whole. */
+    fun alphaOf(key: Any): Float =
+        if (key != arrivingKey || rise <= 0f) 1f else (1f - offset / rise).coerceIn(0f, 1f)
+
+    /**
+     * Called as the list is placed: notes an arrival and lowers the list by its height, less what
+     * the composer above its resting height takes back as it shrinks ([composerExtra]).
+     */
+    fun onPlaced(armed: Boolean, composerExtra: Float) {
         val first = listState.layoutInfo.visibleItemsInfo.firstOrNull() ?: return
         if (first.index != 0 || first.key == newestKey) return
         val known = newestKey != null
         newestKey = first.key
         if (!known || !armed) return
-        offset += first.size
+        val by = (first.size - composerExtra).coerceAtLeast(0f)
+        if (by <= 0f) return
+        arrivingKey = first.key
+        rise = offset + by
+        offset += by
         val from = offset
         glide?.cancel()
         glide = scope.launch {
@@ -1167,11 +1184,17 @@ private fun rememberArrivalLift(listState: LazyListState, sessionId: Long): Arri
 }
 
 /** Draws the list [lift]'s offset lower while a new message comes in; [armed] while at the end. */
-private fun Modifier.arrivalLift(lift: ArrivalLift, armed: () -> Boolean): Modifier = layout { measurable, constraints ->
+private fun Modifier.arrivalLift(lift: ArrivalLift, armed: () -> Boolean, composerExtraPx: () -> Float): Modifier = layout { measurable, constraints ->
     val placeable = measurable.measure(constraints)
     layout(placeable.width, placeable.height) {
         // The list has just been measured: a new item at the bottom shows here, before drawing.
-        lift.onPlaced(armed())
+        lift.onPlaced(armed(), composerExtraPx())
         placeable.placeWithLayer(0, 0) { translationY = lift.offset }
     }
+}
+
+/** The key an item has in the list. */
+private fun listKeyOf(item: DisplayItem): Any = when (item) {
+    is DisplayItem.Block -> item.view.block.id
+    is DisplayItem.Chunk -> "${item.blockId}-chunk-${item.chunkIndex}"
 }

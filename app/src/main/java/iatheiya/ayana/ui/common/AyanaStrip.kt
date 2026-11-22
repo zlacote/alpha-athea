@@ -146,7 +146,7 @@ fun <T> EqualCellGrid(
  * finger let go decides the page: a flick or a drag past [TURN_SHARE] of a page turns to the
  * next one in that direction; less goes back to the page the swipe began on.
  */
-private class PageFling(private val state: ScrollState, private val pageWidthPx: Float) : FlingBehavior {
+internal class PageFling(private val state: ScrollState, private val pageWidthPx: Float) : FlingBehavior {
     /** The page the strip last rested on: where the next swipe starts from. */
     private var settled = if (pageWidthPx > 0f) (state.value / pageWidthPx).roundToInt() else 0
 
