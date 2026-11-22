@@ -1,5 +1,8 @@
 package iatheiya.ayana.ui.main
 
+import androidx.compose.animation.animateContentSize
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.text.AnnotatedString
 import iatheiya.ayana.session.suggestionStep
 import iatheiya.ayana.session.suggestionHasMore
 import androidx.compose.runtime.CompositionLocalProvider
@@ -197,6 +200,13 @@ private fun DraftPanel(
 ) {
     var addBounds by remember { mutableStateOf(Rect.Zero) }
     val ghostColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = Ui.ghostAlpha)
+    val fieldStyle = messageStyle().copy(color = MaterialTheme.colorScheme.onSurface)
+    var fieldWidthPx by remember { mutableStateOf(0) }
+    val measurer = rememberTextMeasurer()
+    // The part of the suggestion shown: to the end of the line on screen it starts on.
+    val ghost = remember(draft, suggestion, fieldWidthPx, fieldStyle) {
+        visibleGhost(measurer, fieldStyle, fieldWidthPx, draft, suggestion)
+    }
     var lineCount by remember { mutableStateOf(1) }
     var grown by remember { mutableStateOf(false) }
     if (draft.isEmpty()) grown = false
@@ -210,6 +220,10 @@ private fun DraftPanel(
         color = Color.Transparent,
         modifier = modifier
             .fillMaxWidth()
+            // Growing with a long draft and shrinking back once it is sent, it glides between
+            // heights instead of snapping: a big message sent made the composer, and the chat
+            // above it, jump down in one frame.
+            .animateContentSize(tween(durationMillis = COMPOSER_RESIZE_MS, easing = FastOutSlowInEasing))
             .then(
                 if (docked) {
                     Modifier
@@ -252,13 +266,14 @@ private fun DraftPanel(
                                 end = if (compact) Ui.composerButtonSpace else Ui.composerFieldEndGrown,
                                 top = if (compact) 4.dp else Ui.composerFieldTopGrown,
                                 bottom = if (compact) 0.dp else Ui.composerButtonRowHeight,
-                            ),
-                        textStyle = messageStyle().copy(color = MaterialTheme.colorScheme.onSurface),
+                            )
+                            .onSizeChanged { fieldWidthPx = it.width },
+                        textStyle = fieldStyle,
                         cursorBrush = SolidColor(if (caretHidden) Color.Transparent else MaterialTheme.colorScheme.primary),
                         maxLines = 6,
                         // The ghost suggestion is part of the text as it is laid out, after its end: it
                         // wraps with it and stays at the end wherever the cursor goes.
-                        visualTransformation = remember(draft, suggestion, ghostColor) { ghostTail(draft, suggestion, ghostColor) },
+                        visualTransformation = remember(ghost, ghostColor) { ghostTail(ghost, ghostColor) },
                         onTextLayout = { lineCount = it.lineCount },
                         keyboardOptions = KeyboardOptions(
                             capitalization = KeyboardCapitalization.None,
@@ -559,18 +574,42 @@ internal fun SendCircleButton(
     }
 }
 
+/** The part of a suggestion shown after the draft, and whether more of it follows. */
+private class Ghost(val text: String, val more: Boolean)
+
 /**
- * Shows the next part of [suggestion] after the end of [draft], in [colour], as if it were part
- * of the text: laid out with it, so it starts right after its last character and wraps with it.
- * Only one line of it at a time (the rest of this line, or, once the line is written, the next
- * line), and an ellipsis when more follows; Tab still takes all of it. The cursor and the
- * selection never enter it.
- * Only once something is typed: an empty field shows the prompt alone.
+ * The part of [suggestion] to show after [draft]: from the end of the draft to the end of the
+ * line it falls on as the field lays it out, [widthPx] wide, so a long line wrapped over several
+ * on screen shows its first, and a line break ends it too. Written up to there by hand, the next
+ * call shows the next line, and so on to the end.
  */
-private fun ghostTail(draft: String, suggestion: String?, colour: Color): VisualTransformation {
-    val step = suggestionStep(draft, suggestion) ?: return VisualTransformation.None
-    val more = suggestion != null && suggestionHasMore(draft, suggestion, step)
-    val tail = if (more) step + GHOST_MORE else step
+private fun visibleGhost(
+    measurer: TextMeasurer,
+    style: TextStyle,
+    widthPx: Int,
+    draft: String,
+    suggestion: String?,
+): Ghost? {
+    val step = suggestionStep(draft, suggestion) ?: return null
+    val moreLines = suggestion != null && suggestionHasMore(draft, suggestion, step)
+    if (widthPx <= 0) return Ghost(step, moreLines)
+    val whole = draft + step
+    val layout = measurer.measure(AnnotatedString(whole), style, constraints = Constraints(maxWidth = widthPx))
+    // A step that opens with a line break starts on the line after it.
+    val start = draft.length + if (step.startsWith("\n")) 1 else 0
+    val line = layout.getLineForOffset(start.coerceAtMost(whole.length - 1))
+    val end = layout.getLineEnd(line).coerceIn(draft.length + 1, whole.length)
+    return Ghost(whole.substring(draft.length, end), moreLines || end < whole.length)
+}
+
+/**
+ * Shows [ghost] after the end of the text, in [colour], as if it were part of it: laid out with
+ * it, so it starts right after its last character. An ellipsis says more follows; Tab still takes
+ * all of it. The cursor and the selection never enter it.
+ */
+private fun ghostTail(ghost: Ghost?, colour: Color): VisualTransformation {
+    if (ghost == null) return VisualTransformation.None
+    val tail = if (ghost.more) ghost.text + GHOST_MORE else ghost.text
     return VisualTransformation { text ->
         val shown = buildAnnotatedString {
             append(text)
@@ -588,3 +627,6 @@ private fun ghostTail(draft: String, suggestion: String?, colour: Color): Visual
 
 /** Marks a suggestion that goes on past the line shown. */
 private const val GHOST_MORE = "\u2026"
+
+/** How long the composer takes to grow or shrink to a new height. */
+private const val COMPOSER_RESIZE_MS = 240

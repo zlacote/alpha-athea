@@ -1,11 +1,16 @@
 package iatheiya.ayana.ui.common
 
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.animate
+import androidx.compose.foundation.gestures.ScrollScope
+import androidx.compose.foundation.gestures.FlingBehavior
+import androidx.compose.foundation.ScrollState
 import kotlin.math.roundToInt
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.geometry.Rect
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -90,23 +95,15 @@ fun <T> EqualCellGrid(
         val columns = items.chunked(rowCount)
         val rowGaps = if (rowSeparator != null) separatorWidth * (rowCount - 1) else 0.dp
         val columnHeight = cellHeight * rowCount + rowGaps + tail
-        // A swipe turns whole screens of [cols] columns, settling on the nearest one when the
-        // finger lets go, as the pages of a keyboard do.
+        // A swipe turns whole screens of [cols] columns, as the pages of a keyboard do: any
+        // swipe that means it (a flick, or a drag past a small part of the page) goes on to the
+        // next screen by itself, and a touch that hardly moved goes back to where it was.
         val pageWidthPx = with(LocalDensity.current) { ((cellWidth + separatorWidth) * cols).toPx() }
-        LaunchedEffect(scrollState, pageWidthPx) {
-            if (pageWidthPx <= 0f) return@LaunchedEffect
-            snapshotFlow { scrollState.isScrollInProgress }.collect { moving ->
-                if (!moving) {
-                    val page = (scrollState.value / pageWidthPx).roundToInt()
-                    val target = (page * pageWidthPx).roundToInt().coerceIn(0, scrollState.maxValue)
-                    if (target != scrollState.value) scrollState.animateScrollTo(target)
-                }
-            }
-        }
+        val paging = remember(scrollState, pageWidthPx) { PageFling(scrollState, pageWidthPx) }
         Row(
             Modifier
                 .fillMaxWidth()
-                .horizontalScroll(scrollState)
+                .horizontalScroll(scrollState, flingBehavior = paging)
                 .padding(horizontal = contentPaddingH, vertical = contentPaddingV),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -141,5 +138,39 @@ fun <T> EqualCellGrid(
                 }
             }
         }
+    }
+}
+
+/**
+ * Lets a horizontally scrolled strip rest only on whole pages, [pageWidthPx] wide. Where the
+ * finger let go decides the page: a flick or a drag past [TURN_SHARE] of a page turns to the
+ * next one in that direction; less goes back to the page the swipe began on.
+ */
+private class PageFling(private val state: ScrollState, private val pageWidthPx: Float) : FlingBehavior {
+    /** The page the strip last rested on: where the next swipe starts from. */
+    private var settled = if (pageWidthPx > 0f) (state.value / pageWidthPx).roundToInt() else 0
+
+    override suspend fun ScrollScope.performFling(initialVelocity: Float): Float {
+        if (pageWidthPx <= 0f) return initialVelocity
+        val value = state.value.toFloat()
+        val moved = value - settled * pageWidthPx
+        val page = when {
+            initialVelocity > TURN_VELOCITY || moved > pageWidthPx * TURN_SHARE -> settled + 1
+            initialVelocity < -TURN_VELOCITY || moved < -pageWidthPx * TURN_SHARE -> settled - 1
+            else -> settled
+        }
+        val last = (state.maxValue / pageWidthPx).roundToInt()
+        settled = page.coerceIn(0, last)
+        val target = (settled * pageWidthPx).coerceIn(0f, state.maxValue.toFloat())
+        var done = 0f
+        animate(0f, target - value, initialVelocity = initialVelocity, animationSpec = spring(stiffness = Spring.StiffnessMediumLow)) { now, _ ->
+            done += scrollBy(now - done)
+        }
+        return 0f
+    }
+
+    private companion object {
+        const val TURN_SHARE = 0.12f
+        const val TURN_VELOCITY = 400f
     }
 }
