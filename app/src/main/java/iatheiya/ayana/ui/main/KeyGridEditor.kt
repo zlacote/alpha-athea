@@ -140,8 +140,11 @@ fun KeyGridEditor(
             val from = draggedIndex ?: return@LaunchedEffect
             val way = dragAt.edge
             if (way == 0 || pageWidthPx <= 0f) return@LaunchedEffect
+            var wait = EDGE_HOLD_MS
             while (true) {
-                delay(EDGE_HOLD_MS)
+                delay(wait)
+                // After a page turns, the next waits longer, so a held key does not race on.
+                wait = EDGE_REPEAT_MS
                 val page = (scroll.value / pageWidthPx).roundToInt() + way
                 val to = (page * pageWidthPx).roundToInt().coerceIn(0, scroll.maxValue)
                 if (to == scroll.value) break
@@ -232,13 +235,13 @@ fun KeyGridEditor(
                                         val inGrid = moved + Offset((scroll.value - dragAt.startScroll).toFloat(), 0f)
                                         val outside = isFarOutside(index, inGrid, pitchXpx, pitchYpx, rowCount, columns.size)
                                         ghost.outside = outside
-                                        // At an edge of the visible page, the hold starts there.
+                                        // Near an edge of the page, or past it, at any height, the hold
+                                        // starts there, when there is a page that way to turn to.
                                         val centreX = ghost.origin.x + moved.x + cellSize.width / 2f
                                         val zone = pitchXpx * EDGE_ZONE
                                         dragAt.edge = when {
-                                            outside -> 0
-                                            centreX < dragAt.gridBounds.left + zone -> -1
-                                            centreX > dragAt.gridBounds.right - zone -> 1
+                                            centreX < dragAt.gridBounds.left + zone && scroll.value > 0 -> -1
+                                            centreX > dragAt.gridBounds.right - zone && scroll.value < scroll.maxValue -> 1
                                             else -> 0
                                         }
                                         // Out there, the others slide back: the drop would change nothing.
@@ -308,7 +311,7 @@ fun KeyDragGhostOverlay(ghost: KeyDragGhost, modifier: Modifier = Modifier) {
 private const val GHOST_SCALE = 1.08f
 private const val GHOST_OUTSIDE_ALPHA = 0.55f
 
-/** More than one whole cell beyond the grid's edge, on any side. */
+/** More than one whole cell above or below the grid. */
 private fun isFarOutside(
     from: Int,
     offset: Offset,
@@ -317,10 +320,10 @@ private fun isFarOutside(
     rows: Int,
     columns: Int,
 ): Boolean {
-    if (pitchX <= 0f || pitchY <= 0f) return false
+    if (pitchY <= 0f) return false
+    // Only above or below: sideways, the key is on its way to another page.
     val row = from % rows + offset.y / pitchY
-    val column = from / rows + offset.x / pitchX
-    return row < -1f || row > rows || column < -1f || column > columns
+    return row < -1f || row > rows
 }
 
 /** Where a key dragged from [from] by [offset] lands, in the column-major grid. */
@@ -427,6 +430,8 @@ private class DragPlace {
 }
 
 /** How long a carried key is held at a page's edge before the page turns. */
-private const val EDGE_HOLD_MS = 450L
+private const val EDGE_HOLD_MS = 280L
+/** How long a key still held there waits before the page after that turns too. */
+private const val EDGE_REPEAT_MS = 800L
 /** How near a page's edge counts as at it, in key widths. */
-private const val EDGE_ZONE = 0.45f
+private const val EDGE_ZONE = 1.1f

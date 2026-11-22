@@ -1,19 +1,14 @@
 package iatheiya.ayana.ui.main
 
+import androidx.compose.animation.core.Animatable
 import iatheiya.ayana.ui.common.foldGlide
 import kotlinx.coroutines.launch
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.animation.core.animate
-import androidx.compose.ui.layout.layout
 import iatheiya.ayana.ui.common.pressWash
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.ui.unit.LayoutDirection
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.key
 import androidx.compose.runtime.compositionLocalOf
@@ -26,7 +21,6 @@ import kotlin.math.sin
 import kotlin.math.cos
 import kotlin.math.PI
 import androidx.compose.runtime.withFrameNanos
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.text.TextStyle
@@ -193,12 +187,6 @@ fun TranscriptView(
      * so it follows the composer in the same frame. Falls back to [contentBottomPadding].
      */
     contentBottomPaddingNow: (() -> Dp)? = null,
-    /**
-     * How much taller than at rest the composer is right now. A message sent from a tall composer
-     * lands over it and goes down with it as it shrinks, so it rises from under it by only what
-     * is left of its height.
-     */
-    composerExtraPx: () -> Float = { 0f },
     /** Whether the transcript is scrolled up from its end; the composer shows a jump-down button then. */
     onJumpAvailableChange: (Boolean) -> Unit = {},
     pinchZoomEnabled: Boolean,
@@ -354,14 +342,20 @@ fun TranscriptView(
                         }
                     }
             }
-            // A new message, while at the end, takes its place at the bottom in the very layout
-            // that first shows it: no frame shows the old end first, and nothing glides to catch
-            // up. Asked for before that layout, as the composition that brings the message is
-            // applied.
-            val followed = remember { intArrayOf(itemCount) }
-            SideEffect {
-                if (itemCount > followed[0] && stickToBottom) listState.requestScrollToItem(0)
-                followed[0] = itemCount
+            // A new message, while at the end, comes in as in a messenger: the list keeps what it
+            // shows where it was (the new item lands below it, under the composer), then scrolls
+            // down to it, so the messages above rise and leave at the top as they would by hand,
+            // never vanishing, and the new one shows as it rises into view.
+            val newestKey = listItems.firstOrNull()?.let(::listKeyOf)
+            val arrival = remember(session.id) { Arrival() }
+            LaunchedEffect(newestKey) {
+                val before = arrival.lastKey
+                arrival.lastKey = newestKey
+                if (before == null || newestKey == null || !stickToBottom) return@LaunchedEffect
+                arrival.key = newestKey
+                arrival.shown.snapTo(0f)
+                launch { arrival.shown.animateTo(1f, tween(ARRIVAL_FADE_MS)) }
+                try { listState.animateScrollToItem(0) } catch (_: Exception) {}
             }
 
             // Search navigation: reveal the block, then scroll to its first chunk.
@@ -414,13 +408,11 @@ fun TranscriptView(
                 return@BoxWithConstraints
             }
 
-            val lift = rememberArrivalLift(listState, session.id)
             LazyColumn(
                 state = listState,
                 reverseLayout = true,
                 modifier = Modifier
                     .fillMaxSize()
-                    .arrivalLift(lift, armed = { stickToBottom }, composerExtraPx = composerExtraPx)
                     .then(if (pinchZoomEnabled) Modifier.pinchToZoom(onTranscriptFontZoom) else Modifier),
                 contentPadding = remember(contentTopPadding, contentBottomPadding, contentBottomPaddingNow) {
                     LivePadding(
@@ -431,7 +423,7 @@ fun TranscriptView(
             ) {
                 items(listItems, key = ::listKeyOf) { item ->
                     // The message arriving shows as it rises clear of the composer, not through its glass.
-                    Box(Modifier.graphicsLayer { alpha = lift.alphaOf(listKeyOf(item)) }) {
+                    Box(Modifier.graphicsLayer { alpha = arrival.alphaOf(listKeyOf(item)) }) {
                         when (item) {
                             is DisplayItem.Block -> {
                                 val view = item.view
@@ -1133,65 +1125,17 @@ private class LivePadding(private val top: Dp, private val bottom: () -> Dp) : P
     override fun calculateBottomPadding(): Dp = bottom()
 }
 
-/**
- * How a new message arrives at the end of the chat, as in a messenger: everything rises together
- * by its height, the message coming up from under the composer, instead of the list jumping up
- * in one frame. The list is already laid out with the message in place; in that very layout it is
- * drawn [offset] lower, by exactly the message's height, so nothing moves on screen yet, and then
- * the offset springs back to nothing.
- */
-private class ArrivalLift(val listState: LazyListState, val scope: kotlinx.coroutines.CoroutineScope) {
-    /** The newest item seen at the bottom; a different one there is an arrival. */
-    var newestKey: Any? = null
-    var offset by mutableFloatStateOf(0f)
-    var glide: kotlinx.coroutines.Job? = null
+/** The newest item at the end of the chat, and the one coming in now with how much of it shows. */
+private class Arrival {
+    var lastKey: Any? = null
+    var key: Any? = null
+    val shown = Animatable(1f)
 
-    /** The item arriving, and how far it had to rise when it came. */
-    private var arrivingKey: Any? = null
-    private var rise = 0f
-
-    /** How much of [key] shows: an arriving item comes in as it rises, the rest are whole. */
-    fun alphaOf(key: Any): Float =
-        if (key != arrivingKey || rise <= 0f) 1f else (1f - offset / rise).coerceIn(0f, 1f)
-
-    /**
-     * Called as the list is placed: notes an arrival and lowers the list by its height, less what
-     * the composer above its resting height takes back as it shrinks ([composerExtra]).
-     */
-    fun onPlaced(armed: Boolean, composerExtra: Float) {
-        val first = listState.layoutInfo.visibleItemsInfo.firstOrNull() ?: return
-        if (first.index != 0 || first.key == newestKey) return
-        val known = newestKey != null
-        newestKey = first.key
-        if (!known || !armed) return
-        val by = (first.size - composerExtra).coerceAtLeast(0f)
-        if (by <= 0f) return
-        arrivingKey = first.key
-        rise = offset + by
-        offset += by
-        val from = offset
-        glide?.cancel()
-        glide = scope.launch {
-            animate(from, 0f, animationSpec = spring(stiffness = Spring.StiffnessMediumLow)) { value, _ -> offset = value }
-        }
-    }
+    fun alphaOf(itemKey: Any): Float = if (itemKey == key) shown.value else 1f
 }
 
-@Composable
-private fun rememberArrivalLift(listState: LazyListState, sessionId: Long): ArrivalLift {
-    val scope = rememberCoroutineScope()
-    return remember(listState, sessionId) { ArrivalLift(listState, scope) }
-}
-
-/** Draws the list [lift]'s offset lower while a new message comes in; [armed] while at the end. */
-private fun Modifier.arrivalLift(lift: ArrivalLift, armed: () -> Boolean, composerExtraPx: () -> Float): Modifier = layout { measurable, constraints ->
-    val placeable = measurable.measure(constraints)
-    layout(placeable.width, placeable.height) {
-        // The list has just been measured: a new item at the bottom shows here, before drawing.
-        lift.onPlaced(armed(), composerExtraPx())
-        placeable.placeWithLayer(0, 0) { translationY = lift.offset }
-    }
-}
+/** How long a message coming in takes to show fully, as it rises into view. */
+private const val ARRIVAL_FADE_MS = 260
 
 /** The key an item has in the list. */
 private fun listKeyOf(item: DisplayItem): Any = when (item) {

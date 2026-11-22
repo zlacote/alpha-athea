@@ -329,10 +329,6 @@ private fun MainScreenRoutes(viewModel: MainViewModel, state: UiState) {
             onAttachSendsNowChange = viewModel::setAttachSendsNow,
             favoritesEnabled = state.workspace.settings.favoritesEnabled,
             onFavoritesEnabledChange = viewModel::setFavoritesEnabled,
-            favoriteReturnsHome = state.workspace.settings.favoriteReturnsHome,
-            favoriteSendsImmediately = state.workspace.settings.favoriteSendsImmediately,
-            onFavoriteReturnsHomeChange = viewModel::setFavoriteReturnsHome,
-            onFavoriteSendsImmediatelyChange = viewModel::setFavoriteSendsImmediately,
             onBack = { closeSettings() },
         )
         return
@@ -343,17 +339,14 @@ private fun MainScreenRoutes(viewModel: MainViewModel, state: UiState) {
         FavoritesScreen(
             favorites = state.workspace.favorites,
             onBack = { viewModel.setShowFavorites(false) },
+            // A tap puts the command in the composer and goes back to the chat; Run sends it,
+            // Copy keeps it for elsewhere, from the long-press menu.
             onInsert = { text ->
-                if (state.workspace.settings.favoriteSendsImmediately) {
-                    viewModel.executeDirectly(text)
-                } else {
-                    viewModel.insertIntoDraft(text)
-                }
-                if (state.workspace.settings.favoriteReturnsHome) {
-                    viewModel.setShowFavorites(false)
-                }
+                viewModel.insertIntoDraft(text)
+                viewModel.setShowFavorites(false)
             },
             onRun = viewModel::executeDirectly,
+            onCopy = { text -> context.copyToClipboard(text, "ayana-favorite") },
             onAdd = viewModel::addFavorite,
             onEdit = viewModel::updateFavorite,
             onTogglePin = viewModel::togglePinFavorite,
@@ -392,9 +385,6 @@ private fun MainScreenBody(viewModel: MainViewModel, state: UiState, composerBac
     val barHeightPx = remember { mutableIntStateOf(0) }
     // The bottom bar as drawn, which the + panel's glass bends along with the chat behind it.
     val barBackdrop = rememberLiquidBackdrop()
-    // The composer's height at rest (one line), the least it has been: how much taller it is now
-    // is what a new message, landing over it as it shrinks, does not need to rise by.
-    var restingPanelPx by remember { mutableStateOf(Float.MAX_VALUE) }
     // The transcript is scrolled up from its end: the composer offers a jump back down.
     var jumpAvailable by remember { mutableStateOf(false) }
     // Where the send circle is, and where this screen's box is, both in window coordinates.
@@ -503,10 +493,7 @@ private fun MainScreenBody(viewModel: MainViewModel, state: UiState, composerBac
                     suggestion = if (state.workspace.search == null) state.workspace.suggestion else null,
                     composerBackdrop = composerBackdrop,
                     onSendBounds = { sendBounds = it },
-                    onPanelBounds = {
-                        panelBounds = it
-                        if (it.height > 0f) restingPanelPx = minOf(restingPanelPx, it.height)
-                    },
+                    onPanelBounds = { panelBounds = it },
                     onAttach = { attachOpen = true },
                     // The caret and its handle (which lives above everything) step aside while the
                     // + panel is open; the keyboard stays.
@@ -561,7 +548,6 @@ private fun MainScreenBody(viewModel: MainViewModel, state: UiState, composerBac
                                 contentTopPadding = statusBarTop + Ui.topBarContentTop,
                                 contentBottomPadding = overlayBottom,
                                 contentBottomPaddingNow = { with(density) { barHeightPx.intValue.toDp() } + Ui.contentPaddingV },
-                                composerExtraPx = { (panelBounds.height - restingPanelPx).coerceAtLeast(0f) },
                                 onJumpAvailableChange = { jumpAvailable = it },
                                 pinchZoomEnabled = state.workspace.settings.pinchZoomEnabled,
                                 greetingAnimated = state.workspace.settings.greetingAnimated || current.id == state.workspace.settings.introSessionId,

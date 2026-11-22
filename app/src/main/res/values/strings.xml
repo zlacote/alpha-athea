@@ -108,10 +108,6 @@
     <string name="settings_virtualize">Large output inside scroll</string>
     <string name="settings_virtualize_desc">When large, scroll inside instead of full page; uses same lines as collapsed view ×4</string>
     <string name="settings_favorites_desc">Long-press a sent command to keep it</string>
-    <string name="settings_fav_action">What to do</string>
-    <string name="settings_fav_nothing">Nothing</string>
-    <string name="settings_fav_return">Return to chat</string>
-    <string name="settings_fav_send">Send at once</string>
     <string name="keys_title">Keys</string>
     <string name="keys_sticky">Sticky</string>
     <string name="keys_lock">Lock</string>

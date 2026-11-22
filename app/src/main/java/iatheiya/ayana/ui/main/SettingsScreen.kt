@@ -1,7 +1,5 @@
 package iatheiya.ayana.ui.main
 
-import iatheiya.ayana.ui.common.AyanaChoiceSheet
-import iatheiya.ayana.ui.common.SheetChoice
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.foundation.clickable
 import iatheiya.ayana.ui.common.AyanaPage
@@ -97,10 +95,6 @@ internal fun SettingsScreen(
     attachSendsNow: Boolean,
     favoritesEnabled: Boolean,
     onFavoritesEnabledChange: (Boolean) -> Unit,
-    favoriteReturnsHome: Boolean,
-    favoriteSendsImmediately: Boolean,
-    onFavoriteReturnsHomeChange: (Boolean) -> Unit,
-    onFavoriteSendsImmediatelyChange: (Boolean) -> Unit,
     onEnterSendsChange: (Boolean) -> Unit,
     onAutoScrollOnSendChange: (Boolean) -> Unit,
     onRawStreamChange: (Boolean) -> Unit,
@@ -233,36 +227,6 @@ internal fun SettingsScreen(
                         checked = favoritesEnabled,
                         onChange = onFavoritesEnabledChange,
                     )
-                    SettingsDivider()
-                    val favChoices = listOf(
-                        SheetChoice(FAV_NOTHING, stringResource(R.string.settings_fav_nothing)),
-                        SheetChoice(FAV_RETURN, stringResource(R.string.settings_fav_return)),
-                        SheetChoice(FAV_SEND, stringResource(R.string.settings_fav_send)),
-                    )
-                    val favAction = when {
-                        favoriteSendsImmediately -> FAV_SEND
-                        favoriteReturnsHome -> FAV_RETURN
-                        else -> FAV_NOTHING
-                    }
-                    var choosingFav by remember { mutableStateOf(false) }
-                    ChoiceSettingRow(
-                        title = stringResource(R.string.settings_fav_action),
-                        value = favChoices.first { it.value == favAction }.label,
-                        onClick = { choosingFav = true },
-                        enabled = favoritesEnabled,
-                    )
-                    if (choosingFav) {
-                        AyanaChoiceSheet(
-                            title = stringResource(R.string.settings_fav_action),
-                            choices = favChoices,
-                            selected = favAction,
-                            onPick = { choice ->
-                                onFavoriteReturnsHomeChange(choice != FAV_NOTHING)
-                                onFavoriteSendsImmediatelyChange(choice == FAV_SEND)
-                            },
-                            onDismiss = { choosingFav = false },
-                        )
-                    }
                 }
                 SettingsCard {
                     SwitchRow(
@@ -457,8 +421,5 @@ private fun OpenOutside() {
     )
 }
 
-private const val FAV_NOTHING = 0
-private const val FAV_RETURN = 1
-private const val FAV_SEND = 2
 
 private val ABOUT_LIGHT_HEIGHT = 300.dp

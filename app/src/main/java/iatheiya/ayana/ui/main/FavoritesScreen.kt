@@ -26,6 +26,7 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.KeyboardArrowDown
@@ -81,8 +82,8 @@ import iatheiya.ayana.ui.theme.glassInk
 import iatheiya.ayana.ui.theme.messageStyle
 
 /**
- * The kept commands, each in a bubble like a sent message: a tap uses it (as Settings say), a
- * long press offers run, edit, pin and delete in the same glass menu as a message's. Pinned ones
+ * The kept commands, each in a bubble like a sent message: a tap puts it in the composer, a
+ * long press offers run, copy, edit, pin and delete in the same glass menu as a message's. Pinned ones
  * stay at the top; a long command shows its first lines and opens to the rest. At the bottom, a
  * field like the composer writes a new one; the magnifier at the top right swaps it for a search
  * that narrows the list as you type, as the search in a chat does.
@@ -93,6 +94,7 @@ fun FavoritesScreen(
     onBack: () -> Unit,
     onInsert: (String) -> Unit,
     onRun: (String) -> Unit,
+    onCopy: (String) -> Unit,
     onAdd: (String) -> Unit,
     onEdit: (Long, String) -> Unit,
     onTogglePin: (Long) -> Unit,
@@ -193,6 +195,7 @@ fun FavoritesScreen(
             }
             items(shown, key = { it.id }) { favorite ->
                 val runLabel = stringResource(R.string.favorites_run)
+                val copyLabel = stringResource(R.string.copy)
                 val editLabel = stringResource(R.string.favorites_edit)
                 val pinLabel = stringResource(if (favorite.pinned) R.string.menu_unpin else R.string.menu_pin)
                 val deleteLabel = stringResource(R.string.menu_delete)
@@ -203,6 +206,7 @@ fun FavoritesScreen(
                         contextMenu.show(
                             ContextMenuRequest(bounds) {
                                 item(icon = Icons.Default.PlayArrow, text = runLabel) { onRun(favorite.text) }
+                                item(icon = Icons.Default.ContentCopy, text = copyLabel) { onCopy(favorite.text) }
                                 item(icon = Icons.Default.Edit, text = editLabel) { editTarget = favorite }
                                 item(icon = Icons.Default.PushPin, text = pinLabel, crossed = favorite.pinned) {
                                     onTogglePin(favorite.id)
