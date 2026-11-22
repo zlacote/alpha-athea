@@ -1,8 +1,12 @@
 package iatheiya.ayana.ui.main
 
-import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.VisibilityThreshold
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.layout.layout
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.animation.core.animate
+import androidx.compose.runtime.SideEffect
 import iatheiya.ayana.ui.common.foldGlide
-import kotlinx.coroutines.launch
 import iatheiya.ayana.ui.common.pressWash
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.ui.unit.LayoutDirection
@@ -282,7 +286,7 @@ fun TranscriptView(
             // LazyColumn items (chunks) so outer virtualization composes only visible
             // chunks and scrollToItem(last) is truly very end — no large offset hack.
             // Offload chunking from main thread to avoid jank when scrolling tools.
-            var displayItems by remember { mutableStateOf<List<DisplayItem>>(emptyList()) }
+            var builtItems by remember { mutableStateOf<List<DisplayItem>>(emptyList()) }
             LaunchedEffect(views, viewportChunkSize, virtualizeLargeOutput) {
                 val out = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
                     val list = mutableListOf<DisplayItem>()
@@ -305,7 +309,20 @@ fun TranscriptView(
                     }
                     list
                 }
-                displayItems = out
+                builtItems = out
+            }
+            // The list built in the background lags the session by a frame or two. Blocks it has not
+            // seen yet (a command just sent, its answer just begun, both small) are shown as they
+            // are at once, so a sent message is in the list in the same frame the composer clears.
+            val displayItems = remember(builtItems, views) {
+                val built = builtItems.mapTo(HashSet()) { item ->
+                    when (item) {
+                        is DisplayItem.Block -> item.view.block.id
+                        is DisplayItem.Chunk -> item.blockId
+                    }
+                }
+                val fresh = views.filter { it.block.id !in built }
+                if (fresh.isEmpty()) builtItems else builtItems + fresh.map { DisplayItem.Block(it) }
             }
             // Map blockId -> first display index for search navigation
             val blockToDisplayIndex = remember(displayItems) {
@@ -342,20 +359,19 @@ fun TranscriptView(
                         }
                     }
             }
-            // A new message, while at the end, comes in as in a messenger: the list keeps what it
-            // shows where it was (the new item lands below it, under the composer), then scrolls
-            // down to it, so the messages above rise and leave at the top as they would by hand,
-            // never vanishing, and the new one shows as it rises into view.
+            // A new message, while at the end, comes in as in a messenger (as a recycler's item
+            // animator does it): in the very layout that first has it, it takes its place at the
+            // bottom, the messages above are drawn where they were and glide up by its height,
+            // and it rises from under the composer by that same height, on the same spring. Nothing
+            // vanishes and nothing waits for a scroll to catch up.
             val newestKey = listItems.firstOrNull()?.let(::listKeyOf)
             val arrival = remember(session.id) { Arrival() }
-            LaunchedEffect(newestKey) {
-                val before = arrival.lastKey
-                arrival.lastKey = newestKey
-                if (before == null || newestKey == null || !stickToBottom) return@LaunchedEffect
-                arrival.key = newestKey
-                arrival.shown.snapTo(0f)
-                launch { arrival.shown.animateTo(1f, tween(ARRIVAL_FADE_MS)) }
-                try { listState.animateScrollToItem(0) } catch (_: Exception) {}
+            arrival.note(newestKey, stickToBottom)
+            SideEffect { if (arrival.takeScroll()) listState.requestScrollToItem(0) }
+            LaunchedEffect(arrival.count) {
+                if (arrival.count == 0) return@LaunchedEffect
+                animate(0f, 1f, animationSpec = ARRIVAL_SPRING) { value, _ -> arrival.progress = value }
+                arrival.settling = false
             }
 
             // Search navigation: reveal the block, then scroll to its first chunk.
@@ -422,8 +438,17 @@ fun TranscriptView(
                 },
             ) {
                 items(listItems, key = ::listKeyOf) { item ->
-                    // The message arriving shows as it rises clear of the composer, not through its glass.
-                    Box(Modifier.graphicsLayer { alpha = arrival.alphaOf(listKeyOf(item)) }) {
+                    val itemKey = listKeyOf(item)
+                    Box(
+                        Modifier
+                            // While a message comes in, the others glide to their new places.
+                            .animateItem(
+                                fadeInSpec = null,
+                                placementSpec = if (arrival.settling) ARRIVAL_PLACEMENT else null,
+                                fadeOutSpec = null,
+                            )
+                            .then(if (itemKey == arrival.key) Modifier.risingIn(arrival) else Modifier),
+                    ) {
                         when (item) {
                             is DisplayItem.Block -> {
                                 val view = item.view
@@ -1128,14 +1153,55 @@ private class LivePadding(private val top: Dp, private val bottom: () -> Dp) : P
 /** The newest item at the end of the chat, and the one coming in now with how much of it shows. */
 private class Arrival {
     var lastKey: Any? = null
+    /** The item coming in now. */
     var key: Any? = null
-    val shown = Animatable(1f)
+    /** How far it has come, 0 (under the composer) to 1 (in place). */
+    var progress by mutableFloatStateOf(1f)
+    /** True while the others glide to their new places. */
+    var settling by mutableStateOf(false)
+    /** Arrivals so far; each new one starts the glide again. */
+    var count by mutableIntStateOf(0)
+    private var scrollPending = false
 
-    fun alphaOf(itemKey: Any): Float = if (itemKey == key) shown.value else 1f
+    /** Notes the newest item; a new one at the end of the chat, followed, is an arrival. */
+    fun note(newestKey: Any?, following: Boolean) {
+        if (newestKey == lastKey) return
+        val before = lastKey
+        lastKey = newestKey
+        if (before == null || newestKey == null || !following) return
+        key = newestKey
+        progress = 0f
+        settling = true
+        scrollPending = true
+        count++
+    }
+
+    /** True once after an arrival: the list is to hold its end in that layout. */
+    fun takeScroll(): Boolean = scrollPending.also { scrollPending = false }
 }
 
-/** How long a message coming in takes to show fully, as it rises into view. */
-private const val ARRIVAL_FADE_MS = 260
+/** The item coming in rises from under the composer by its own height, showing as it comes. */
+private fun Modifier.risingIn(arrival: Arrival): Modifier = layout { measurable, constraints ->
+    val placeable = measurable.measure(constraints)
+    layout(placeable.width, placeable.height) {
+        placeable.placeWithLayer(0, 0) {
+            val p = arrival.progress
+            translationY = (1f - p) * placeable.height
+            alpha = p.coerceIn(0f, 1f)
+        }
+    }
+}
+
+/** One spring for the message rising and the others making room, so they move as one. */
+private val ARRIVAL_SPRING = androidx.compose.animation.core.spring<Float>(
+    dampingRatio = androidx.compose.animation.core.Spring.DampingRatioNoBouncy,
+    stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow,
+)
+private val ARRIVAL_PLACEMENT = androidx.compose.animation.core.spring(
+    dampingRatio = androidx.compose.animation.core.Spring.DampingRatioNoBouncy,
+    stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow,
+    visibilityThreshold = IntOffset.VisibilityThreshold,
+)
 
 /** The key an item has in the list. */
 private fun listKeyOf(item: DisplayItem): Any = when (item) {

@@ -4,6 +4,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.ui.zIndex
 import iatheiya.ayana.session.Attachments
 import iatheiya.ayana.ui.common.AyanaDrawer
+import iatheiya.ayana.ui.common.ScreenSwap
 import iatheiya.ayana.ui.common.rememberAyanaDrawerState
 import iatheiya.ayana.util.toast
 import androidx.activity.compose.BackHandler
@@ -32,6 +33,9 @@ import iatheiya.ayana.ui.common.pressWash
 import kotlin.math.roundToInt
 import android.graphics.Typeface
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.rememberUpdatedState
+import kotlinx.coroutines.delay
+import iatheiya.ayana.ui.common.SCREEN_SWAP_MS
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontFamily
@@ -204,164 +208,182 @@ private fun MainScreenRoutes(viewModel: MainViewModel, state: UiState) {
         val window = activity?.window ?: return@LaunchedEffect
         setStatusBarHidden(window, window.decorView, hidden = immersive)
     }
-    fun closeSettings() {
-        scope.launch {
-            settingsScroll.scrollTo(0)
-            appearanceScroll.scrollTo(0)
-        }
-        settingsPane = SettingsPane.ROOT
-        viewModel.setShowSettings(false)
-    }
+    // Settings start over (root room, scrolled to the top) once they are left for the chat; the
+    // reset waits until they have faded out, so the leaving screen does not jump while it fades.
+    fun closeSettings() = viewModel.setShowSettings(false)
 
-    if (state.showGlassTuning) {
-        BackHandler { viewModel.setShowGlassTuning(false) }
-        GlassTuningScreen(
-            onBack = { viewModel.setShowGlassTuning(false) },
-            onEnableAccent = {
-                val (mode, argb) = tintWhenEnabled(settings.tintArgb)
-                viewModel.setTint(mode, argb)
-            },
-        )
-        return
+    val screen = when {
+        state.showGlassTuning -> Screen.GLASS
+        state.showKeys -> Screen.KEYS
+        state.showSettings -> Screen.SETTINGS
+        state.showFavorites -> Screen.FAVORITES
+        else -> Screen.CHAT
     }
-
-    if (state.showKeys) {
-        BackHandler { viewModel.setShowKeys(false) }
-        KeysScreen(
-            keys = effectiveKeyRow(state.workspace.customKeys),
-            keyRowVisible = state.workspace.settings.keyRowVisible,
-            keyRows = state.workspace.settings.keyRows,
-            keyCols = state.workspace.settings.keyCols,
-            onKeyRowVisibleChange = viewModel::setKeyRowVisible,
-            onKeyRowsChange = viewModel::setKeyRows,
-            onKeyColsChange = viewModel::setKeyCols,
-            onKeysChange = viewModel::setCustomKeys,
-            onBack = { viewModel.setShowKeys(false) },
-        )
-        return
-    }
-
-    if (state.showSettings) {
-        BackHandler { closeSettings() }
-        SettingsScreen(
-            scrollState = settingsScroll,
-            onResetAll = viewModel::resetAllSettings,
-            pane = settingsPane,
-            // Going back out of a room forgets where it was scrolled; going deeper (Appearance into
-            // Glass) keeps it, since this screen stays put underneath.
-            onPaneChange = { next ->
-                if (next == SettingsPane.ROOT && settingsPane == SettingsPane.APPEARANCE) {
-                    scope.launch { appearanceScroll.scrollTo(0) }
-                }
-                settingsPane = next
-            },
-            appearanceScroll = appearanceScroll,
-            appearance = AppearanceState(
-                immersiveMode = settings.immersiveMode,
-                screenAwake = settings.screenAwake,
-                tintMode = settings.tintMode,
-                tintArgb = settings.tintArgb,
-                tintSoft = settings.tintSoft,
-                font = settings.font,
-                hasCustomFont = settings.customFontVersion != 0L,
-                hasWallpaper = settings.wallpaperVersion != 0L,
-                wallpaperDimPct = settings.wallpaperDimPct,
-                wallpaperBlurDp = settings.wallpaperBlurDp,
-                pinchZoomEnabled = settings.pinchZoomEnabled,
-                greetingAnimated = settings.greetingAnimated,
-                outputFontSizeSp = settings.outputFontSizeSp,
-                bubbleFontSizeSp = settings.bubbleFontSizeSp,
-            ),
-            appearanceActions = AppearanceActions(
-                onImmersiveModeChange = viewModel::setImmersiveMode,
-                onScreenAwakeChange = viewModel::setScreenAwake,
-                onTintChange = viewModel::setTint,
-                onTintSoftChange = viewModel::setTintSoft,
-                onFontChange = viewModel::setFont,
-                onFontPicked = { uri -> viewModel.importCustomFont(uri, appContext) },
-                onWallpaperPicked = { uri -> viewModel.importWallpaper(uri, appContext) },
-                onRemoveWallpaper = viewModel::removeWallpaper,
-                onWallpaperDimChange = viewModel::setWallpaperDim,
-                onWallpaperBlurChange = viewModel::setWallpaperBlur,
-                onPinchZoomEnabledChange = viewModel::setPinchZoomEnabled,
-                onGreetingAnimatedChange = viewModel::setGreetingAnimated,
-                onOutputFontSizeChange = viewModel::setOutputFontSize,
-                onBubbleFontSizeChange = viewModel::setBubbleFontSize,
-                onOpenGlassTuning = { viewModel.setShowGlassTuning(true) },
-            ),
-            glowCard = {
-                GlowCard(
-                    glowEnabled = settings.glowEnabled,
-                    glowStrengthPct = settings.glowStrengthPct,
-                    glowHeightDp = settings.glowHeightDp,
-                    glowWidthPct = settings.glowWidthPct,
-                    glowPeriodMs = settings.glowPeriodMs,
-                    onGlowEnabledChange = viewModel::setGlowEnabled,
-                    onGlowStrengthChange = viewModel::setGlowStrengthPct,
-                    onGlowHeightChange = viewModel::setGlowHeightDp,
-                    onGlowWidthChange = viewModel::setGlowWidthPct,
-                    onGlowPeriodChange = viewModel::setGlowPeriodMs,
+    ScreenSwap(target = screen, depth = Screen::depth, still = { it == Screen.CHAT }) { shown ->
+        when (shown) {
+            Screen.GLASS -> {
+                BackHandler(enabled = shown == screen) { viewModel.setShowGlassTuning(false) }
+                GlassTuningScreen(
+                    onBack = { viewModel.setShowGlassTuning(false) },
+                    onEnableAccent = {
+                        val (mode, argb) = tintWhenEnabled(settings.tintArgb)
+                        viewModel.setTint(mode, argb)
+                    },
                 )
-            },
-            enterSends = state.workspace.settings.enterSends,
-            autoScrollOnSend = state.workspace.settings.autoScrollOnSend,
-            rawStream = state.workspace.settings.rawStream,
-            signalLongCommands = settings.signalLongCommands,
-            longCommandSec = settings.longCommandSec,
-            onSignalLongCommandsChange = viewModel::setSignalLongCommands,
-            notificationsAsked = settings.notificationsAsked,
-            onNotificationsAsked = viewModel::markNotificationsAsked,
-            onWaitForNotificationSettings = viewModel::waitForNotificationSettings,
-            onLongCommandSecChange = viewModel::setLongCommandSec,
-            autocompleteEnabled = state.workspace.settings.autocompleteEnabled,
-            downSetsDraftAside = settings.downSetsDraftAside,
-            onDownSetsDraftAsideChange = viewModel::setDownSetsDraftAside,
-            virtualizeLargeOutput = state.workspace.settings.virtualizeLargeOutput,
-            previewLines = state.workspace.settings.previewLines,
-            onEnterSendsChange = viewModel::setEnterSends,
-            onAutoScrollOnSendChange = viewModel::setAutoScrollOnSend,
-            onRawStreamChange = viewModel::setRawStream,
-            onAutocompleteEnabledChange = viewModel::setAutocompleteEnabled,
-            onVirtualizeLargeOutputChange = viewModel::setVirtualizeLargeOutput,
-            onPreviewLinesChange = viewModel::setPreviewLines,
-            onOpenKeys = { viewModel.setShowKeys(true) },
-            attachSendsNow = state.workspace.settings.attachSendsNow,
-            onAttachSendsNowChange = viewModel::setAttachSendsNow,
-            favoritesEnabled = state.workspace.settings.favoritesEnabled,
-            onFavoritesEnabledChange = viewModel::setFavoritesEnabled,
-            onBack = { closeSettings() },
-        )
-        return
-    }
-
-    if (state.showFavorites) {
-        BackHandler { viewModel.setShowFavorites(false) }
-        FavoritesScreen(
-            favorites = state.workspace.favorites,
-            onBack = { viewModel.setShowFavorites(false) },
-            // A tap puts the command in the composer and goes back to the chat; Run sends it,
-            // Copy keeps it for elsewhere, from the long-press menu.
-            onInsert = { text ->
-                viewModel.insertIntoDraft(text)
-                viewModel.setShowFavorites(false)
-            },
-            onRun = viewModel::executeDirectly,
-            onCopy = { text -> appContext.copyToClipboard(text, "ayana-favorite") },
-            onAdd = viewModel::addFavorite,
-            onEdit = viewModel::updateFavorite,
-            onTogglePin = viewModel::togglePinFavorite,
-            onDelete = viewModel::deleteFavorite,
-        )
-        return
-    }
-
-    CompositionLocalProvider(
-        LocalOutputFontSize provides state.workspace.settings.outputFontSizeSp,
-        LocalMessageFontSize provides state.workspace.settings.bubbleFontSizeSp,
-    ) {
-        MainScreenContent(viewModel, state)
+            }
+            Screen.KEYS -> {
+                BackHandler(enabled = shown == screen) { viewModel.setShowKeys(false) }
+                KeysScreen(
+                    keys = effectiveKeyRow(state.workspace.customKeys),
+                    keyRowVisible = state.workspace.settings.keyRowVisible,
+                    keyRows = state.workspace.settings.keyRows,
+                    keyCols = state.workspace.settings.keyCols,
+                    onKeyRowVisibleChange = viewModel::setKeyRowVisible,
+                    onKeyRowsChange = viewModel::setKeyRows,
+                    onKeyColsChange = viewModel::setKeyCols,
+                    onKeysChange = viewModel::setCustomKeys,
+                    onBack = { viewModel.setShowKeys(false) },
+                )
+            }
+            Screen.SETTINGS -> {
+                BackHandler(enabled = shown == screen) { closeSettings() }
+                val leftFor by rememberUpdatedState(screen)
+                DisposableEffect(Unit) {
+                    onDispose {
+                        if (leftFor == Screen.CHAT) {
+                            settingsPane = SettingsPane.ROOT
+                            scope.launch {
+                                settingsScroll.scrollTo(0)
+                                appearanceScroll.scrollTo(0)
+                            }
+                        }
+                    }
+                }
+                SettingsScreen(
+                    scrollState = settingsScroll,
+                    onResetAll = viewModel::resetAllSettings,
+                    pane = settingsPane,
+                    // Going back out of a room forgets where it was scrolled; going deeper (Appearance into
+                    // Glass) keeps it, since this screen stays put underneath.
+                    onPaneChange = { next ->
+                        if (next == SettingsPane.ROOT && settingsPane == SettingsPane.APPEARANCE) {
+                            scope.launch {
+                                delay(SCREEN_SWAP_MS.toLong())
+                                appearanceScroll.scrollTo(0)
+                            }
+                        }
+                        settingsPane = next
+                    },
+                    appearanceScroll = appearanceScroll,
+                    appearance = AppearanceState(
+                        immersiveMode = settings.immersiveMode,
+                        screenAwake = settings.screenAwake,
+                        tintMode = settings.tintMode,
+                        tintArgb = settings.tintArgb,
+                        tintSoft = settings.tintSoft,
+                        font = settings.font,
+                        hasCustomFont = settings.customFontVersion != 0L,
+                        hasWallpaper = settings.wallpaperVersion != 0L,
+                        wallpaperDimPct = settings.wallpaperDimPct,
+                        wallpaperBlurDp = settings.wallpaperBlurDp,
+                        pinchZoomEnabled = settings.pinchZoomEnabled,
+                        greetingAnimated = settings.greetingAnimated,
+                        outputFontSizeSp = settings.outputFontSizeSp,
+                        bubbleFontSizeSp = settings.bubbleFontSizeSp,
+                    ),
+                    appearanceActions = AppearanceActions(
+                        onImmersiveModeChange = viewModel::setImmersiveMode,
+                        onScreenAwakeChange = viewModel::setScreenAwake,
+                        onTintChange = viewModel::setTint,
+                        onTintSoftChange = viewModel::setTintSoft,
+                        onFontChange = viewModel::setFont,
+                        onFontPicked = { uri -> viewModel.importCustomFont(uri, appContext) },
+                        onWallpaperPicked = { uri -> viewModel.importWallpaper(uri, appContext) },
+                        onRemoveWallpaper = viewModel::removeWallpaper,
+                        onWallpaperDimChange = viewModel::setWallpaperDim,
+                        onWallpaperBlurChange = viewModel::setWallpaperBlur,
+                        onPinchZoomEnabledChange = viewModel::setPinchZoomEnabled,
+                        onGreetingAnimatedChange = viewModel::setGreetingAnimated,
+                        onOutputFontSizeChange = viewModel::setOutputFontSize,
+                        onBubbleFontSizeChange = viewModel::setBubbleFontSize,
+                        onOpenGlassTuning = { viewModel.setShowGlassTuning(true) },
+                    ),
+                    glowCard = {
+                        GlowCard(
+                            glowEnabled = settings.glowEnabled,
+                            glowStrengthPct = settings.glowStrengthPct,
+                            glowHeightDp = settings.glowHeightDp,
+                            glowWidthPct = settings.glowWidthPct,
+                            glowPeriodMs = settings.glowPeriodMs,
+                            onGlowEnabledChange = viewModel::setGlowEnabled,
+                            onGlowStrengthChange = viewModel::setGlowStrengthPct,
+                            onGlowHeightChange = viewModel::setGlowHeightDp,
+                            onGlowWidthChange = viewModel::setGlowWidthPct,
+                            onGlowPeriodChange = viewModel::setGlowPeriodMs,
+                        )
+                    },
+                    enterSends = state.workspace.settings.enterSends,
+                    autoScrollOnSend = state.workspace.settings.autoScrollOnSend,
+                    rawStream = state.workspace.settings.rawStream,
+                    signalLongCommands = settings.signalLongCommands,
+                    longCommandSec = settings.longCommandSec,
+                    onSignalLongCommandsChange = viewModel::setSignalLongCommands,
+                    notificationsAsked = settings.notificationsAsked,
+                    onNotificationsAsked = viewModel::markNotificationsAsked,
+                    onWaitForNotificationSettings = viewModel::waitForNotificationSettings,
+                    onLongCommandSecChange = viewModel::setLongCommandSec,
+                    autocompleteEnabled = state.workspace.settings.autocompleteEnabled,
+                    downSetsDraftAside = settings.downSetsDraftAside,
+                    onDownSetsDraftAsideChange = viewModel::setDownSetsDraftAside,
+                    virtualizeLargeOutput = state.workspace.settings.virtualizeLargeOutput,
+                    previewLines = state.workspace.settings.previewLines,
+                    onEnterSendsChange = viewModel::setEnterSends,
+                    onAutoScrollOnSendChange = viewModel::setAutoScrollOnSend,
+                    onRawStreamChange = viewModel::setRawStream,
+                    onAutocompleteEnabledChange = viewModel::setAutocompleteEnabled,
+                    onVirtualizeLargeOutputChange = viewModel::setVirtualizeLargeOutput,
+                    onPreviewLinesChange = viewModel::setPreviewLines,
+                    onOpenKeys = { viewModel.setShowKeys(true) },
+                    attachSendsNow = state.workspace.settings.attachSendsNow,
+                    onAttachSendsNowChange = viewModel::setAttachSendsNow,
+                    favoritesEnabled = state.workspace.settings.favoritesEnabled,
+                    onFavoritesEnabledChange = viewModel::setFavoritesEnabled,
+                    onBack = { closeSettings() },
+                )
+            }
+            Screen.FAVORITES -> {
+                BackHandler(enabled = shown == screen) { viewModel.setShowFavorites(false) }
+                FavoritesScreen(
+                    favorites = state.workspace.favorites,
+                    onBack = { viewModel.setShowFavorites(false) },
+                    // A tap puts the command in the composer and goes back to the chat; Run sends it,
+                    // Copy keeps it for elsewhere, from the long-press menu.
+                    onInsert = { text ->
+                        viewModel.insertIntoDraft(text)
+                        viewModel.setShowFavorites(false)
+                    },
+                    onRun = viewModel::executeDirectly,
+                    onCopy = { text -> appContext.copyToClipboard(text, "ayana-favorite") },
+                    onAdd = viewModel::addFavorite,
+                    onEdit = viewModel::updateFavorite,
+                    onTogglePin = viewModel::togglePinFavorite,
+                    onDelete = viewModel::deleteFavorite,
+                )
+            }
+            Screen.CHAT -> {
+                CompositionLocalProvider(
+                    LocalOutputFontSize provides state.workspace.settings.outputFontSizeSp,
+                    LocalMessageFontSize provides state.workspace.settings.bubbleFontSizeSp,
+                ) {
+                    MainScreenContent(viewModel, state)
+                }
+            }
+        }
     }
 }
+
+/** The screens [MainScreenRoutes] swaps between, by how deep each lies under the chat. */
+private enum class Screen(val depth: Int) { CHAT(0), FAVORITES(1), SETTINGS(1), KEYS(2), GLASS(2) }
 
 @Composable
 private fun MainScreenContent(viewModel: MainViewModel, state: UiState) {

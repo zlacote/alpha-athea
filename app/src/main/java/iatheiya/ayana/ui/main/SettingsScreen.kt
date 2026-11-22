@@ -3,6 +3,7 @@ package iatheiya.ayana.ui.main
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.foundation.clickable
 import iatheiya.ayana.ui.common.AyanaPage
+import iatheiya.ayana.ui.common.ScreenSwap
 import androidx.compose.foundation.layout.Box
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.ui.platform.LocalDensity
@@ -137,243 +138,245 @@ internal fun SettingsScreen(
     }
 
     AyanaScaffold(onBack = handleBack, modifier = modifier) {
-        when (pane) {
-            SettingsPane.ROOT -> AyanaPage(stringResource(R.string.settings), scrollState) {
-                SettingsCard {
-                    SettingsEntryRow(
-                        icon = Icons.Default.Terminal,
-                        title = stringResource(R.string.settings_section_chat),
-                        onClick = { onPaneChange(SettingsPane.CHAT) },
-                    )
+        ScreenSwap(target = pane, depth = { if (it == SettingsPane.ROOT) 0 else 1 }) { shown ->
+            when (shown) {
+                SettingsPane.ROOT -> AyanaPage(stringResource(R.string.settings), scrollState) {
+                    SettingsCard {
+                        SettingsEntryRow(
+                            icon = Icons.Default.Terminal,
+                            title = stringResource(R.string.settings_section_chat),
+                            onClick = { onPaneChange(SettingsPane.CHAT) },
+                        )
 
-                    SettingsDivider()
-                    SettingsEntryRow(
-                        icon = Icons.Outlined.Notifications,
-                        title = stringResource(R.string.settings_section_notifications),
-                        onClick = { onPaneChange(SettingsPane.NOTIFICATIONS) },
-                    )
+                        SettingsDivider()
+                        SettingsEntryRow(
+                            icon = Icons.Outlined.Notifications,
+                            title = stringResource(R.string.settings_section_notifications),
+                            onClick = { onPaneChange(SettingsPane.NOTIFICATIONS) },
+                        )
+                    }
+                    SettingsCard {
+                        SettingsEntryRow(
+                            icon = Icons.Default.Palette,
+                            title = stringResource(R.string.settings_section_appearance),
+                            onClick = { onPaneChange(SettingsPane.APPEARANCE) },
+                        )
+                        SettingsDivider()
+                        SettingsEntryRow(
+                            icon = Icons.Default.BlurOn,
+                            title = stringResource(R.string.glass_title),
+                            onClick = appearanceActions.onOpenGlassTuning,
+                        )
+                        SettingsDivider()
+                        SettingsEntryRow(
+                            icon = Icons.Default.TextFields,
+                            title = stringResource(R.string.appearance_font),
+                            onClick = { onPaneChange(SettingsPane.FONT) },
+                        )
+                        SettingsDivider()
+                        SettingsEntryRow(
+                            icon = Icons.Default.KeyboardCommandKey,
+                            title = stringResource(R.string.settings_key_row),
+                            onClick = onOpenKeys,
+                        )
+                    }
+                    SettingsCard {
+                        SettingsEntryRow(
+                            icon = Icons.Outlined.Info,
+                            title = stringResource(R.string.settings_about),
+                            onClick = { onPaneChange(SettingsPane.ABOUT) },
+                        )
+                    }
                 }
-                SettingsCard {
-                    SettingsEntryRow(
-                        icon = Icons.Default.Palette,
-                        title = stringResource(R.string.settings_section_appearance),
-                        onClick = { onPaneChange(SettingsPane.APPEARANCE) },
-                    )
-                    SettingsDivider()
-                    SettingsEntryRow(
-                        icon = Icons.Default.BlurOn,
-                        title = stringResource(R.string.glass_title),
-                        onClick = appearanceActions.onOpenGlassTuning,
-                    )
-                    SettingsDivider()
-                    SettingsEntryRow(
-                        icon = Icons.Default.TextFields,
-                        title = stringResource(R.string.appearance_font),
-                        onClick = { onPaneChange(SettingsPane.FONT) },
-                    )
-                    SettingsDivider()
-                    SettingsEntryRow(
-                        icon = Icons.Default.KeyboardCommandKey,
-                        title = stringResource(R.string.settings_key_row),
-                        onClick = onOpenKeys,
-                    )
-                }
-                SettingsCard {
-                    SettingsEntryRow(
-                        icon = Icons.Outlined.Info,
-                        title = stringResource(R.string.settings_about),
-                        onClick = { onPaneChange(SettingsPane.ABOUT) },
-                    )
-                }
-            }
 
-            // Everything about the conversation, in one room, in the order things happen: what
-            // you write, how it is sent (and the commands kept for sending again), what comes back.
-            SettingsPane.CHAT -> AyanaPage(stringResource(R.string.settings_section_chat)) {
-                SettingsCard {
-                    SwitchRow(
-                        title = stringResource(R.string.settings_enter_sends),
-                        subtitle = stringResource(R.string.settings_enter_sends_desc),
-                        checked = enterSends,
-                        onChange = onEnterSendsChange,
-                    )
-                    SettingsDivider()
-                    SwitchRow(
-                        title = stringResource(R.string.settings_autocomplete),
-                        subtitle = stringResource(R.string.settings_autocomplete_desc),
-                        checked = autocompleteEnabled,
-                        onChange = onAutocompleteEnabledChange,
-                    )
-                    SettingsDivider()
-                    SwitchRow(
-                        title = stringResource(R.string.settings_down_aside),
-                        subtitle = stringResource(R.string.settings_down_aside_desc),
-                        checked = downSetsDraftAside,
-                        onChange = onDownSetsDraftAsideChange,
-                    )
-                }
-                // The commands made for you to send: by the + menu, and the favorites.
-                SettingsCard {
-                    SwitchRow(
-                        title = stringResource(R.string.settings_attach_sends_now),
-                        subtitle = stringResource(R.string.settings_attach_sends_now_desc),
-                        checked = attachSendsNow,
-                        onChange = onAttachSendsNowChange,
-                    )
-                    SettingsDivider()
-                    SwitchRow(
-                        title = stringResource(R.string.favorites),
-                        subtitle = stringResource(R.string.settings_favorites_desc),
-                        checked = favoritesEnabled,
-                        onChange = onFavoritesEnabledChange,
-                    )
-                }
-                SettingsCard {
-                    SwitchRow(
-                        title = stringResource(R.string.settings_auto_scroll),
-                        subtitle = stringResource(R.string.settings_auto_scroll_desc),
-                        checked = autoScrollOnSend,
-                        onChange = onAutoScrollOnSendChange,
-                    )
-                }
-            }
-
-            // How a command tells you about itself: its end, felt or in the notifications, and the
-            // light at the top edge while it runs.
-            SettingsPane.NOTIFICATIONS -> AyanaPage(stringResource(R.string.settings_section_notifications)) {
-                // A long command's end: felt, or seen in the notifications while Ayana is away. The
-                // switch turns on only once notifications are allowed: asked for in a dialog, or,
-                // when Android no longer shows one, in the app's notification settings.
-                val askNotifications = rememberLauncherForActivityResult(
-                    ActivityResultContracts.RequestPermission(),
-                ) { granted -> if (granted) onSignalLongCommandsChange(true) }
-                SettingsCard {
-                    SwitchRow(
-                        title = stringResource(R.string.settings_long_signal),
-                        subtitle = stringResource(R.string.settings_long_signal_desc),
-                        checked = signalLongCommands,
-                        onChange = { on ->
-                            when {
-                                !on -> onSignalLongCommandsChange(false)
-                                context.notificationsAllowed() -> onSignalLongCommandsChange(true)
-                                notificationsAsked && !mayAskAgain(context) -> {
-                                    onWaitForNotificationSettings()
-                                    openNotificationSettings(context)
-                                }
-                                else -> {
-                                    onNotificationsAsked()
-                                    askNotifications.launch(Manifest.permission.POST_NOTIFICATIONS)
-                                }
-                            }
-                        },
-                    )
-                    SettingsDivider()
-                    SliderRow(
-                        title = stringResource(R.string.settings_long_after),
-                        value = longCommandSec,
-                        range = 3f..120f,
-                        onChange = onLongCommandSecChange,
-                        enabled = signalLongCommands,
-                    )
-                }
-                // The light at the top edge while a command runs: how a running command shows.
-                glowCard()
-            }
-
-            SettingsPane.APPEARANCE -> AppearancePane(
-                state = appearance,
-                actions = appearanceActions,
-                scrollState = appearanceScroll,
-                // How the answers look: as a raw stream or in blocks, how a large one is held, how
-                // much of a folded one shows.
-                outputCard = {
+                // Everything about the conversation, in one room, in the order things happen: what
+                // you write, how it is sent (and the commands kept for sending again), what comes back.
+                SettingsPane.CHAT -> AyanaPage(stringResource(R.string.settings_section_chat)) {
                     SettingsCard {
                         SwitchRow(
-                            title = stringResource(R.string.settings_raw_stream),
-                            subtitle = stringResource(R.string.settings_raw_stream_desc),
-                            checked = rawStream,
-                            onChange = onRawStreamChange,
+                            title = stringResource(R.string.settings_enter_sends),
+                            subtitle = stringResource(R.string.settings_enter_sends_desc),
+                            checked = enterSends,
+                            onChange = onEnterSendsChange,
                         )
                         SettingsDivider()
                         SwitchRow(
-                            title = stringResource(R.string.settings_virtualize),
-                            subtitle = stringResource(R.string.settings_virtualize_desc),
-                            checked = virtualizeLargeOutput,
-                            onChange = onVirtualizeLargeOutputChange,
-                            // The raw stream is one continuous text, with no blocks to scroll inside.
-                            enabled = !rawStream,
+                            title = stringResource(R.string.settings_autocomplete),
+                            subtitle = stringResource(R.string.settings_autocomplete_desc),
+                            checked = autocompleteEnabled,
+                            onChange = onAutocompleteEnabledChange,
+                        )
+                        SettingsDivider()
+                        SwitchRow(
+                            title = stringResource(R.string.settings_down_aside),
+                            subtitle = stringResource(R.string.settings_down_aside_desc),
+                            checked = downSetsDraftAside,
+                            onChange = onDownSetsDraftAsideChange,
+                        )
+                    }
+                    // The commands made for you to send: by the + menu, and the favorites.
+                    SettingsCard {
+                        SwitchRow(
+                            title = stringResource(R.string.settings_attach_sends_now),
+                            subtitle = stringResource(R.string.settings_attach_sends_now_desc),
+                            checked = attachSendsNow,
+                            onChange = onAttachSendsNowChange,
+                        )
+                        SettingsDivider()
+                        SwitchRow(
+                            title = stringResource(R.string.favorites),
+                            subtitle = stringResource(R.string.settings_favorites_desc),
+                            checked = favoritesEnabled,
+                            onChange = onFavoritesEnabledChange,
+                        )
+                    }
+                    SettingsCard {
+                        SwitchRow(
+                            title = stringResource(R.string.settings_auto_scroll),
+                            subtitle = stringResource(R.string.settings_auto_scroll_desc),
+                            checked = autoScrollOnSend,
+                            onChange = onAutoScrollOnSendChange,
+                        )
+                    }
+                }
+
+                // How a command tells you about itself: its end, felt or in the notifications, and the
+                // light at the top edge while it runs.
+                SettingsPane.NOTIFICATIONS -> AyanaPage(stringResource(R.string.settings_section_notifications)) {
+                    // A long command's end: felt, or seen in the notifications while Ayana is away. The
+                    // switch turns on only once notifications are allowed: asked for in a dialog, or,
+                    // when Android no longer shows one, in the app's notification settings.
+                    val askNotifications = rememberLauncherForActivityResult(
+                        ActivityResultContracts.RequestPermission(),
+                    ) { granted -> if (granted) onSignalLongCommandsChange(true) }
+                    SettingsCard {
+                        SwitchRow(
+                            title = stringResource(R.string.settings_long_signal),
+                            subtitle = stringResource(R.string.settings_long_signal_desc),
+                            checked = signalLongCommands,
+                            onChange = { on ->
+                                when {
+                                    !on -> onSignalLongCommandsChange(false)
+                                    context.notificationsAllowed() -> onSignalLongCommandsChange(true)
+                                    notificationsAsked && !mayAskAgain(context) -> {
+                                        onWaitForNotificationSettings()
+                                        openNotificationSettings(context)
+                                    }
+                                    else -> {
+                                        onNotificationsAsked()
+                                        askNotifications.launch(Manifest.permission.POST_NOTIFICATIONS)
+                                    }
+                                }
+                            },
                         )
                         SettingsDivider()
                         SliderRow(
-                            title = stringResource(R.string.settings_preview_lines),
-                            value = previewLines,
-                            range = 1f..10f,
-                            onChange = onPreviewLinesChange,
+                            title = stringResource(R.string.settings_long_after),
+                            value = longCommandSec,
+                            range = 3f..120f,
+                            onChange = onLongCommandSecChange,
+                            enabled = signalLongCommands,
                         )
                     }
-                },
-            )
+                    // The light at the top edge while a command runs: how a running command shows.
+                    glowCard()
+                }
 
-            SettingsPane.FONT -> FontPane(state = appearance, actions = appearanceActions)
-
-            SettingsPane.ABOUT -> AyanaPage(stringResource(R.string.settings_about)) {
-                // The icon's light as the room's emblem, across the whole width.
-                AyanaLight(
-                    Modifier
-                        .fillMaxWidth()
-                        .height(ABOUT_LIGHT_HEIGHT),
+                SettingsPane.APPEARANCE -> AppearancePane(
+                    state = appearance,
+                    actions = appearanceActions,
+                    scrollState = appearanceScroll,
+                    // How the answers look: as a raw stream or in blocks, how a large one is held, how
+                    // much of a folded one shows.
+                    outputCard = {
+                        SettingsCard {
+                            SwitchRow(
+                                title = stringResource(R.string.settings_raw_stream),
+                                subtitle = stringResource(R.string.settings_raw_stream_desc),
+                                checked = rawStream,
+                                onChange = onRawStreamChange,
+                            )
+                            SettingsDivider()
+                            SwitchRow(
+                                title = stringResource(R.string.settings_virtualize),
+                                subtitle = stringResource(R.string.settings_virtualize_desc),
+                                checked = virtualizeLargeOutput,
+                                onChange = onVirtualizeLargeOutputChange,
+                                // The raw stream is one continuous text, with no blocks to scroll inside.
+                                enabled = !rawStream,
+                            )
+                            SettingsDivider()
+                            SliderRow(
+                                title = stringResource(R.string.settings_preview_lines),
+                                value = previewLines,
+                                range = 1f..10f,
+                                onChange = onPreviewLinesChange,
+                            )
+                        }
+                    },
                 )
-                val uriHandler = LocalUriHandler.current
-                val sourceUrl = stringResource(R.string.about_source_url)
-                // Everything About offers, in one card, like the other rooms.
-                var confirmReset by remember { mutableStateOf(false) }
-                SettingsCard {
-                    SettingsEntryRow(
-                        icon = Icons.Default.Code,
-                        title = stringResource(R.string.about_source),
-                        onClick = { uriHandler.openUri(sourceUrl) },
-                        trailing = { OpenOutside() },
+
+                SettingsPane.FONT -> FontPane(state = appearance, actions = appearanceActions)
+
+                SettingsPane.ABOUT -> AyanaPage(stringResource(R.string.settings_about)) {
+                    // The icon's light as the room's emblem, across the whole width.
+                    AyanaLight(
+                        Modifier
+                            .fillMaxWidth()
+                            .height(ABOUT_LIGHT_HEIGHT),
                     )
-                    SettingsDivider()
-                    // Actions, not rooms: their words say what they do, so they need no chevron.
-                    SettingsEntryRow(
-                        icon = Icons.Outlined.Description,
-                        title = stringResource(R.string.settings_diag_copy),
-                        onClick = { copyDiagnostics(context) },
-                        trailing = {},
-                    )
-                    SettingsDivider()
-                    // The one way back to the defaults, for every room at once. It asks first, as
-                    // it undoes a lot.
-                    SettingsEntryRow(
-                        icon = Icons.Default.RestartAlt,
-                        title = stringResource(R.string.glass_reset),
-                        onClick = { confirmReset = true },
-                        trailing = {},
+                    val uriHandler = LocalUriHandler.current
+                    val sourceUrl = stringResource(R.string.about_source_url)
+                    // Everything About offers, in one card, like the other rooms.
+                    var confirmReset by remember { mutableStateOf(false) }
+                    SettingsCard {
+                        SettingsEntryRow(
+                            icon = Icons.Default.Code,
+                            title = stringResource(R.string.about_source),
+                            onClick = { uriHandler.openUri(sourceUrl) },
+                            trailing = { OpenOutside() },
+                        )
+                        SettingsDivider()
+                        // Actions, not rooms: their words say what they do, so they need no chevron.
+                        SettingsEntryRow(
+                            icon = Icons.Outlined.Description,
+                            title = stringResource(R.string.settings_diag_copy),
+                            onClick = { copyDiagnostics(context) },
+                            trailing = {},
+                        )
+                        SettingsDivider()
+                        // The one way back to the defaults, for every room at once. It asks first, as
+                        // it undoes a lot.
+                        SettingsEntryRow(
+                            icon = Icons.Default.RestartAlt,
+                            title = stringResource(R.string.glass_reset),
+                            onClick = { confirmReset = true },
+                            trailing = {},
+                        )
+                    }
+                    if (confirmReset) {
+                        AyanaConfirmDialog(
+                            title = stringResource(R.string.reset_all_title),
+                            text = stringResource(R.string.reset_all_text),
+                            onConfirm = {
+                                confirmReset = false
+                                onResetAll()
+                            },
+                            onDismiss = { confirmReset = false },
+                            confirmLabel = stringResource(R.string.reset_all_confirm),
+                            confirmTinted = true,
+                        )
+                    }
+                    // The version, quiet, at the very end.
+                    Text(
+                        stringResource(R.string.about_version, BuildConfig.VERSION_NAME),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier
+                            .align(Alignment.CenterHorizontally)
+                            .padding(top = Ui.spaceL),
                     )
                 }
-                if (confirmReset) {
-                    AyanaConfirmDialog(
-                        title = stringResource(R.string.reset_all_title),
-                        text = stringResource(R.string.reset_all_text),
-                        onConfirm = {
-                            confirmReset = false
-                            onResetAll()
-                        },
-                        onDismiss = { confirmReset = false },
-                        confirmLabel = stringResource(R.string.reset_all_confirm),
-                        confirmTinted = true,
-                    )
-                }
-                // The version, quiet, at the very end.
-                Text(
-                    stringResource(R.string.about_version, BuildConfig.VERSION_NAME),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier
-                        .align(Alignment.CenterHorizontally)
-                        .padding(top = Ui.spaceL),
-                )
             }
         }
     }
