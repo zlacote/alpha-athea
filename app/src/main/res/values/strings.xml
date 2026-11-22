@@ -182,7 +182,6 @@
     <string name="settings_attach_sends_now">Run file commands at once</string>
     <string name="settings_attach_sends_now_desc">Copy and Symlink in the + menu run their command; off, it waits in the input</string>
     <string name="settings_section_notifications">Notifications</string>
-    <string name="settings_glow_section">Glow</string>
     <string name="settings_glow">Glow while a command runs</string>
     <string name="settings_glow_desc">A soft light glows down from the top edge</string>
     <string name="settings_glow_strength">Strength, %</string>

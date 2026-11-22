@@ -1,12 +1,7 @@
 package iatheiya.ayana.ui.main
 
-import androidx.compose.animation.core.VisibilityThreshold
-import androidx.compose.ui.unit.IntSize
-import androidx.compose.animation.core.snap
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
+import iatheiya.ayana.ui.common.foldGlide
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -164,7 +159,7 @@ fun FavoritesScreen(
                             Text(
                                 text = "${shown.size}/${ordered.size}",
                                 style = MaterialTheme.typography.labelMedium.copy(fontFamily = FontFamily.Monospace),
-                                color = glassInk().copy(alpha = HINT_ALPHA),
+                                color = glassInk().copy(alpha = Ui.hintAlpha),
                                 modifier = Modifier.padding(horizontal = Ui.spaceS),
                             )
                             IconButton(onClick = { query = null }, modifier = Modifier.size(Ui.composerButtonSize)) {
@@ -248,10 +243,10 @@ private fun BoxScope.FloatingBar(onHeight: (Int) -> Unit, content: @Composable (
             .navigationBarsPadding()
             .imePadding()
             .onSizeChanged { onHeight(it.height) }
-            .padding(horizontal = BAR_MARGIN_H)
+            .padding(horizontal = Ui.floatingMarginH)
             .padding(top = 10.dp, bottom = 8.dp)
             .liquidGlass(LocalLiquidBackdrop.current, Ui.panelShape, Ui.panelRadius)
-            .padding(horizontal = BAR_PADDING_H, vertical = 4.dp),
+            .padding(horizontal = Ui.floatingPaddingH, vertical = 4.dp),
     ) {
         content()
     }
@@ -295,7 +290,7 @@ private fun FavoriteField(
                 decorationBox = { inner ->
                     Box(contentAlignment = Alignment.CenterStart) {
                         if (value.isEmpty()) {
-                            Text(hint, style = messageStyle(), color = ink.copy(alpha = HINT_ALPHA), maxLines = 1)
+                            Text(hint, style = messageStyle(), color = ink.copy(alpha = Ui.hintAlpha), maxLines = 1)
                         }
                         inner()
                     }
@@ -334,10 +329,7 @@ private fun FavoriteBubble(
             .clip(Ui.bubbleShape)
             .then(if (fill != null) Modifier.background(fill) else Modifier.glass(Ui.bubbleShape))
             .combinedClickable(onClick = onUse, onLongClick = { onMenu(bounds) })
-            .animateContentSize(
-                if (foldByHand) spring(stiffness = Spring.StiffnessMediumLow, visibilityThreshold = IntSize.VisibilityThreshold) else snap(),
-                finishedListener = { _, _ -> foldByHand = false },
-            )
+            .foldGlide(foldByHand) { foldByHand = false }
             .padding(horizontal = Ui.bubblePaddingH, vertical = Ui.spaceM),
     ) {
         Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(Ui.spaceS)) {
@@ -385,7 +377,4 @@ private fun FavoriteBubble(
 private const val FAVORITE_PREVIEW_LINES = 4
 /** How many lines the field at the bottom grows to before it scrolls. */
 private const val FIELD_MAX_LINES = 5
-private const val HINT_ALPHA = 0.72f
 private val PIN_SIZE = 15.dp
-private val BAR_MARGIN_H = 16.dp
-private val BAR_PADDING_H = 4.dp

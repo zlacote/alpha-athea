@@ -82,8 +82,6 @@ import iatheiya.ayana.ui.theme.messageStyle
 
 /** The drawn send circle, kept smaller than its touch target so it sits inside the field. */
 
-private val FLOATING_PADDING_H = 4.dp
-private val FLOATING_MARGIN_H = 16.dp
 
 /** Space the buttons occupy at the tail of the field, shared by every
  *  layout that reserves room for them. */
@@ -163,7 +161,7 @@ fun InputBar(
 @Composable
 private fun Modifier.barPadding(): Modifier =
     this
-        .padding(horizontal = FLOATING_MARGIN_H)
+        .padding(horizontal = Ui.floatingMarginH)
         .padding(top = 10.dp, bottom = 8.dp)
 
 /** Rounded on top only: the panel's flat bottom continues straight into the key row below it. */
@@ -223,7 +221,7 @@ private fun DraftPanel(
             )
             .onGloballyPositioned { onPanelBounds(it.boundsInRoot()) },
     ) {
-        Column(Modifier.padding(horizontal = if (docked) Ui.composerPaddingH else FLOATING_PADDING_H, vertical = 4.dp)) {
+        Column(Modifier.padding(horizontal = if (docked) Ui.composerPaddingH else Ui.floatingPaddingH, vertical = 4.dp)) {
             val selectionColours = LocalTextSelectionColors.current
             Box {
                 CompositionLocalProvider(
@@ -400,7 +398,7 @@ private fun SearchPanel(
             .barPadding()
             .liquidGlass(backdrop, Ui.panelShape, Ui.panelRadius)
             .onGloballyPositioned { onPanelBounds(it.boundsInRoot()) }
-            .padding(horizontal = FLOATING_PADDING_H, vertical = 4.dp),
+            .padding(horizontal = Ui.floatingPaddingH, vertical = 4.dp),
     ) {
         Box(
             Modifier
@@ -433,7 +431,7 @@ private fun SearchPanel(
                             FittingText(
                                 text = stringResource(R.string.search_in_session_hint),
                                 style = messageStyle(),
-                                color = ink.copy(alpha = HINT_ALPHA),
+                                color = ink.copy(alpha = Ui.hintAlpha),
                             )
                         }
                         inner()
@@ -451,7 +449,7 @@ private fun SearchPanel(
             Text(
                 text = if (matchCount == 0) "0/0" else "${matchIndex + 1}/$matchCount",
                 style = MaterialTheme.typography.labelMedium.copy(fontFamily = FontFamily.Monospace),
-                color = ink.copy(alpha = HINT_ALPHA),
+                color = ink.copy(alpha = Ui.hintAlpha),
                 modifier = Modifier.padding(horizontal = Ui.spaceXs),
             )
             IconButton(onClick = onPrevious, modifier = Modifier.size(Ui.composerButtonSize)) {
@@ -560,9 +558,6 @@ internal fun SendCircleButton(
         }
     }
 }
-
-/** How strongly the search's hint and count show, against its ink. */
-private const val HINT_ALPHA = 0.72f
 
 /**
  * Shows the next part of [suggestion] after the end of [draft], in [colour], as if it were part

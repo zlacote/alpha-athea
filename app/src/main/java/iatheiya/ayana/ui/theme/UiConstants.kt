@@ -35,7 +35,6 @@ object Ui {
     val bubbleShape = RoundedCornerShape(22.dp)
     val panelRadius = 28.dp
     val panelShape = RoundedCornerShape(panelRadius)
-    val attachmentShape = RoundedCornerShape(14.dp)
     val dialogShape = RoundedCornerShape(20.dp)
 
     /** Corners of a settings card, and of blocks built to sit among cards. */
@@ -105,7 +104,6 @@ object Ui {
 
     // ---- Common paddings --------------------------------------------------
     val screenPadding = 16.dp
-    val headerPaddingH = 8.dp
     val headerPaddingV = 4.dp
     val contentPaddingV = 8.dp
 
@@ -124,6 +122,11 @@ object Ui {
     const val chevronAlpha = 0.5f
     const val chevronAlphaCollapsedPreview = 0.6f
     const val ghostAlpha = 0.45f
+    /** How strongly a hint (and a count beside a field) shows against its ink. */
+    const val hintAlpha = 0.72f
+    /** A bar that floats over the bottom edge: its margin from the sides, and its inner padding. */
+    val floatingMarginH = 16.dp
+    val floatingPaddingH = 4.dp
     const val drawerScrimA = 0.28f
     const val drawerScrimB = 0.62f
     const val drawerScrimC = 0.92f

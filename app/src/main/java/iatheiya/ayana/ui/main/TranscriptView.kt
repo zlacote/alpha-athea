@@ -1,18 +1,19 @@
 package iatheiya.ayana.ui.main
 
+import iatheiya.ayana.ui.common.foldGlide
+import kotlinx.coroutines.launch
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.animation.core.animate
+import androidx.compose.ui.layout.layout
 import iatheiya.ayana.ui.common.pressWash
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.ui.unit.LayoutDirection
-import androidx.compose.animation.core.VisibilityThreshold
-import androidx.compose.ui.unit.IntSize
-import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.runtime.SideEffect
-import androidx.compose.animation.animateContentSize
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.key
 import androidx.compose.runtime.compositionLocalOf
@@ -407,11 +408,13 @@ fun TranscriptView(
                 return@BoxWithConstraints
             }
 
+            val lift = rememberArrivalLift(listState, session.id)
             LazyColumn(
                 state = listState,
                 reverseLayout = true,
                 modifier = Modifier
                     .fillMaxSize()
+                    .arrivalLift(lift, armed = { stickToBottom })
                     .then(if (pinchZoomEnabled) Modifier.pinchToZoom(onTranscriptFontZoom) else Modifier),
                 contentPadding = remember(contentTopPadding, contentBottomPadding, contentBottomPaddingNow) {
                     LivePadding(
@@ -426,10 +429,7 @@ fun TranscriptView(
                         is DisplayItem.Chunk -> "${item.blockId}-chunk-${item.chunkIndex}"
                     }
                 }) { item ->
-                    // The new message fades in where it lands. The ones above are not animated
-                    // into place: an answer growing at the bottom moves them every frame, and a
-                    // sliding one would lag behind it and overlap it.
-                    Box(Modifier.animateItem(fadeInSpec = tween(ITEM_FADE_MS), placementSpec = null, fadeOutSpec = null)) {
+                    Box {
                         when (item) {
                             is DisplayItem.Block -> {
                                 val view = item.view
@@ -672,7 +672,7 @@ private fun CommandBubble(
             // Folding and opening glide, instead of the bubble snapping to its new height.
             Column(
                 Modifier
-                    .animateContentSize(if (foldByHand) spring(stiffness = Spring.StiffnessMediumLow, visibilityThreshold = IntSize.VisibilityThreshold) else snap(), finishedListener = { _, _ -> foldByHand = false })
+                    .foldGlide(foldByHand) { foldByHand = false }
                     .padding(start = Ui.bubblePaddingH, end = Ui.bubblePaddingH, top = Ui.bubblePaddingTop, bottom = Ui.bubblePaddingBottom),
             ) {
                 if (collapsed && collapsible) {
@@ -769,7 +769,7 @@ private fun OutputPanel(
                 if (block.running) {
                     Modifier
                 } else {
-                    Modifier.animateContentSize(if (foldByHand) spring(stiffness = Spring.StiffnessMediumLow, visibilityThreshold = IntSize.VisibilityThreshold) else snap(), finishedListener = { _, _ -> foldByHand = false })
+                    Modifier.foldGlide(foldByHand) { foldByHand = false }
                 },
             )
             .padding(horizontal = Ui.outputPaddingH, vertical = Ui.headerPaddingV)
@@ -1120,9 +1120,6 @@ internal fun Modifier.fadeOutBottom(height: Dp): Modifier =
             )
         }
 
-/** How long a new message takes to fade in where it lands. */
-private const val ITEM_FADE_MS = 180
-
 /** How strongly a held message is washed with its own ink. */
 private const val BUBBLE_PRESS_ALPHA = 0.18f
 
@@ -1132,4 +1129,49 @@ private class LivePadding(private val top: Dp, private val bottom: () -> Dp) : P
     override fun calculateRightPadding(layoutDirection: LayoutDirection): Dp = 0.dp
     override fun calculateTopPadding(): Dp = top
     override fun calculateBottomPadding(): Dp = bottom()
+}
+
+/**
+ * How a new message arrives at the end of the chat, as in a messenger: everything rises together
+ * by its height, the message coming up from under the composer, instead of the list jumping up
+ * in one frame. The list is already laid out with the message in place; in that very layout it is
+ * drawn [offset] lower, by exactly the message's height, so nothing moves on screen yet, and then
+ * the offset springs back to nothing.
+ */
+private class ArrivalLift(val listState: LazyListState, val scope: kotlinx.coroutines.CoroutineScope) {
+    /** The newest item seen at the bottom; a different one there is an arrival. */
+    var newestKey: Any? = null
+    var offset by mutableFloatStateOf(0f)
+    var glide: kotlinx.coroutines.Job? = null
+
+    /** Called as the list is placed: notes an arrival and lowers the list by its height. */
+    fun onPlaced(armed: Boolean) {
+        val first = listState.layoutInfo.visibleItemsInfo.firstOrNull() ?: return
+        if (first.index != 0 || first.key == newestKey) return
+        val known = newestKey != null
+        newestKey = first.key
+        if (!known || !armed) return
+        offset += first.size
+        val from = offset
+        glide?.cancel()
+        glide = scope.launch {
+            animate(from, 0f, animationSpec = spring(stiffness = Spring.StiffnessMediumLow)) { value, _ -> offset = value }
+        }
+    }
+}
+
+@Composable
+private fun rememberArrivalLift(listState: LazyListState, sessionId: Long): ArrivalLift {
+    val scope = rememberCoroutineScope()
+    return remember(listState, sessionId) { ArrivalLift(listState, scope) }
+}
+
+/** Draws the list [lift]'s offset lower while a new message comes in; [armed] while at the end. */
+private fun Modifier.arrivalLift(lift: ArrivalLift, armed: () -> Boolean): Modifier = layout { measurable, constraints ->
+    val placeable = measurable.measure(constraints)
+    layout(placeable.width, placeable.height) {
+        // The list has just been measured: a new item at the bottom shows here, before drawing.
+        lift.onPlaced(armed())
+        placeable.placeWithLayer(0, 0) { translationY = lift.offset }
+    }
 }
