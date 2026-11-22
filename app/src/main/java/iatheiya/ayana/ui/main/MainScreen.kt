@@ -346,7 +346,7 @@ private fun MainScreenRoutes(viewModel: MainViewModel, state: UiState) {
                 viewModel.setShowFavorites(false)
             },
             onRun = viewModel::executeDirectly,
-            onCopy = { text -> context.copyToClipboard(text, "ayana-favorite") },
+            onCopy = { text -> appContext.copyToClipboard(text, "ayana-favorite") },
             onAdd = viewModel::addFavorite,
             onEdit = viewModel::updateFavorite,
             onTogglePin = viewModel::togglePinFavorite,
