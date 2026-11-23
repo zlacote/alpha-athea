@@ -1,11 +1,5 @@
 package iatheiya.ayana.ui.main
 
-import androidx.compose.animation.core.VisibilityThreshold
-import androidx.compose.ui.unit.IntOffset
-import androidx.compose.ui.layout.layout
-import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.animation.core.animate
-import androidx.compose.runtime.SideEffect
 import iatheiya.ayana.ui.common.foldGlide
 import iatheiya.ayana.ui.common.pressWash
 import androidx.compose.material3.ButtonDefaults
@@ -359,19 +353,20 @@ fun TranscriptView(
                         }
                     }
             }
-            // A new message, while at the end, comes in as in a messenger (as a recycler's item
-            // animator does it): in the very layout that first has it, it takes its place at the
-            // bottom, the messages above are drawn where they were and glide up by its height,
-            // and it rises from under the composer by that same height, on the same spring. Nothing
-            // vanishes and nothing waits for a scroll to catch up.
+            // A new message, while at the end, comes in as in a messenger: the whole chat, the new
+            // message with it, rises as one piece by the new message's height. That is a real
+            // scroll, not a picture of one. The list keeps the messages where they were in the
+            // layout that first has the new one (it holds its place by the item's key), so the new
+            // message is laid out just below the old end, under the composer; then the list glides
+            // to its very end. Nothing jumps first: a jump (scrollToItem) would also reset the
+            // list's item animations, which is what made the old messages leap up before the new
+            // one caught up with them.
             val newestKey = listItems.firstOrNull()?.let(::listKeyOf)
             val arrival = remember(session.id) { Arrival() }
             arrival.note(newestKey, stickToBottom)
-            SideEffect { if (arrival.takeScroll()) listState.requestScrollToItem(0) }
             LaunchedEffect(arrival.count) {
                 if (arrival.count == 0) return@LaunchedEffect
-                animate(0f, 1f, animationSpec = ARRIVAL_SPRING) { value, _ -> arrival.progress = value }
-                arrival.settling = false
+                listState.glideToEnd()
             }
 
             // Search navigation: reveal the block, then scroll to its first chunk.
@@ -438,17 +433,7 @@ fun TranscriptView(
                 },
             ) {
                 items(listItems, key = ::listKeyOf) { item ->
-                    val itemKey = listKeyOf(item)
-                    Box(
-                        Modifier
-                            // While a message comes in, the others glide to their new places.
-                            .animateItem(
-                                fadeInSpec = null,
-                                placementSpec = if (arrival.settling) ARRIVAL_PLACEMENT else null,
-                                fadeOutSpec = null,
-                            )
-                            .then(if (itemKey == arrival.key) Modifier.risingIn(arrival) else Modifier),
-                    ) {
+                    Box {
                         when (item) {
                             is DisplayItem.Block -> {
                                 val view = item.view
@@ -1150,18 +1135,12 @@ private class LivePadding(private val top: Dp, private val bottom: () -> Dp) : P
     override fun calculateBottomPadding(): Dp = bottom()
 }
 
-/** The newest item at the end of the chat, and the one coming in now with how much of it shows. */
+/** The newest item at the end of the chat; counts the ones that come in while the chat is followed. */
 private class Arrival {
-    var lastKey: Any? = null
-    /** The item coming in now. */
-    var key: Any? = null
-    /** How far it has come, 0 (under the composer) to 1 (in place). */
-    var progress by mutableFloatStateOf(1f)
-    /** True while the others glide to their new places. */
-    var settling by mutableStateOf(false)
+    private var lastKey: Any? = null
     /** Arrivals so far; each new one starts the glide again. */
     var count by mutableIntStateOf(0)
-    private var scrollPending = false
+        private set
 
     /** Notes the newest item; a new one at the end of the chat, followed, is an arrival. */
     fun note(newestKey: Any?, following: Boolean) {
@@ -1169,39 +1148,39 @@ private class Arrival {
         val before = lastKey
         lastKey = newestKey
         if (before == null || newestKey == null || !following) return
-        key = newestKey
-        progress = 0f
-        settling = true
-        scrollPending = true
         count++
     }
-
-    /** True once after an arrival: the list is to hold its end in that layout. */
-    fun takeScroll(): Boolean = scrollPending.also { scrollPending = false }
 }
 
-/** The item coming in rises from under the composer by its own height, showing as it comes. */
-private fun Modifier.risingIn(arrival: Arrival): Modifier = layout { measurable, constraints ->
-    val placeable = measurable.measure(constraints)
-    layout(placeable.width, placeable.height) {
-        placeable.placeWithLayer(0, 0) {
-            val p = arrival.progress
-            translationY = (1f - p) * placeable.height
-            alpha = p.coerceIn(0f, 1f)
+/**
+ * Glides the chat to its very end (the newest item's end above the composer) once the layout that
+ * has the newest item is measured. The distance is read from that layout: how far below its place
+ * the newest item lies. An answer growing during the glide moves the end further, so the glide is
+ * repeated, a few times at most, until the end is reached; a finger on the list stops it.
+ */
+private suspend fun LazyListState.glideToEnd() {
+    // The effect may start before the frame that first has the new item is laid out; by the next
+    // frame that layout is done, and the distance can be read from it.
+    withFrameNanos { }
+    repeat(ARRIVAL_GLIDES) {
+        val newest = layoutInfo.visibleItemsInfo.firstOrNull { it.index == 0 }
+        if (newest == null) {
+            // Too far below to measure: one glide by item, which covers any distance.
+            animateScrollToItem(0)
+            return
         }
+        // At rest the newest item lies at offset 0; below its place its offset is negative.
+        if (newest.offset >= 0) return
+        animateScrollBy(newest.offset.toFloat(), ARRIVAL_SPRING)
     }
 }
 
-/** One spring for the message rising and the others making room, so they move as one. */
+/** The spring the chat rises on when a message comes in. */
 private val ARRIVAL_SPRING = androidx.compose.animation.core.spring<Float>(
     dampingRatio = androidx.compose.animation.core.Spring.DampingRatioNoBouncy,
     stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow,
 )
-private val ARRIVAL_PLACEMENT = androidx.compose.animation.core.spring(
-    dampingRatio = androidx.compose.animation.core.Spring.DampingRatioNoBouncy,
-    stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow,
-    visibilityThreshold = IntOffset.VisibilityThreshold,
-)
+private const val ARRIVAL_GLIDES = 3
 
 /** The key an item has in the list. */
 private fun listKeyOf(item: DisplayItem): Any = when (item) {

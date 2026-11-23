@@ -10,15 +10,18 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.layout.fillMaxSize
 
 /**
- * Swaps whole screens (settings, a settings room, favourites) with a short, small move: the screen
- * going deeper grows in from slightly smaller and fades in while the one it covers fades out,
- * growing a little; going back plays the same the other way. No slide across the width: the
- * screens stay where they are, only their depth changes.
+ * Swaps whole screens with a short, small move. Opened from a row with an arrow pointing right (a
+ * settings room, Keys, Glass), a screen comes in [sideways]: a short way from the right while the
+ * one it covers leaves a short way to the left, both fading; back runs the other way. Otherwise
+ * (settings or favourites over the chat) the screen going deeper grows in from slightly smaller
+ * while the one it covers fades out, growing a little; back plays the same the other way.
  *
  * [depth] orders the screens: a target deeper than the current one is a step in. A [still] screen
  * only fades, without the scale: its glass finds what it refracts by its place in the window, and
@@ -30,17 +33,19 @@ internal fun <T> ScreenSwap(
     depth: (T) -> Int,
     modifier: Modifier = Modifier,
     still: (T) -> Boolean = { false },
+    sideways: (from: T, to: T) -> Boolean = { _, _ -> false },
     content: @Composable (T) -> Unit,
 ) {
     AnimatedContent(
         targetState = target,
         modifier = modifier.fillMaxSize(),
         transitionSpec = {
-            screenSwap(
-                forward = depth(targetState) >= depth(initialState),
-                scaleIn = !still(targetState),
-                scaleOut = !still(initialState),
-            )
+            val forward = depth(targetState) >= depth(initialState)
+            if (sideways(initialState, targetState)) {
+                sidewaysSwap(forward)
+            } else {
+                screenSwap(forward, scaleIn = !still(targetState), scaleOut = !still(initialState))
+            }
         },
         label = "screen",
     ) { shown -> content(shown) }
@@ -59,6 +64,15 @@ private fun screenSwap(forward: Boolean, scaleIn: Boolean, scaleOut: Boolean): C
     return ContentTransform(enter, exit, targetContentZIndex = 1f, sizeTransform = SizeTransform(clip = false))
 }
 
+private fun sidewaysSwap(forward: Boolean): ContentTransform {
+    val side = if (forward) 1 else -1
+    val enter = fadeIn(tween(SWAP_IN_MS, delayMillis = SWAP_IN_DELAY_MS, easing = LinearOutSlowInEasing)) +
+        slideInHorizontally(tween(SWAP_MS, easing = FastOutSlowInEasing)) { width -> side * width / SLIDE_SHARE }
+    val exit = fadeOut(tween(SWAP_OUT_MS, easing = FastOutSlowInEasing)) +
+        slideOutHorizontally(tween(SWAP_MS, easing = FastOutSlowInEasing)) { width -> -side * width / SLIDE_SHARE }
+    return ContentTransform(enter, exit, targetContentZIndex = 1f, sizeTransform = SizeTransform(clip = false))
+}
+
 /** How long a swap takes, for whatever must wait until the leaving screen is gone. */
 internal const val SCREEN_SWAP_MS = 260
 private const val SWAP_MS = SCREEN_SWAP_MS
@@ -67,3 +81,5 @@ private const val SWAP_IN_DELAY_MS = 40
 private const val SWAP_OUT_MS = 140
 private const val SWAP_NEAR = 0.94f
 private const val SWAP_FAR = 1.04f
+/** A sideways swap moves each screen by this share of the width: a short step, not a full slide. */
+private const val SLIDE_SHARE = 5
