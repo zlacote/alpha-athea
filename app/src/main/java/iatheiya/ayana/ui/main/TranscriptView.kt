@@ -367,7 +367,12 @@ fun TranscriptView(
             val arrival = remember(session.id) { Arrival() }
             val flight = LocalMessageFlight.current
             when (arrival.note(newestKey, stickToBottom)) {
-                true -> if (newest is DisplayItem.Block && newest.view.block is CommandBlock) flight?.board(newestKey!!)
+                // Only from the very end: the flight lands just above the composer.
+                true -> if (newest is DisplayItem.Block && newest.view.block is CommandBlock && !listState.canScrollBackward) {
+                    flight?.board(newestKey!!)
+                } else {
+                    flight?.cancelTakeoff()
+                }
                 false -> flight?.cancelTakeoff()
                 null -> {}
             }
@@ -399,6 +404,9 @@ fun TranscriptView(
             LaunchedEffect(session.id) {
                 jumpToBottom.collect {
                     stickToBottom = true
+                    // Already at the end: the message being sent glides in on its own. A glide by
+                    // item here would race it and, ending, snap the new message into place at once.
+                    if (!listState.canScrollBackward) return@collect
                     try { listState.animateScrollToItem(0) } catch (_: Exception) {}
                 }
             }

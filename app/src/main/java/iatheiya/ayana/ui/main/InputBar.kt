@@ -224,7 +224,14 @@ private fun DraftPanel(
             // Growing with a long draft and shrinking back once it is sent, it glides between
             // heights instead of snapping: a big message sent made the composer, and the chat
             // above it, jump down in one frame.
-            .animateContentSize(tween(durationMillis = COMPOSER_RESIZE_MS, easing = FastOutSlowInEasing))
+            .animateContentSize(
+                // Shrinking after a send, on the spring the message flies on; otherwise a plain glide.
+                if (LocalMessageFlight.current?.launching == true) {
+                    FLIGHT_RESIZE
+                } else {
+                    tween(durationMillis = COMPOSER_RESIZE_MS, easing = FastOutSlowInEasing)
+                },
+            )
             .then(
                 if (docked) {
                     Modifier

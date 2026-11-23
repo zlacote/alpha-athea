@@ -219,13 +219,7 @@ private fun MainScreenRoutes(viewModel: MainViewModel, state: UiState) {
         state.showFavorites -> Screen.FAVORITES
         else -> Screen.CHAT
     }
-    ScreenSwap(
-        target = screen,
-        depth = Screen::depth,
-        still = { it == Screen.CHAT },
-        // Keys and Glass open from rows of the settings with an arrow pointing right.
-        sideways = { from, to -> from != Screen.CHAT && to != Screen.CHAT },
-    ) { shown ->
+    ScreenSwap(target = screen, depth = Screen::depth) { shown ->
         when (shown) {
             Screen.GLASS -> {
                 BackHandler(enabled = shown == screen) { viewModel.setShowGlassTuning(false) }
@@ -773,7 +767,7 @@ private fun BottomBar(
             onDraftChange = viewModel::onComposerTextChange,
             onSend = {
                 // Where the words stood, for the message to fly out from.
-                flight?.takeOff()
+                if (draft.isNotBlank()) flight?.takeOff()
                 viewModel.sendDraft()
             },
             onExpandEditor = { viewModel.setEditorExpanded(true) },

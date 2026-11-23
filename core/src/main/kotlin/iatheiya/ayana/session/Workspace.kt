@@ -350,10 +350,15 @@ class Workspace(
             if (pipes[id]?.screen?.altActive == true) return sendToFullScreen(id)
             val draft = metas[id]?.draft.orEmpty().trimCommand()
             if (draft.isBlank()) return false
-            submit(id, draft)
-            mutateMeta(id) { it.copy(draft = "") }
+            // The draft is cleared before the command goes in, so the screen gets both in one
+            // update: the words leave the composer in the very frame the message appears.
+            metas[id]?.let { metas[id] = it.copy(draft = "") }
+            // Shown by the submit's own refresh; without a submit, by its own.
+            if (!submit(id, draft)) refreshSession(id)
         }
-        persistTransientState()
+        // Kept on disk away from the caller's thread: a file write in the moment of sending
+        // showed as a stall in the message's flight.
+        scope.launch(dispatcher) { persistTransientState() }
         return true
     }
 
@@ -446,15 +451,16 @@ class Workspace(
         _state.update { it.copy(suggestion = suggestion) }
     }
 
-    private fun submit(id: Long, text: String) {
+    /** Sends [text] to the session's shell and shows it in the transcript; false when it could not. */
+    private fun submit(id: Long, text: String): Boolean {
         val backend = synchronized(lock) { backends[id] }
         if (backend == null) {
             AyanaLog.error("submit", "no engine for session $id")
-            return
+            return false
         }
         val seq = synchronized(lock) {
-            val pipe = pipes[id] ?: return
-            val seq = nextCommandSeqs[id] ?: return
+            val pipe = pipes[id] ?: return false
+            val seq = nextCommandSeqs[id] ?: return false
             nextCommandSeqs[id] = seq + 1
             if (!backend.reportsCommandEnds) {
                 // The output of the previous command ends here, so the new output lands below this command.
@@ -476,6 +482,7 @@ class Workspace(
         val payload = text.shellEval()
         AyanaLog.log("submit", "seq=$seq payloadSize=${payload.length}")
         backend.write(payload.toByteArray(Charsets.UTF_8))
+        return true
     }
 
     // ------------------------------------------------------------- favourites

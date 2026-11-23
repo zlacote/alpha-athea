@@ -2,6 +2,7 @@ package iatheiya.ayana.ui.main
 
 import android.os.SystemClock
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.VisibilityThreshold
 import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.layout.Box
@@ -48,6 +49,10 @@ internal class MessageFlight {
     private var takeoff: Offset? = null
     private var takeoffAt = 0L
 
+    /** From sending until the message lands: the composer shrinks on the flight's own spring. */
+    var launching by mutableStateOf(false)
+        private set
+
     /** The list item that flies, while it does. */
     var key: Any? by mutableStateOf(null)
         private set
@@ -75,13 +80,17 @@ internal class MessageFlight {
     fun takeOff() {
         takeoff = composerText?.takeIf { it.isAttached }?.positionInRoot()
         takeoffAt = SystemClock.uptimeMillis()
+        launching = takeoff != null
     }
 
     /** A sent message has come into the list as [itemKey]: it flies, if it was just sent from the composer. */
     fun board(itemKey: Any) {
         val from = takeoff ?: return
         takeoff = null
-        if (SystemClock.uptimeMillis() - takeoffAt > BOARDING_WINDOW_MS) return
+        if (SystemClock.uptimeMillis() - takeoffAt > BOARDING_WINDOW_MS) {
+            launching = false
+            return
+        }
         start = from
         shift = null
         item = null
@@ -94,11 +103,13 @@ internal class MessageFlight {
     /** No flight for what comes in next (a message sent by other means, or not followed). */
     fun cancelTakeoff() {
         takeoff = null
+        launching = false
     }
 
     internal fun land() {
         key = null
         progress = 1f
+        launching = false
     }
 
     private var start: Offset = Offset.Zero
@@ -127,7 +138,8 @@ internal fun Modifier.flyingItem(flight: MessageFlight?, key: Any): Modifier {
         .onGloballyPositioned { if (flight.key == key) flight.item = it }
         .drawWithContent {
             val layer = flight.layer
-            if (flight.key != key || layer == null) {
+            // Drawn in place unless the flight can draw it: it needs the bubble's place for that.
+            if (flight.key != key || layer == null || flight.bubble == null) {
                 drawContent()
                 return@drawWithContent
             }
@@ -176,16 +188,29 @@ internal fun MessageFlightLayer(flight: MessageFlight, modifier: Modifier = Modi
                 val item = flight.item?.takeIf { it.isAttached } ?: return@drawBehind
                 val shift = flight.shiftNow() ?: return@drawBehind
                 val here = origin[0]?.takeIf { it.isAttached }?.positionInRoot() ?: Offset.Zero
-                val at = item.positionInRoot() + shift * (1f - p) - here
+                // Across faster than up, as in a messenger: the bubble reaches its side early and
+                // settles into its place on the way up.
+                val across = 1f - (1f - p) * (1f - p) * (1f - p)
+                val at = item.positionInRoot() + Offset(shift.x * (1f - across), shift.y * (1f - p)) - here
                 translate(at.x, at.y) { drawLayer(layer) }
             },
     )
 }
 
-/** One spring for the message's flight and for the chat making room, so they move as one. */
+/**
+ * One spring for the message's flight, for the chat making room and for the composer shrinking
+ * after it, so they move as one. About as quick as a messenger's: mostly there in a tenth of a second.
+ */
 internal val FLIGHT_SPRING = spring<Float>(
     dampingRatio = Spring.DampingRatioNoBouncy,
-    stiffness = Spring.StiffnessMediumLow,
+    stiffness = Spring.StiffnessMedium,
+)
+
+/** [FLIGHT_SPRING] for the composer's size. */
+internal val FLIGHT_RESIZE = spring(
+    dampingRatio = Spring.DampingRatioNoBouncy,
+    stiffness = Spring.StiffnessMedium,
+    visibilityThreshold = IntSize.VisibilityThreshold,
 )
 
 /** The share of the flight over which the bubble fills in around the words. */

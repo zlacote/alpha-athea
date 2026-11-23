@@ -138,11 +138,7 @@ internal fun SettingsScreen(
     }
 
     AyanaScaffold(onBack = handleBack, modifier = modifier) {
-        ScreenSwap(
-            target = pane,
-            depth = { if (it == SettingsPane.ROOT) 0 else 1 },
-            sideways = { _, _ -> true },
-        ) { shown ->
+        ScreenSwap(target = pane, depth = { if (it == SettingsPane.ROOT) 0 else 1 }) { shown ->
             when (shown) {
                 SettingsPane.ROOT -> AyanaPage(stringResource(R.string.settings), scrollState) {
                     SettingsCard {
