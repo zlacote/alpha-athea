@@ -395,8 +395,13 @@ private enum class Screen(val depth: Int) { CHAT(0), FAVORITES(1), SETTINGS(1), 
 private fun MainScreenContent(viewModel: MainViewModel, state: UiState) {
     val composerBackdrop = rememberLiquidBackdrop()
     val contextMenu = remember { ContextMenuState() }
+    val flight = remember { MessageFlight() }
     // Every glass surface on this screen refracts the same transcript backdrop.
-    CompositionLocalProvider(LocalLiquidBackdrop provides composerBackdrop, LocalContextMenu provides contextMenu) {
+    CompositionLocalProvider(
+        LocalLiquidBackdrop provides composerBackdrop,
+        LocalContextMenu provides contextMenu,
+        LocalMessageFlight provides flight,
+    ) {
         MainScreenBody(viewModel, state, composerBackdrop)
     }
 }
@@ -628,6 +633,9 @@ private fun MainScreenBody(viewModel: MainViewModel, state: UiState, composerBac
                 // same size, a fixed distance above the top of the panel (composer or search),
                 // so a tall draft pushes it up rather than covering it. Placed from measured
                 // positions, not by hand.
+                // A message just sent flies out of the composer above it, to its place in the chat.
+                LocalMessageFlight.current?.let { MessageFlightLayer(it, Modifier.zIndex(1.5f)) }
+
                 Box(Modifier.zIndex(2f)) {
                     JumpDownButton(
                         visible = jumpAvailable && sendBounds != Rect.Zero && panelBounds != Rect.Zero,
@@ -745,6 +753,7 @@ private fun BottomBar(
     // rounded on top, flat at the bottom, one lens over both, so they refract as one surface.
     // The search has no key row under it: it floats on its own, like the composer without keys.
     val docked = keyRowShown
+    val flight = LocalMessageFlight.current
     // It spills just past the left, right and bottom screen edges, so its rim lies off screen there
     // and only the rounded top edge shows one. Only just: the further out, the less of the bend at
     // its ends is on screen.
@@ -762,7 +771,11 @@ private fun BottomBar(
             draft = draft,
             suggestion = suggestion,
             onDraftChange = viewModel::onComposerTextChange,
-            onSend = viewModel::sendDraft,
+            onSend = {
+                // Where the words stood, for the message to fly out from.
+                flight?.takeOff()
+                viewModel.sendDraft()
+            },
             onExpandEditor = { viewModel.setEditorExpanded(true) },
             onAddClick = { onAttach() },
             search = state.workspace.search,

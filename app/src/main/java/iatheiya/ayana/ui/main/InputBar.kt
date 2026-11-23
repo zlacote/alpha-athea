@@ -201,6 +201,7 @@ private fun DraftPanel(
     var addBounds by remember { mutableStateOf(Rect.Zero) }
     val ghostColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = Ui.ghostAlpha)
     val fieldStyle = messageStyle().copy(color = MaterialTheme.colorScheme.onSurface)
+    val flight = LocalMessageFlight.current
     var fieldWidthPx by remember { mutableStateOf(0) }
     val measurer = rememberTextMeasurer()
     // The part of the suggestion shown: to the end of the line on screen it starts on.
@@ -314,7 +315,12 @@ private fun DraftPanel(
                                         )
                                     }
                                 }
-                                Box(Modifier.align(Alignment.CenterStart)) { inner() }
+                                // Where the words start: a sent message flies out from here.
+                                Box(
+                                    Modifier
+                                        .align(Alignment.CenterStart)
+                                        .onGloballyPositioned { flight?.composerText = it },
+                                ) { inner() }
                             }
                         },
                     )

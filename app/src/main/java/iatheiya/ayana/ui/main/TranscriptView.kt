@@ -361,9 +361,16 @@ fun TranscriptView(
             // to its very end. Nothing jumps first: a jump (scrollToItem) would also reset the
             // list's item animations, which is what made the old messages leap up before the new
             // one caught up with them.
-            val newestKey = listItems.firstOrNull()?.let(::listKeyOf)
+            // A command just sent from the composer flies out of it on the same glide.
+            val newest = listItems.firstOrNull()
+            val newestKey = newest?.let(::listKeyOf)
             val arrival = remember(session.id) { Arrival() }
-            arrival.note(newestKey, stickToBottom)
+            val flight = LocalMessageFlight.current
+            when (arrival.note(newestKey, stickToBottom)) {
+                true -> if (newest is DisplayItem.Block && newest.view.block is CommandBlock) flight?.board(newestKey!!)
+                false -> flight?.cancelTakeoff()
+                null -> {}
+            }
             LaunchedEffect(arrival.count) {
                 if (arrival.count == 0) return@LaunchedEffect
                 listState.glideToEnd()
@@ -433,7 +440,7 @@ fun TranscriptView(
                 },
             ) {
                 items(listItems, key = ::listKeyOf) { item ->
-                    Box {
+                    Box(Modifier.flyingItem(flight, listKeyOf(item))) {
                         when (item) {
                             is DisplayItem.Block -> {
                                 val view = item.view
@@ -621,6 +628,10 @@ private fun CommandBubble(
     }
     val collapsible = shownLines > previewLines
     val text = remember(block.text, query) { AnnotatedString(block.text).withSearchHighlights(query) }
+    // Sent from the composer, the message flies out of it: its words stay where they stood in the
+    // field and the bubble fills in around them, then it rises to its place (see MessageFlight).
+    val flight = LocalMessageFlight.current
+    val textInset = with(density) { Offset(Ui.bubblePaddingH.toPx(), Ui.bubblePaddingTop.toPx()) }
 
     Row(
         Modifier
@@ -639,6 +650,7 @@ private fun CommandBubble(
             modifier = Modifier
                 .widthIn(max = maxWidth)
                 .onGloballyPositioned { bubbleBounds = it.boundsInRoot() }
+                .flyingBubble(flight, block.id, textInset)
                 // Clipped first, so the press shows in the bubble's own round shape, not as a
                 // square around it.
                 .clip(Ui.bubbleShape)
@@ -664,84 +676,92 @@ private fun CommandBubble(
                 .drawWithContent {
                     drawContent()
                     if (pressWashAlpha > 0f) drawRect(bubbleText.copy(alpha = pressWashAlpha))
-                }
-                .then(
-                    if (bubbleFill != null) {
-                        Modifier.clip(Ui.bubbleShape).background(bubbleFill)
-                    } else {
-                        Modifier.glass(Ui.bubbleShape)
-                    },
-                ),
+                },
         ) {
-            // Folding and opening glide, instead of the bubble snapping to its new height.
-            Column(
-                Modifier
-                    .foldGlide(foldByHand) { foldByHand = false }
-                    .padding(start = Ui.bubblePaddingH, end = Ui.bubblePaddingH, top = Ui.bubblePaddingTop, bottom = Ui.bubblePaddingBottom),
-            ) {
-                if (collapsed && collapsible) {
-                    // The tail fades out to transparent, so it sinks into whatever the bubble is
-                    // (a tinted glass, a wallpaper behind it) instead of under a painted black band.
-                    Text(
-                        text = text,
-                        style = bubbleStyle,
-                        color = bubbleText,
-                        maxLines = previewLines,
-                        overflow = androidx.compose.ui.text.style.TextOverflow.Clip,
-                        modifier = Modifier.fadeOutBottom(Ui.tailFadeHeight),
-                    )
-                    Icon(
-                        Icons.Default.KeyboardArrowDown,
-                        contentDescription = stringResource(R.string.cd_expand_editor),
-                        // The same ink as the message, so it reads on any accent the bubble wears.
-                        tint = bubbleText.copy(alpha = Ui.chevronAlphaCollapsedPreview),
-                        modifier = Modifier
-                            .align(Alignment.CenterHorizontally)
-                            .padding(top = Ui.keyRowPaddingV)
-                            .size(Ui.chevronExpandSize)
-                            .clickable(onClick = toggle),
-                    )
-                } else {
-                    if (scrollInside && shownLines > Ui.hugeLinesThreshold) {
-                        // The same bound as a large output: the message scrolls inside it.
-                        val screenHeight = androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp.dp
-                        Box(
-                            Modifier
-                                .heightIn(max = screenHeight * Ui.virtualizedMaxFraction)
-                                .verticalScroll(rememberScrollState()),
-                        ) {
+            Box {
+                // The bubble's fill under its words, apart from them, so a flying message can fill in
+                // around words that are already there.
+                Box(
+                    Modifier
+                        .matchParentSize()
+                        .graphicsLayer { alpha = if (flight != null && flight.key == block.id) flight.bubbleAlpha else 1f }
+                        .then(
+                            if (bubbleFill != null) {
+                                Modifier.clip(Ui.bubbleShape).background(bubbleFill)
+                            } else {
+                                Modifier.glass(Ui.bubbleShape)
+                            },
+                        ),
+                )
+                // Folding and opening glide, instead of the bubble snapping to its new height.
+                Column(
+                    Modifier
+                        .foldGlide(foldByHand) { foldByHand = false }
+                        .padding(start = Ui.bubblePaddingH, end = Ui.bubblePaddingH, top = Ui.bubblePaddingTop, bottom = Ui.bubblePaddingBottom),
+                ) {
+                    if (collapsed && collapsible) {
+                        // The tail fades out to transparent, so it sinks into whatever the bubble is
+                        // (a tinted glass, a wallpaper behind it) instead of under a painted black band.
+                        Text(
+                            text = text,
+                            style = bubbleStyle,
+                            color = bubbleText,
+                            maxLines = previewLines,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Clip,
+                            modifier = Modifier.fadeOutBottom(Ui.tailFadeHeight),
+                        )
+                        Icon(
+                            Icons.Default.KeyboardArrowDown,
+                            contentDescription = stringResource(R.string.cd_expand_editor),
+                            // The same ink as the message, so it reads on any accent the bubble wears.
+                            tint = bubbleText.copy(alpha = Ui.chevronAlphaCollapsedPreview),
+                            modifier = Modifier
+                                .align(Alignment.CenterHorizontally)
+                                .padding(top = Ui.keyRowPaddingV)
+                                .size(Ui.chevronExpandSize)
+                                .clickable(onClick = toggle),
+                        )
+                    } else {
+                        if (scrollInside && shownLines > Ui.hugeLinesThreshold) {
+                            // The same bound as a large output: the message scrolls inside it.
+                            val screenHeight = androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp.dp
+                            Box(
+                                Modifier
+                                    .heightIn(max = screenHeight * Ui.virtualizedMaxFraction)
+                                    .verticalScroll(rememberScrollState()),
+                            ) {
+                                Text(
+                                    text = text,
+                                    style = bubbleStyle,
+                                    color = bubbleText,
+                                )
+                            }
+                        } else {
                             Text(
                                 text = text,
                                 style = bubbleStyle,
                                 color = bubbleText,
                             )
                         }
-                    } else {
-                        Text(
-                            text = text,
-                            style = bubbleStyle,
-                            color = bubbleText,
-                        )
-                    }
-                    if (collapsible) {
-                        // Calm collapse affordance at the tail, mirroring
-                        // the expand chevron of the collapsed preview.
-                        Icon(
-                            Icons.Default.KeyboardArrowDown,
-                            contentDescription = stringResource(R.string.cd_collapse),
-                            tint = bubbleText
-                                .copy(alpha = Ui.chevronAlphaCollapsedPreview),
-                            modifier = Modifier
-                                .align(Alignment.CenterHorizontally)
-                                .padding(top = Ui.keyRowPaddingV)
-                                .size(Ui.chevronExpandSize)
-                                .rotate(180f)
-                                .clickable(onClick = toggle),
-                        )
+                        if (collapsible) {
+                            // Calm collapse affordance at the tail, mirroring
+                            // the expand chevron of the collapsed preview.
+                            Icon(
+                                Icons.Default.KeyboardArrowDown,
+                                contentDescription = stringResource(R.string.cd_collapse),
+                                tint = bubbleText
+                                    .copy(alpha = Ui.chevronAlphaCollapsedPreview),
+                                modifier = Modifier
+                                    .align(Alignment.CenterHorizontally)
+                                    .padding(top = Ui.keyRowPaddingV)
+                                    .size(Ui.chevronExpandSize)
+                                    .rotate(180f)
+                                    .clickable(onClick = toggle),
+                            )
+                        }
                     }
                 }
             }
-
         }
     }
 }
@@ -1137,18 +1157,26 @@ private class LivePadding(private val top: Dp, private val bottom: () -> Dp) : P
 
 /** The newest item at the end of the chat; counts the ones that come in while the chat is followed. */
 private class Arrival {
+    private var seen = false
     private var lastKey: Any? = null
     /** Arrivals so far; each new one starts the glide again. */
     var count by mutableIntStateOf(0)
         private set
 
-    /** Notes the newest item; a new one at the end of the chat, followed, is an arrival. */
-    fun note(newestKey: Any?, following: Boolean) {
-        if (newestKey == lastKey) return
-        val before = lastKey
+    /**
+     * Notes the newest item. A new one at the end of the chat is an arrival: true when the chat is
+     * followed (it glides to it), false when it is not; null when nothing new came. What the chat
+     * holds when it is first shown is not new.
+     */
+    fun note(newestKey: Any?, following: Boolean): Boolean? {
+        if (seen && newestKey == lastKey) return null
+        val first = !seen
+        seen = true
         lastKey = newestKey
-        if (before == null || newestKey == null || !following) return
+        if (first || newestKey == null) return null
+        if (!following) return false
         count++
+        return true
     }
 }
 
@@ -1171,15 +1199,10 @@ private suspend fun LazyListState.glideToEnd() {
         }
         // At rest the newest item lies at offset 0; below its place its offset is negative.
         if (newest.offset >= 0) return
-        animateScrollBy(newest.offset.toFloat(), ARRIVAL_SPRING)
+        animateScrollBy(newest.offset.toFloat(), FLIGHT_SPRING)
     }
 }
 
-/** The spring the chat rises on when a message comes in. */
-private val ARRIVAL_SPRING = androidx.compose.animation.core.spring<Float>(
-    dampingRatio = androidx.compose.animation.core.Spring.DampingRatioNoBouncy,
-    stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow,
-)
 private const val ARRIVAL_GLIDES = 3
 
 /** The key an item has in the list. */

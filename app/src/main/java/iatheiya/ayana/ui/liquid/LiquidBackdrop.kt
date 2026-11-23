@@ -90,7 +90,7 @@ fun Modifier.liquidBackdrop(backdrop: LiquidBackdrop, background: Color = Color.
  * `drawContent()` called inside a record goes to the screen canvas instead, so the
  * recording stayed empty and glass sampled nothing.
  */
-private fun DrawScope.drawContentInto(content: ContentDrawScope) {
+internal fun DrawScope.drawContentInto(content: ContentDrawScope) {
     val screen = content.drawContext.canvas
     content.drawContext.canvas = drawContext.canvas
     try {
